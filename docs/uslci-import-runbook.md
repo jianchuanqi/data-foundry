@@ -1,6 +1,6 @@
 # USLCI 导入运行手册（goal 入口文档）
 
-> 目标读者：接手 USLCI 持续导入的任何一个 agent 会话或人工操作者。读完本文应能：知道当前阶段在哪、用哪条命令继续、遇到 blocker 怎么分诊，而不需要重新逆向工程。最后更新：2026-06-12（**Phase 0 完成**：library 补充数据冻结 + 合并闭合验证 + 全量冒烟转换 0 错误）。更新本文时同步更新「§6 当前状态快照」。
+> 目标读者：接手 USLCI 持续导入的任何一个 agent 会话或人工操作者。读完本文应能：知道当前阶段在哪、用哪条命令继续、遇到 blocker 怎么分诊，而不需要重新逆向工程。最后更新：2026-06-12（**Phase 1+2 完成**：正式转换链建立 + 单位归一化硬门禁关闭 + FP/UG 决策回合落地；详见 §6）。更新本文时同步更新「§6 当前状态快照」。
 
 ---
 
@@ -8,7 +8,7 @@
 
 - **Goal**：把 `inputs/National_Renewable_Energy_Laboratory-USLCI_Database_Public` 的 **1,358** 个 process（1,341 USLCI + 17 个被传递引用的 library 电网过程）导入远端 TIDAS 库，每个 process 最终为 _verified_ 或 _明确 non-importable_，gap 0（口径与 BAFU coverage 闭环一致）。
 - **Profile**：`uslci`（`specs/import-profiles.json`；约束见 `docs/import-profiles/uslci/`）。Lane：`external-dataset-curated-import`，**禁止新增 USLCI 专用 Foundry 代码路径，直到 pilot 证明必要**。
-- **任务文件**：`tasks/inbox/external-import-20260612-uslci.md`（队列内容是本地运行态，不入 git；首个执行会话把它 claim 到 `tasks/active/`）。
+- **任务文件**：`tasks/active/external-import-20260612-uslci.md`（已 claim，state Doing；队列内容是本地运行态，不入 git）。
 - **源包事实与 sha256**：`inputs/source-packages/uslci-database-public.md`（这是 source manifest，所有计数和复现命令在那里，本文不重复）。
 - **工作区**：`RUN=.foundry/workspaces/uslci-full-import-<UTC时间戳>`（Phase 1 创建后回填到 §6；下文 `$RUN` 指它）。阶段日志：`$RUN/phase-journal.md`。
 - **所有命令从仓库根目录跑**（`tiangong-lca-data-foundry/`）。
@@ -41,7 +41,7 @@ cd /Users/davidli/projects/workspace/tiangong-lca-data-foundry
 2. 每个新批次独立 `--out-dir`、独立 report / run-manifest / ledger。
 3. 所有支持 `--profile` 的命令**显式传 `--profile uslci`**；所有 decisions/resolution 路径显式传参——`dataset-bafu-batch-import-run` 一类命令的默认值指向 BAFU 工件，绝不能依赖默认。
 4. **远端写入是人工门禁**：任务 frontmatter `allow_remote_commit: false`；翻转它需要用户明确批准账号/写入政策（§5 D4）。在那之前一切到 dry-run / queue verify 为止。
-5. **单位归一化硬门禁**：在 §7-2 关闭前，任何 process 不得 remote commit（9,489 条 exchange 数值会错最高 1000 倍）。
+5. **单位归一化硬门禁**：✅ 已满足（2026-06-12 关闭，tidas-tools a3e1aa9 + 独立校验器全对，见 §7-2）。规则保留：若未来重新转换（新 tidas-tools 版本/源包变更），必须重跑 `$RUN/unit-normalization-verify/verify.py` 全对后才可恢复 commit。
 6. 高并行跑 CLI 时 `npm install --no-save @tiangong-lca/cli@latest && export TIANGONG_LCA_CLI_BIN=$PWD/node_modules/.bin/tiangong-lca`（npx 并发风暴会假性 blocked；BAFU 实测教训）。
 7. 源包目录（含 `libraries/`）是冻结输入：任何变更必须同步更新 `inputs/source-packages/uslci-database-public.md` 的 sha256/日期。
 
@@ -62,7 +62,7 @@ cd /Users/davidli/projects/workspace/tiangong-lca-data-foundry
 ## 4. 流水线总览
 
 ```
-inputs(合并源包) → tidas-tools 转换(直接 python 调用，见 §5 Phase 1)
+inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1）
   → dataset-library-index-build      ($RUN/library-index)
   → [决策回合] identity-preflight / classification / location / canonical-support  ($RUN/decisions-vN)
   → dataset-library-decisions-apply  ($RUN/library-resolution-vN)
