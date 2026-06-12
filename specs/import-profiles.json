@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at_utc": "2026-06-05T00:00:00Z",
+  "updated_at_utc": "2026-06-12T00:00:00Z",
   "default_profile": "generic",
   "profiles": {
     "generic": {
@@ -56,7 +56,8 @@
       "description": "USLCI import profile skeleton. It intentionally adds no dataset-specific code path or approved waivers until a pilot run proves them.",
       "docs": [
         "docs/import-profiles/uslci/profile.md",
-        "docs/import-profiles/uslci/constraints.md"
+        "docs/import-profiles/uslci/constraints.md",
+        "docs/uslci-import-runbook.md"
       ],
       "waived_qa_codes_by_type": {},
       "waiver_reasons": {},

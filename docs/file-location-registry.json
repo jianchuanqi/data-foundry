@@ -1,7 +1,7 @@
 {
   "$schema": "../specs/schemas/file-location-registry.schema.json",
   "schema_version": 1,
-  "updated_at_utc": "2026-06-08T01:48:00Z",
+  "updated_at_utc": "2026-06-12T00:00:00Z",
   "policy_doc": "docs/file-organization.md",
   "entries": [
     {
@@ -175,6 +175,54 @@
       "sensitivity": "non-sensitive remote-write gate and human-approval policy; contains no credentials and no private payloads",
       "tracked": true,
       "notes": "Defines when a Foundry import scope may move from dry-run to policy-gated CLI commit and how blocked scopes are isolated for recovery."
+    },
+    {
+      "id": "uslci-source-package",
+      "status": "active",
+      "classification": "external-source-package",
+      "current_path": "inputs/National_Renewable_Energy_Laboratory-USLCI_Database_Public/openlca.json",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "inputs/source-packages/uslci-database-public.md",
+        "docs/uslci-import-runbook.md",
+        "docs/import-profiles/uslci/profile.md"
+      ],
+      "sensitivity": "public NREL/Federal LCA Commons dataset; no credentials or private payloads",
+      "tracked": false,
+      "notes": "Anchor file of the (gitignored) USLCI Database Public openLCA JSON-LD package directory; the package ships with the frozen U.S. electricity baseline library supplement under libraries/ (zip + extracted meta package). Provenance, sha256, and reproduce commands live in the tracked source manifest. storage-check requires a file path, so the package's openlca.json anchors the directory."
+    },
+    {
+      "id": "uslci-source-package-manifest",
+      "status": "active",
+      "classification": "source-package-manifest",
+      "current_path": "inputs/source-packages/uslci-database-public.md",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "docs/uslci-import-runbook.md",
+        "docs/import-profiles/uslci/profile.md",
+        "tasks/inbox/external-import-20260612-uslci.md"
+      ],
+      "sensitivity": "non-sensitive checksums, counts, and public source URLs",
+      "tracked": true,
+      "notes": "Tracked provenance manifest for the USLCI package and its library supplement: entity counts, sha256, verified closure facts, reproduce commands."
+    },
+    {
+      "id": "uslci-import-runbook",
+      "status": "active",
+      "classification": "import-goal-runbook",
+      "current_path": "docs/uslci-import-runbook.md",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "specs/import-profiles.json",
+        "docs/import-profiles/uslci/profile.md",
+        "tasks/inbox/external-import-20260612-uslci.md"
+      ],
+      "sensitivity": "non-sensitive runbook; no credentials and no private payloads",
+      "tracked": true,
+      "notes": "Continuous-run goal entry document for the USLCI import: phases, invariants, parallel-work isolation rules, blocker triage, and the current-state snapshot agents must keep updated."
     }
   ]
 }
