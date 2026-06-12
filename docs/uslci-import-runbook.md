@@ -133,7 +133,8 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 - **canonical 转换链**：`conversion-v2`（tidas-tools a3e1aa9 含单位归一化；9,478 处修正 / unresolved 0 / 校验 0 错误）+ `library-index-v2` + `library-resolution-v3`。独立校验器 78,757/78,757 全对（`$RUN/unit-normalization-verify/verify-report.json`）。v1 工件仅留 forensic。
 - **universe**：1,358 已确认（`$RUN/universe-v1/`；排除 754 个未被引用的 library 过程）。
 - **决策目录**：`decisions-v1-support`（autofill 原始）、`decisions-v2-support`（canonical 超集：10 UG + 10 FP 授权映射）。FP/UG 残余：7 FP + 4 UG 无 canonical（139 scopes，D3 证据）。
-- **resolution-v3 缺口**：process_classification 2,112、flow_classification 1,638（下一大回合，先研究 task-build 合同再授权）、elementary identity 3,919（preflight 进行中，可 `--only-pending` 续跑）。
+- **resolution-v3 缺口**：process_classification 2,112、flow_classification 1,638（下一大回合，先研究 task-build 合同再授权）、elementary identity 3,919。
+- **identity preflight ✅ 全量完成**（`$RUN/identity-preflight-v1/`）：stop_duplicate 2,489（高置信远端已有匹配）/ manual 1,410 / materialize 12（政策转 manual）/ 7 个远端 500（edge-functions 缺陷已立案）。evaluator v1 基线：reuse 127 / manual 3,792——主因是流名 "source-described …" 后缀污染名称比对 + evaluator 不识 openlca trace 隔间形状；**下一会话第一项工作 = evaluator 调优**（diagnosis 与改法见 `$RUN/phase-journal.md` 末段；library-scope-workflow.mjs 与 BAFU 共用，必须 dataset-agnostic + 测试全绿）。
 - **canonical ledger sources**：无（首个在 Phase 4 产生）。
 - **已知阻塞**：无技术硬门禁；剩决策回合体量 + Phase 4 的 D2-D4 人工批准。
 - **测试基线**：foundry `npm test` 186/186 + doctor 通过；tidas-tools 89/89（2026-06-12）。
