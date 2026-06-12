@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-06-05T03:59:47.271Z",
+  "generated_at_utc": "2026-06-12T09:42:08.305Z",
   "source": {
     "table_state_code": 100,
     "policy": "Flow Properties and Unit Groups are read-only support choices for Foundry imports; import rows must reference existing canonical DB rows instead of creating My Data support rows."
@@ -1406,6 +1406,432 @@
           "internal_id": "4",
           "name": "Yen",
           "mean_value": "100"
+        }
+      ]
+    },
+    {
+      "id": "03cc996d-7177-4738-aa32-1572a5172ccc",
+      "version": "03.01.000",
+      "state_code": 100,
+      "name": "Unit of currency | 货币",
+      "short_description": "Unit of currency | 货币",
+      "classification": "Economic unit groups",
+      "reference_unit": "0",
+      "units": [
+        {
+          "internal_id": "0",
+          "name": "EUR",
+          "mean_value": "1"
+        },
+        {
+          "internal_id": "1",
+          "name": "$",
+          "mean_value": "1.1573037276"
+        },
+        {
+          "internal_id": "2",
+          "name": "DM",
+          "mean_value": "1.95583"
+        },
+        {
+          "internal_id": "3",
+          "name": "sFr",
+          "mean_value": "1.6617122846"
+        },
+        {
+          "internal_id": "4",
+          "name": "Yen",
+          "mean_value": "100"
+        },
+        {
+          "internal_id": "5",
+          "name": "EUR_1999",
+          "mean_value": "1.02107948442535"
+        },
+        {
+          "internal_id": "6",
+          "name": "USD_1999",
+          "mean_value": "1.11926648659367"
+        },
+        {
+          "internal_id": "7",
+          "name": "CNY_1999",
+          "mean_value": "0.131239995689967"
+        },
+        {
+          "internal_id": "8",
+          "name": "EUR_2000",
+          "mean_value": "1"
+        },
+        {
+          "internal_id": "9",
+          "name": "USD_2000",
+          "mean_value": "1.08270508132602"
+        },
+        {
+          "internal_id": "10",
+          "name": "CNY_2000",
+          "mean_value": "0.130785110392953"
+        },
+        {
+          "internal_id": "11",
+          "name": "EUR_2001",
+          "mean_value": "0.977129641526404"
+        },
+        {
+          "internal_id": "12",
+          "name": "USD_2001",
+          "mean_value": "1.05294699738897"
+        },
+        {
+          "internal_id": "13",
+          "name": "CNY_2001",
+          "mean_value": "0.129851316323491"
+        },
+        {
+          "internal_id": "14",
+          "name": "EUR_2002",
+          "mean_value": "0.955642121135964"
+        },
+        {
+          "internal_id": "15",
+          "name": "USD_2002",
+          "mean_value": "1.03650765812003"
+        },
+        {
+          "internal_id": "16",
+          "name": "CNY_2002",
+          "mean_value": "0.130808798667451"
+        },
+        {
+          "internal_id": "17",
+          "name": "EUR_2003",
+          "mean_value": "0.936115214180207"
+        },
+        {
+          "internal_id": "18",
+          "name": "USD_2003",
+          "mean_value": "1.0135002401142"
+        },
+        {
+          "internal_id": "19",
+          "name": "CNY_2003",
+          "mean_value": "0.129350240840902"
+        },
+        {
+          "internal_id": "20",
+          "name": "EUR_2004",
+          "mean_value": "0.91648590021692"
+        },
+        {
+          "internal_id": "21",
+          "name": "USD_2004",
+          "mean_value": "0.987073934550467"
+        },
+        {
+          "internal_id": "22",
+          "name": "CNY_2004",
+          "mean_value": "0.124585304645792"
+        },
+        {
+          "internal_id": "23",
+          "name": "EUR_2005",
+          "mean_value": "0.896921806816842"
+        },
+        {
+          "internal_id": "24",
+          "name": "USD_2005",
+          "mean_value": "0.954683925774306"
+        },
+        {
+          "internal_id": "25",
+          "name": "CNY_2005",
+          "mean_value": "0.122410782278037"
+        },
+        {
+          "internal_id": "26",
+          "name": "EUR_2006",
+          "mean_value": "0.877770083102493"
+        },
+        {
+          "internal_id": "27",
+          "name": "USD_2006",
+          "mean_value": "0.924848819830551"
+        },
+        {
+          "internal_id": "28",
+          "name": "CNY_2006",
+          "mean_value": "0.120424463846324"
+        },
+        {
+          "internal_id": "29",
+          "name": "EUR_2007",
+          "mean_value": "0.859419143406035"
+        },
+        {
+          "internal_id": "30",
+          "name": "USD_2007",
+          "mean_value": "0.899197655750648"
+        },
+        {
+          "internal_id": "31",
+          "name": "CNY_2007",
+          "mean_value": "0.11489045743245"
+        },
+        {
+          "internal_id": "32",
+          "name": "EUR_2008",
+          "mean_value": "0.832239001969796"
+        },
+        {
+          "internal_id": "33",
+          "name": "USD_2008",
+          "mean_value": "0.865952857046902"
+        },
+        {
+          "internal_id": "34",
+          "name": "CNY_2008",
+          "mean_value": "0.108463709970996"
+        },
+        {
+          "internal_id": "35",
+          "name": "EUR_2009",
+          "mean_value": "0.829787234042553"
+        },
+        {
+          "internal_id": "36",
+          "name": "USD_2009",
+          "mean_value": "0.869042705940423"
+        },
+        {
+          "internal_id": "37",
+          "name": "CNY_2009",
+          "mean_value": "0.109259298214003"
+        },
+        {
+          "internal_id": "38",
+          "name": "EUR_2010",
+          "mean_value": "0.816512776465536"
+        },
+        {
+          "internal_id": "39",
+          "name": "USD_2010",
+          "mean_value": "0.85502000639443"
+        },
+        {
+          "internal_id": "40",
+          "name": "CNY_2010",
+          "mean_value": "0.105896733037569"
+        },
+        {
+          "internal_id": "41",
+          "name": "EUR_2011",
+          "mean_value": "0.795003136107046"
+        },
+        {
+          "internal_id": "42",
+          "name": "USD_2011",
+          "mean_value": "0.828854386575662"
+        },
+        {
+          "internal_id": "43",
+          "name": "CNY_2011",
+          "mean_value": "0.100324795311679"
+        },
+        {
+          "internal_id": "44",
+          "name": "EUR_2012",
+          "mean_value": "0.775624681285059"
+        },
+        {
+          "internal_id": "45",
+          "name": "USD_2012",
+          "mean_value": "0.81205032655558"
+        },
+        {
+          "internal_id": "46",
+          "name": "CNY_2012",
+          "mean_value": "0.0977638475428161"
+        },
+        {
+          "internal_id": "47",
+          "name": "EUR_2013",
+          "mean_value": "0.765244515999195"
+        },
+        {
+          "internal_id": "48",
+          "name": "USD_2013",
+          "mean_value": "0.800326877107939"
+        },
+        {
+          "internal_id": "49",
+          "name": "CNY_2013",
+          "mean_value": "0.095266855607268"
+        },
+        {
+          "internal_id": "50",
+          "name": "EUR_2014",
+          "mean_value": "0.761947700631199"
+        },
+        {
+          "internal_id": "51",
+          "name": "USD_2014",
+          "mean_value": "0.787551043127504"
+        },
+        {
+          "internal_id": "52",
+          "name": "CNY_2014",
+          "mean_value": "0.0934706840330198"
+        },
+        {
+          "internal_id": "53",
+          "name": "EUR_2015",
+          "mean_value": "0.7605"
+        },
+        {
+          "internal_id": "54",
+          "name": "USD_2015",
+          "mean_value": "0.786617900843989"
+        },
+        {
+          "internal_id": "55",
+          "name": "CNY_2015",
+          "mean_value": "0.0921465166492773"
+        },
+        {
+          "internal_id": "56",
+          "name": "EUR_2016",
+          "mean_value": "0.75875486381323"
+        },
+        {
+          "internal_id": "57",
+          "name": "USD_2016",
+          "mean_value": "0.776817699211788"
+        },
+        {
+          "internal_id": "58",
+          "name": "CNY_2016",
+          "mean_value": "0.0903397205915301"
+        },
+        {
+          "internal_id": "59",
+          "name": "EUR_2017",
+          "mean_value": "0.747199842798192"
+        },
+        {
+          "internal_id": "60",
+          "name": "USD_2017",
+          "mean_value": "0.760615747093537"
+        },
+        {
+          "internal_id": "61",
+          "name": "CNY_2017",
+          "mean_value": "0.0889230553832838"
+        },
+        {
+          "internal_id": "62",
+          "name": "EUR_2018",
+          "mean_value": "0.734356894553882"
+        },
+        {
+          "internal_id": "63",
+          "name": "USD_2018",
+          "mean_value": "0.742480053327926"
+        },
+        {
+          "internal_id": "64",
+          "name": "CNY_2018",
+          "mean_value": "0.0871155894958206"
+        },
+        {
+          "internal_id": "65",
+          "name": "EUR_2019",
+          "mean_value": "0.725667938931298"
+        },
+        {
+          "internal_id": "66",
+          "name": "USD_2019",
+          "mean_value": "0.729264253058728"
+        },
+        {
+          "internal_id": "67",
+          "name": "CNY_2019",
+          "mean_value": "0.0846610669204112"
+        },
+        {
+          "internal_id": "68",
+          "name": "EUR_2020",
+          "mean_value": "0.723872073101085"
+        },
+        {
+          "internal_id": "69",
+          "name": "USD_2020",
+          "mean_value": "0.720377785107187"
+        },
+        {
+          "internal_id": "70",
+          "name": "CNY_2020",
+          "mean_value": "0.0826611450780829"
+        },
+        {
+          "internal_id": "71",
+          "name": "EUR_2021",
+          "mean_value": "0.70560400816478"
+        },
+        {
+          "internal_id": "72",
+          "name": "USD_2021",
+          "mean_value": "0.688053980211224"
+        },
+        {
+          "internal_id": "73",
+          "name": "CNY_2021",
+          "mean_value": "0.0818581046814877"
+        },
+        {
+          "internal_id": "74",
+          "name": "EUR_2022",
+          "mean_value": "0.651001540832049"
+        },
+        {
+          "internal_id": "75",
+          "name": "USD_2022",
+          "mean_value": "0.637070503130134"
+        },
+        {
+          "internal_id": "76",
+          "name": "CNY_2022",
+          "mean_value": "0.0802738398002117"
+        },
+        {
+          "internal_id": "77",
+          "name": "EUR_2023",
+          "mean_value": "0.617539585870889"
+        },
+        {
+          "internal_id": "78",
+          "name": "USD_2023",
+          "mean_value": "0.611883315356385"
+        },
+        {
+          "internal_id": "79",
+          "name": "CNY_2023",
+          "mean_value": "0.0800857689200849"
+        },
+        {
+          "internal_id": "80",
+          "name": "EUR_2024",
+          "mean_value": "0.603236297295153"
+        },
+        {
+          "internal_id": "81",
+          "name": "USD_2024",
+          "mean_value": "0.594352731728333"
+        },
+        {
+          "internal_id": "82",
+          "name": "CNY_2024",
+          "mean_value": "0.0799114589030882"
         }
       ]
     },
