@@ -48,6 +48,21 @@ export function createCanonicalSupportRewriteUtils({
       .replace(/\./gu, "");
   }
 
+  // Resolve the scale factor that converts an amount in `unit` into the canonical
+  // Flow Property's reference unit (e.g. kWh -> MJ = 3.6, t*km -> kg*km = 1000).
+  // The factor lives in the mapping's source_unit_scales (authoritative, sourced
+  // from the canonical UnitGroup mean values); 1 means no conversion is needed.
+  function resolveAmountScale(mapping, unit, normalizedUnit) {
+    const scales = mapping?.source_unit_scales;
+    if (!scales || typeof scales !== "object") return null;
+    if (Object.hasOwn(scales, unit)) return Number(scales[unit]);
+    if (Object.hasOwn(scales, normalizedUnit)) return Number(scales[normalizedUnit]);
+    for (const [key, value] of Object.entries(scales)) {
+      if (normalizeSupportKey(key) === normalizedUnit) return Number(value);
+    }
+    return null;
+  }
+
   function canonicalSupportCachePath(options = {}) {
     return resolveRepoPath(
       options.canonicalSupportCache ||
@@ -153,6 +168,8 @@ export function createCanonicalSupportRewriteUtils({
       stats,
       rewriteRows,
       blockers,
+      scalingRequirements = [],
+      blockOnUnscaled = false,
       datasetIdentityCache,
       rowIndex = null,
       language = "en",
@@ -169,6 +186,8 @@ export function createCanonicalSupportRewriteUtils({
           stats,
           rewriteRows,
           blockers,
+          scalingRequirements,
+          blockOnUnscaled,
           datasetIdentityCache,
           rowIndex,
           language,
@@ -225,6 +244,14 @@ export function createCanonicalSupportRewriteUtils({
           value[key] = next;
           stats.canonical_flow_property_reference_rewrites += 1;
           stats.canonical_unit_group_reference_proofs += 1;
+          // The source unit may differ in scale from the canonical reference unit
+          // (e.g. kWh->MJ = 3.6, t*km->kg*km = 1000). The rewrite only swaps the FP
+          // pointer; exchange amounts are NOT converted here, so any scale != 1 must
+          // be surfaced (and optionally block) rather than silently shipped. The
+          // documented profile policy requires explicit scaling, not silent magic.
+          const amountScale = resolveAmountScale(mapping, unit, normalizedUnit);
+          const scaleResolved = amountScale !== null && Number.isFinite(amountScale);
+          const needsScaling = scaleResolved && amountScale !== 1;
           rewriteRows.push({
             relation: "flow_property_reference_to_canonical_support",
             dataset_type: datasetType,
@@ -234,6 +261,9 @@ export function createCanonicalSupportRewriteUtils({
             source_file: repoRelativeMaybe(sourceFile),
             path: pathExpression(childPath),
             source_unit: unit,
+            canonical_reference_unit: mapping.canonical_reference_unit ?? null,
+            amount_scale_to_canonical_reference: scaleResolved ? amountScale : null,
+            amount_scaling_required: needsScaling,
             original: {
               ref_object_id: originalId || null,
               version: originalVersion || null,
@@ -247,6 +277,52 @@ export function createCanonicalSupportRewriteUtils({
             canonical_reference_unit_group: unitGroupProof,
             mapping_reason: mapping.reason ?? null,
             legacy_support_note: mapping.legacy_support_note ?? null,
+          });
+          if (needsScaling) {
+            stats.amount_scaling_required_rewrites += 1;
+            const requirement = {
+              dataset_type: datasetType,
+              dataset_id: datasetIdentityCache?.id ?? null,
+              dataset_version: datasetIdentityCache?.version ?? null,
+              row_index: rowIndex,
+              source_file: repoRelativeMaybe(sourceFile),
+              path: pathExpression(childPath),
+              source_unit: unit,
+              canonical_reference_unit: mapping.canonical_reference_unit ?? null,
+              amount_scale_to_canonical_reference: amountScale,
+              note: "Exchange amounts referencing this flow must be multiplied by amount_scale_to_canonical_reference to stay physically correct against the canonical reference unit; canonical-support rewrite does not convert amounts.",
+            };
+            scalingRequirements.push(requirement);
+            if (blockOnUnscaled) {
+              stats.amount_scaling_blocked += 1;
+              blockers.push({
+                code: "canonical_support_amount_scaling_required",
+                message:
+                  "Source unit differs in scale from the canonical reference unit; exchange amounts must be explicitly scaled before remote write. Rewriting the flow property reference without scaling amounts causes an order-of-magnitude error.",
+                ...requirement,
+                required_resolution:
+                  "Apply amount_scale_to_canonical_reference to affected exchange amounts (explicit scaling decision per profile policy), then re-run; or choose a canonical Flow Property whose reference unit matches the source unit (scale 1).",
+              });
+            }
+          }
+        } else if (!alreadyCanonical && mapping?.pending_canonical_support) {
+          blockers.push({
+            code: "canonical_support_pending_upstream",
+            message:
+              "Source unit maps to a canonical Flow Property that does not yet exist in the public library; import must stay blocked until upstream creates and publishes it.",
+            dataset_type: datasetType,
+            dataset_id: datasetIdentityCache?.id ?? null,
+            dataset_version: datasetIdentityCache?.version ?? null,
+            row_index: rowIndex,
+            source_file: repoRelativeMaybe(sourceFile),
+            path: pathExpression(childPath),
+            source_unit: unit || null,
+            canonical_reference_unit: mapping.canonical_reference_unit ?? null,
+            amount_scale_to_canonical_reference: resolveAmountScale(mapping, unit, normalizedUnit),
+            mapping_reason: mapping.reason ?? null,
+            pending_upstream_note: mapping.pending_upstream_note ?? null,
+            required_resolution:
+              "Create the public canonical Flow Property + Unit Group (state_code=100) upstream, refresh the support cache, set canonical_flow_property_id on this mapping, then re-run.",
           });
         } else if (!alreadyCanonical) {
           blockers.push({
@@ -275,6 +351,8 @@ export function createCanonicalSupportRewriteUtils({
         stats,
         rewriteRows,
         blockers,
+        scalingRequirements,
+        blockOnUnscaled,
         datasetIdentityCache,
         rowIndex,
         language,
@@ -298,9 +376,15 @@ export function createCanonicalSupportRewriteUtils({
     const stats = {
       canonical_flow_property_reference_rewrites: 0,
       canonical_unit_group_reference_proofs: 0,
+      amount_scaling_required_rewrites: 0,
+      amount_scaling_blocked: 0,
     };
     const rewriteRows = [];
     const blockers = [];
+    const scalingRequirements = [];
+    const blockOnUnscaled = booleanOption(
+      options.blockOnUnscaledCanonicalSupport || options.blockUnscaledCanonicalSupport,
+    );
     const outputRows = rows.map((row, rowIndex) => {
       const next = cloneJson(row);
       rewriteCanonicalFlowPropertyReferences(next, {
@@ -310,6 +394,8 @@ export function createCanonicalSupportRewriteUtils({
         stats,
         rewriteRows,
         blockers,
+        scalingRequirements,
+        blockOnUnscaled,
         datasetIdentityCache: datasetIdentity(next, datasetType),
         rowIndex,
         language: asText(options.language || options.lang || "en") || "en",
@@ -338,6 +424,7 @@ export function createCanonicalSupportRewriteUtils({
 
     const rewritesFile = path.join(resolvedOutDir, "canonical-support-rewrites.jsonl");
     const blockersFile = path.join(resolvedOutDir, "canonical-support-blockers.jsonl");
+    const scalingFile = path.join(resolvedOutDir, "canonical-support-amount-scaling.jsonl");
     const reportFile = path.join(resolvedOutDir, "canonical-support-rewrite-report.json");
     const deferredRowsFile = path.join(
       resolvedOutDir,
@@ -347,6 +434,7 @@ export function createCanonicalSupportRewriteUtils({
     writeJsonLines(deferredRowsFile, deferredRows);
     writeJsonLines(rewritesFile, rewriteRows);
     writeJsonLines(blockersFile, blockers);
+    writeJsonLines(scalingFile, scalingRequirements);
     const hardBlockers = deferBlockedRows ? [] : blockers;
     const report = {
       schema_version: 1,
@@ -377,15 +465,26 @@ export function createCanonicalSupportRewriteUtils({
         canonical_flow_property_reference_rewrites:
           stats.canonical_flow_property_reference_rewrites,
         canonical_unit_group_reference_proofs: stats.canonical_unit_group_reference_proofs,
+        amount_scaling_required_rewrites: stats.amount_scaling_required_rewrites,
+        amount_scaling_blocked: stats.amount_scaling_blocked,
         blockers: hardBlockers.length,
         deferred_blockers: deferBlockedRows ? blockers.length : 0,
       },
+      amount_scaling_policy: {
+        rewrite_does_not_convert_amounts:
+          "Canonical support rewrite only repoints referenceToFlowPropertyDataSet; it never converts exchange amounts. When source_unit scale to the canonical reference unit is not 1, downstream exchange amounts must be scaled explicitly (profile policy: explicit scaling in canonical support mapping, not silent).",
+        block_flag:
+          "Pass --block-on-unscaled-canonical-support to convert scale!=1 rewrites into hard blockers.",
+      },
+      amount_scaling_requirements: scalingRequirements,
       files: {
         report: repoRelativePath(reportFile),
         output_rows: repoRelativePath(resolvedOutFile),
         deferred_rows: deferredRows.length > 0 ? repoRelativePath(deferredRowsFile) : null,
         canonical_support_rewrites: repoRelativePath(rewritesFile),
         canonical_support_blockers: repoRelativePath(blockersFile),
+        canonical_support_amount_scaling:
+          scalingRequirements.length > 0 ? repoRelativePath(scalingFile) : null,
         canonical_support_cache: repoRelativeMaybe(cacheContext.cachePath),
       },
       blockers: hardBlockers,
