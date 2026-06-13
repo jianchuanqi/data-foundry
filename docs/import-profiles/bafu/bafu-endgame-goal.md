@@ -10,9 +10,11 @@
 
 ---
 
-## 1. 当前状态（2026-06-13）
+## 1. 当前状态（2026-06-14）
 
-- **coverage v7 终版**：`$RUN/universe-coverage-v7-final/` = 5,575 verified + 6,172 non-importable，human-review/retry/pending 全 0，npm test + doctor 通过。
+- **最新 coverage v8**：`$RUN/universe-coverage-v8-b1-remap/` = **5,652 verified + 6,095 待解锁**（B1 第1批 +77），retry/pending=0，1 上游 human-review。canonical ledger sources 现为 9（v35…v52 + **v53-b1-remap-commit**）。
+- **B1 remap 第1批已闭环（2026-06-14）**：123 独立验证 → `decisions-v13-b1-remap-leaf`（2,722 行）→ `library-resolution-v16-b1-remap`（ready 5,649）→ `batch-import-v53-b1-remap-commit` **ok=77/77 blocked=0**。途中修复：name-split 词表补 housing/recultivation/silo/cattle/pig/mine 产品族（已提交 + 测试）；contact 引用闭包首跑 transient（重跑全证）。**下一批解锁靠累积**：scope 需全部缺失流都解决才 ready，故须继续处理 B1-water(49)/wastewater(3)/B2 类型改判(82)/flagged 复核(17)，与已解的 123 复合后才能放更多多依赖 scope。
+- **coverage v7（前一终版）**：`$RUN/universe-coverage-v7-final/` = 5,575 verified + 6,172 non-importable，human-review/retry/pending 全 0，npm test + doctor 通过。
 - **6,172 non-importable 去重后 = 747 缺失 elementary flow（依赖）+ 5 对 FP/UG**。
 - 评审包就绪：`$RUN/non-importable-review-v1/`（README + index.html + missing-dependencies-report.md/.xlsx + 富化 CSV/JSON）。其原始三档（91 疑似 remap / 344 有近似待判 / 312 无近似）中的 **312「无近似」桶已被深度重判**（见 §3-B、§4 disposition 表）——该桶不是「真缺失」，而是评估器过严产生的假阴性 + flow 类型误判 + 地理后置项。
 - FP/UG 代码侧已落地：mapping schema 加 scale、rewrite scale-aware、3 条 pending mapping（详 `fp-ug-canonical-support-governance.md`）。
