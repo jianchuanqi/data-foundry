@@ -17,6 +17,8 @@
 - 评审包就绪：`$RUN/non-importable-review-v1/`（README + index.html + missing-dependencies-report.md/.xlsx + 富化 CSV/JSON）。其原始三档（91 疑似 remap / 344 有近似待判 / 312 无近似）中的 **312「无近似」桶已被深度重判**（见 §3-B、§4 disposition 表）——该桶不是「真缺失」，而是评估器过严产生的假阴性 + flow 类型误判 + 地理后置项。
 - FP/UG 代码侧已落地：mapping schema 加 scale、rewrite scale-aware、3 条 pending mapping（详 `fp-ug-canonical-support-governance.md`）。
 - **三个已确认的根因发现**：转换器隔间污染（§2-A）、单位尺度缺陷（§2-B）、flow 类型误判（§2-C，v2 新增）。
+- **B1 独立校验已完成（2026-06-13）**：`$RUN/b1-remap-validation-20260613/`。对 312-review 的 164 个具体候选 remap 做独立确定性校验（源 flow sourceTrace 隔间 traceCompartment 复刻 + 名等价 exact/词序/land 术语 + 维度匹配），结果：**123 验证通过**（94 高置信 + 29 land 术语中置信，8,663 blocked·次，**待建 decisions-v13**）/ **24 改归 B2**（候选实为 product/service flow）/ **17 须复核**（7 维度冲突如 crude oil kg→NCV 疑为 re-judge 越界 + 10 杂项）。结果分档落盘 `b1-*.json` + `SUMMARY.json`。
+  - **下一步**：为 123 validated 取候选 version（12 已有 / 75 须从 identity-preflight 候选 artifact 或 `flow get` 取）→ 建 reuse_existing_reference 决策（full apply 合同：canonical + used_context_kinds + closes_action_items + authoring_package + evidence）→ decisions-v13 → resolution v16 → batch v53 → coverage v8。
 
 ---
 
