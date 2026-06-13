@@ -2,6 +2,8 @@
 
 入口：本文档承接 5 组 non-importable FlowProperty/UnitGroup blocker 的去重治理方案，并记录核查中确认的一个**既存单位尺度问题**。两件事相关但独立。
 
+> agent 长期收尾入口在 **[`bafu-endgame-goal.md`](./bafu-endgame-goal.md)**（goal 模式，含本文档 + 转换器隔间污染 + 747 缺失流 + 重跑闭环的全景）。本文档是其中 FP/UG（workstream C）与单位尺度（workstream D）的详档。
+
 代码侧已落地（本仓库）：
 
 - `scripts/lib/canonical-support-mappings.mjs` — mapping schema 增加 `canonical_reference_unit` + `source_unit_scales`，回填全部既有映射的换算因子（取自 canonical UnitGroup 的 mean_value），并加入 3 条 pending mapping。
