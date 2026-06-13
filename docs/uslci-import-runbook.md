@@ -128,13 +128,15 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 ## 6. 当前状态快照（每会话结束前更新）
 
-- **阶段**：Phase 1 完成；**Phase 2 完成（单位归一化硬门禁已关闭）**；Phase 3 决策回合进行中（2026-06-12）。
+- **阶段**：Phase 1+2 完成；Phase 3 决策回合推进中——identity 主体完成、FP/UG 完成，**classification 是下一大回合**（2026-06-13）。
 - **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci 已 claim；阶段日志 `$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT 一节）。
 - **canonical 转换链**：`conversion-v2`（tidas-tools a3e1aa9 含单位归一化；9,478 处修正 / unresolved 0 / 校验 0 错误）+ `library-index-v2` + `library-resolution-v3`。独立校验器 78,757/78,757 全对（`$RUN/unit-normalization-verify/verify-report.json`）。v1 工件仅留 forensic。
 - **universe**：1,358 已确认（`$RUN/universe-v1/`；排除 754 个未被引用的 library 过程）。
-- **决策目录**：`decisions-v1-support`（autofill 原始）、`decisions-v2-support`（canonical 超集：10 UG + 10 FP 授权映射）。FP/UG 残余：7 FP + 4 UG 无 canonical（139 scopes，D3 证据）。
-- **resolution-v3 缺口**：process_classification 2,112、flow_classification 1,638（下一大回合，先研究 task-build 合同再授权）、elementary identity 3,919。
-- **identity preflight ✅ 全量完成 + 远端缺陷已修复**（`$RUN/identity-preflight-v1/`）：stop_duplicate 2,489（高置信远端已有匹配）/ manual 1,410 / materialize 12（政策转 manual）。原 7 个远端 500（flow_hybrid_search pgroonga 特殊字符）已由用户修复并发布，2026-06-13 重跑 retry2 全部成功（80 候选/个），report_missing 归零。当前聚合基线 = `$RUN/identity-from-preflight-v2/`（reuse 127 / manual 3,792）。evaluator v1 主因是流名 "source-described …" 后缀污染名称比对 + evaluator 不识 openlca trace 隔间形状；**下一会话第一项工作 = evaluator 调优**（diagnosis 与改法见 `$RUN/phase-journal.md` 末段；library-scope-workflow.mjs 与 BAFU 共用，必须 dataset-agnostic + 测试全绿）。
+- **canonical 决策链**：`conversion-v2` + `library-index-v2` + `decisions-v3`（超集：canonical-support 20 + identity 2,988）+ `library-resolution-v4` + `identity-from-preflight-v3`。
+- **identity ✅ 主体完成**（evaluator openLCA-compartment 修复，foundry commit 9136031）：reuse **2,988 / 3,919**，独立交叉验证 0 隔间错配、0 错物质（唯一 CAS"冲突"是 Krypton 源校验位打错）。剩 931 进 manual authoring 尾巴（no_candidate 698 多为真实非可导入/近缘物，multiple_plausible 220 可 AI 授权）。
+- **FP/UG**：decisions-v2-support；7 FP + 4 UG 无 canonical（139 scopes，D3 证据）。
+- **resolution-v4 缺口（按体量）**：process_classification 2,112 + flow_classification 1,638（**现在是 THE blocker，下一大回合**，先研究 task-build sha-bundle 合同）；elementary identity 残余 931 deps / 986 scopes；FP/UG 139 scopes。blocked-ledger 行 73,127→22,652，已生成 54,788 条 exchange 引用重写。ready 仍 0（classification 卡全部）。
+- **远端缺陷已闭环**：flow_hybrid_search pgroonga 特殊字符 500 由用户修复发布，7 个失败 flow 已重跑成功。
 - **canonical ledger sources**：无（首个在 Phase 4 产生）。
 - **已知阻塞**：无技术硬门禁；剩决策回合体量 + Phase 4 的 D2-D4 人工批准。
 - **测试基线**：foundry `npm test` 186/186 + doctor 通过；tidas-tools 89/89（2026-06-12）。
