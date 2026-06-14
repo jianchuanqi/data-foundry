@@ -13,7 +13,7 @@
 ## 1. 当前状态（2026-06-14，goal 执行第2轮进行中）
 
 - **剩余 6,095 gap 精确分解**：4,348 卡「436 个未重判流」(91 remap+344 middle 桶) / **1,370 卡 5 对 FP/UG（上游硬卡）** / 312 桶剩余 disposition / 65 卡 Noise(上游)。自主天花板 ~4,660 可达；~1,435 只能登记 non-importable 收口。
-- **第2轮（rejudge-436）**：对 435 未重判流做确定性重判（`$RUN/rejudge-436-20260614/`，复用 B1 校验逻辑扫 near_match 池）→ **76 确定性 remap**（+3 wastewater）→ `decisions-v14-rejudge436-leaf`（2,799）→ `library-resolution-v17-rejudge436` **ready 6,605（+956！复合解锁）** → `batch-import-v54-rejudge436-commit` 跑 953 scope（运行中）。359 流 near_match top3 无净匹配，待 top30 LLM 重判（下一轮）。
+- **第2轮（rejudge-436）已闭环**：确定性重判 435 未重判流 → 76 remap + 3 wastewater → `decisions-v14`→`resolution-v17` ready 6,605 → `batch-v54-rejudge436-commit` **ok=953/953 blocked=0**（断网致 129 finalize_stage_timeout，网络恢复后重跑全清）→ **coverage v9 `universe-coverage-v9-rejudge436` verified 6,605（+953，累计 +1,030 vs v7）, gap 5,142, retry/pending/HR=0**。canonical ledgers 现 10 个（+v54）。name-split 词表两轮补：housing/recultivation/silo/cattle/pig/mine（v53）+ grain drying/emulsion polymerisation/bonded boards（v54）。359 流 near_match top3 无净匹配，待 **top30 LLM 重判（下一轮最大杠杆）**。
 
 - **最新 coverage v8**：`$RUN/universe-coverage-v8-b1-remap/` = **5,652 verified + 6,095 待解锁**（B1 第1批 +77），retry/pending=0，1 上游 human-review。canonical ledger sources 现为 9（v35…v52 + **v53-b1-remap-commit**）。
 - **B1 remap 第1批已闭环（2026-06-14）**：123 独立验证 → `decisions-v13-b1-remap-leaf`（2,722 行）→ `library-resolution-v16-b1-remap`（ready 5,649）→ `batch-import-v53-b1-remap-commit` **ok=77/77 blocked=0**。途中修复：name-split 词表补 housing/recultivation/silo/cattle/pig/mine 产品族（已提交 + 测试）；contact 引用闭包首跑 transient（重跑全证）。**下一批解锁靠累积**：scope 需全部缺失流都解决才 ready，故须继续处理 B1-water(49)/wastewater(3)/B2 类型改判(82)/flagged 复核(17)，与已解的 123 复合后才能放更多多依赖 scope。
