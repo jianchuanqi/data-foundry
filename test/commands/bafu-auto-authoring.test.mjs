@@ -3059,6 +3059,16 @@ test("BAFU splitBafuNamePlan covers session rule families", () => {
       treatment: "plastic",
     },
     {
+      input: "Grain drying, high temperature",
+      base: "Grain drying",
+      treatment: "high temperature",
+    },
+    {
+      input: "Emulsion polymerisation, polyvinylchlorid",
+      base: "Emulsion polymerisation",
+      treatment: "polyvinylchlorid",
+    },
+    {
       input: "Particle board, melamin coated, doubleside coated (200 g",
       base: "Particle board",
       treatment: "melamin coated, doubleside coated (200 g",
