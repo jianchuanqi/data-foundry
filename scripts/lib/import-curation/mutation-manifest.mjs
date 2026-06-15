@@ -420,6 +420,9 @@ export function runDatasetMutationManifest({ repoRoot, options = {} } = {}) {
       identityDecisionApplyContext,
       cleanupContext,
       evidenceScopeBlockers,
+      allowAccountLocalSupportAndElementary: Boolean(
+        profile?.allowAccountLocalSupportAndElementary,
+      ),
     });
   });
   const referenceItems = buildReferenceReuseItems({

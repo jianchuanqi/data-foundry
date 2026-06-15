@@ -653,6 +653,7 @@ export function buildWriteCandidateItem({
   identityDecisionApplyContext,
   cleanupContext = null,
   evidenceScopeBlockers = [],
+  allowAccountLocalSupportAndElementary = false,
 }) {
   const key = identityKey(identity);
   const blockers = [];
@@ -675,7 +676,7 @@ export function buildWriteCandidateItem({
       issues: ensureArray(schemaRow?.issues),
     });
   }
-  if (referenceOnlySupportDatasetTypes.has(datasetType)) {
+  if (referenceOnlySupportDatasetTypes.has(datasetType) && !allowAccountLocalSupportAndElementary) {
     blockers.push({
       code: "reference_only_support_type_write_blocked",
       stage: "support_reference_policy",
@@ -683,7 +684,11 @@ export function buildWriteCandidateItem({
         "Unit Groups and Flow Properties are reference-only support data for Foundry imports. Select existing database rows and rewrite references instead of writing account-local My Data rows.",
     });
   }
-  blockers.push(...prewriteIdentityBlockers(identity.payload, datasetType, repoRoot));
+  blockers.push(
+    ...prewriteIdentityBlockers(identity.payload, datasetType, repoRoot, {
+      allowAccountLocalSupportAndElementary,
+    }),
+  );
 
   const curationStatus = curationEntity?.status ?? null;
   if (curationGateProvided && !curationEntity) {

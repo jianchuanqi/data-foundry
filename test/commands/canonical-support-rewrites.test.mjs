@@ -204,3 +204,35 @@ test("canonical support rewrite emits a pending-upstream blocker for not-yet-cre
   assert.equal(blocker.canonical_reference_unit, "personkm");
   assert.match(blocker.pending_upstream_note, /PENDING UPSTREAM/);
 });
+
+test("override suppresses the pending-upstream blocker (mint account-local My Data FP/UG)", () => {
+  const dir = path.join(fixtureRoot, "override-pending");
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const report = run(dir, [flowRow("55555555-5555-4555-8555-555555555555", "personkm")], {
+    pending: true,
+    allowAccountLocalSupportAndElementary: true,
+  });
+  assert.equal(
+    report.blockers.find((b) => b.code === "canonical_support_pending_upstream"),
+    undefined,
+    "override must suppress canonical_support_pending_upstream",
+  );
+  assert.notEqual(report.status, "blocked");
+  assert.match(report.status, /^completed/u);
+});
+
+test("override does NOT relax the unit-scale safety blocker (kept blocking)", () => {
+  const dir = path.join(fixtureRoot, "override-scale");
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const report = run(dir, [flowRow("66666666-6666-4666-8666-666666666666", "tkm")], {
+    blockOnUnscaledCanonicalSupport: true,
+    allowAccountLocalSupportAndElementary: true,
+  });
+  const blocker = report.blockers.find(
+    (b) => b.code === "canonical_support_amount_scaling_required",
+  );
+  assert.ok(blocker, "scale blocker must STILL fire under the override (orthogonal safety guard)");
+  assert.equal(blocker.amount_scale_to_canonical_reference, 1000);
+});

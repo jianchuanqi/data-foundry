@@ -10,6 +10,7 @@ function commitCommandForDatasetType(
     resolveTiangongLcaCliBin,
     resolveTiangongLcaCliCommand,
     targetUserId = null,
+    allowAccountLocalSupportAndElementary = false,
   } = {},
 ) {
   const cliPrefix = () => {
@@ -20,9 +21,26 @@ function commitCommandForDatasetType(
     return [resolveTiangongLcaCliBin()];
   };
   if (["unitgroup", "flowproperty"].includes(datasetType)) {
-    throw new Error(
-      `${datasetType} rows are reference-only for Foundry imports and cannot be committed through dataset save-draft.`,
-    );
+    if (!allowAccountLocalSupportAndElementary) {
+      throw new Error(
+        `${datasetType} rows are reference-only for Foundry imports and cannot be committed through dataset save-draft.`,
+      );
+    }
+    // Override: mint account-local (My Data, state_code=0) support rows.
+    return [
+      ...cliPrefix(),
+      "dataset",
+      "save-draft",
+      "--type",
+      datasetType,
+      "--input",
+      rowsFile,
+      "--out-dir",
+      path.join(outDir, "commit", `${datasetType}-save-draft`),
+      "--allow-account-local-support",
+      "--commit",
+      "--json",
+    ];
   }
   if (datasetType === "support") {
     return [
@@ -104,8 +122,10 @@ export function createCommitHandoffCommands({
   fileExists,
   fullContextProofCheck,
   nowIso,
+  profileFor,
   readJsonArtifactOption,
   repoRelativePath,
+  repoRoot,
   resolveRepoPath,
   resolveTiangongLcaCliCommand,
   resolveTiangongLcaCliBin,
@@ -282,12 +302,22 @@ export function createCommitHandoffCommands({
     });
     blockers.push(...handoffFullContextCheck.blockers);
 
+    const handoffProfileId = asText(
+      finalizeReport.profile ?? mutationArtifact?.value?.profile ?? "generic",
+    )
+      .trim()
+      .toLowerCase();
+    const allowAccountLocalSupportAndElementary =
+      typeof profileFor === "function"
+        ? Boolean(profileFor(repoRoot, handoffProfileId, {})?.allowAccountLocalSupportAndElementary)
+        : false;
     const commitArgs = finalRowsFile
       ? commitCommandForDatasetType(datasetType, finalRowsFile, outDir, {
           appendOption,
           resolveTiangongLcaCliCommand,
           resolveTiangongLcaCliBin,
           targetUserId,
+          allowAccountLocalSupportAndElementary,
         })
       : [];
     const cliPrefix = resolveTiangongLcaCliCommand

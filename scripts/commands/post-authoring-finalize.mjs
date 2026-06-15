@@ -74,6 +74,7 @@ export function createPostAuthoringFinalizeCommands({
   applyCanonicalSupportRewrites,
   applyIdentityReferenceRewrites,
   asText,
+  profileFor,
   blockersFromLocationAuditStage,
   buildLibraryContactPayload,
   booleanOption,
@@ -418,6 +419,18 @@ export function createPostAuthoringFinalizeCommands({
     const datasetType = String(options.type || options.datasetType || "process")
       .trim()
       .toLowerCase();
+    const allowAccountLocalSupportAndElementary =
+      typeof profileFor === "function"
+        ? Boolean(
+            profileFor(
+              repoRoot,
+              String(options.profile || "generic")
+                .trim()
+                .toLowerCase(),
+              options,
+            )?.allowAccountLocalSupportAndElementary,
+          )
+        : false;
     const supportTypes = ["contact", "source"];
     const mixedSupportTypes = ["support"];
     const authoredTypes = ["process", "flow", "lifecyclemodel"];
@@ -578,7 +591,7 @@ export function createPostAuthoringFinalizeCommands({
           `${datasetRowsFileStem(datasetType)}.canonical-support-rewritten.jsonl`,
         ),
         outDir: path.join(outDir, "canonical-support-rewrites"),
-        options,
+        options: { ...options, allowAccountLocalSupportAndElementary },
       }),
     );
     const canonicalSupportRowsFile = resolveRepoPath(

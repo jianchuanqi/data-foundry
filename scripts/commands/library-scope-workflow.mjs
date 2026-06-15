@@ -57,6 +57,8 @@ const indexedEntityTypes = ["process", "flow", "flowproperty", "unitgroup"];
 export function createLibraryScopeWorkflowCommands({
   asText,
   booleanOption,
+  profileFor,
+  repoRoot,
   bundleClassificationPath,
   cloneJson,
   datasetIdentity,
@@ -1973,6 +1975,18 @@ export function createLibraryScopeWorkflowCommands({
         ],
       );
     }
+    const allowAccountLocalSupportAndElementary =
+      typeof profileFor === "function"
+        ? Boolean(
+            profileFor(
+              repoRoot,
+              asText(options.profile || "generic")
+                .trim()
+                .toLowerCase(),
+              options,
+            )?.allowAccountLocalSupportAndElementary,
+          )
+        : false;
     const indexDir = libraryIndexDirOption(options);
     if (!indexDir) throw new Error("--library-index is required.");
     const entityIndexPath = path.join(indexDir, "library-entity-index.jsonl");
@@ -2040,7 +2054,10 @@ export function createLibraryScopeWorkflowCommands({
         if (entity && /^elementary flow$/iu.test(entity.flow_type)) {
           const decision = identityByKey.get(`flow:${dep.id}:${dep.version || "00.00.001"}`);
           const target = canonicalTarget(decision, "flow data set");
-          if (asText(decision?.decision) !== "reuse_existing_reference" || !target.id) {
+          if (
+            !allowAccountLocalSupportAndElementary &&
+            (asText(decision?.decision) !== "reuse_existing_reference" || !target.id)
+          ) {
             blockers.push(
               blockRow(
                 scope,
@@ -2073,7 +2090,7 @@ export function createLibraryScopeWorkflowCommands({
       for (const dep of ensureArray(scope.dependency_ids?.flowproperties)) {
         const mapping = supportByKey.get(`flowproperty:${dep.id}:${dep.version || "00.00.001"}`);
         const target = canonicalTarget(mapping, "flow property data set");
-        if (!target.id) {
+        if (!target.id && !allowAccountLocalSupportAndElementary) {
           blockers.push(
             blockRow(
               scope,
@@ -2088,7 +2105,7 @@ export function createLibraryScopeWorkflowCommands({
       for (const dep of ensureArray(scope.dependency_ids?.unitgroups)) {
         const mapping = supportByKey.get(`unitgroup:${dep.id}:${dep.version || "00.00.001"}`);
         const target = canonicalTarget(mapping, "unit group data set");
-        if (!target.id) {
+        if (!target.id && !allowAccountLocalSupportAndElementary) {
           blockers.push(
             blockRow(
               scope,
