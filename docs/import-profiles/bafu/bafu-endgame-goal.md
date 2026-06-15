@@ -131,6 +131,33 @@ profile 文档要求 kWh→MJ ×3.6、tkm→kg\*km ×1000 且禁止「silent」�
 
 ---
 
+## 8. 上游补齐手册（如何解锁剩余 5,004 个 non-importable）
+
+> goal 已达完成态（6,743 verified + 5,004 登记 non-importable, gap=0）。这 5,004 的成因去重后 = **468 个待建/待修 flow + 5 对 FP/UG**，全为上游硬卡。下面写清**该建/修哪些、怎么建、补齐后怎么解锁**。可分批做，每批做完即可用本仓库已就绪的确定性流水线立即解锁对应 scope。
+
+**逐流清单（可直接交上游执行）**：`$RUN/upstream-supplementation-20260614/`
+
+- `README.md` —— 三类补齐的 how-to（本节的展开版，含转换器 input/outputGroup→type 映射表、ecoinvent→ILCD 隔间映射、解锁流水线步骤）。
+- `upstream-flows-to-create.csv` / `.json` —— **468 流逐行**：flow_id / disposition / blocked_scopes / name / cas / reference_flow_property / source 隔间 + input/outputGroup（每列直接对应新建 flow 的规格）。
+- `upstream-fpug.json` —— 10 个 FP/UG（5 对）。
+
+**三类上游补齐**：
+
+1. **缺失 elementary flow（305 个）**—— [upstream canonical DB]。`disposition=upstream_new_elementary_*`：280 物质 + 17 PM 分箱 + 8 Noise。远端确无等价（80 候选/流穷尽重判过）。按 CSV 建：`name`→baseName、`cas`→CASNumber、`source_category/subCategory`→目标 ILCD 隔间（映射规则 = `library-scope-workflow.mjs` 的 `traceCompartment`）、`reference_flow_property`→参考属性。优先：`Particulates <2.5um`(2,254 scope)、`Dinitrogen monoxide`(639)、Noise 系列。
+2. **converter 类型误判（163 个）**—— [upstream tidas-tools]。`disposition=flow_type_retype_converter_upstream`：§2-C 根因，technosphere product/service 被误写成 elementary。修 `_flow_classification()` 按 ecoSpold group→type 映射（inputGroup=4/outputGroup=4→Elementary；inputGroup=5→Product；inputGroup=3/service→Service；outputGroup=3→Waste；见 README 表）。重转后这些成 product/waste/service flow → 正常导入（product flow 可新建，非 reference-only）。
+3. **5 对 FP/UG**—— [upstream canonical DB]。完整规格 + 激活步骤见 `fp-ug-canonical-support-governance.md` §2（去重 3 维度 Length\*time/Time/Person\*distance，pending mapping 已就位待填 UUID）。
+
+**解锁流水线（每批补齐后执行，已就绪不需重造）**：
+
+- 缺失 elementary：上游建好并发布 → 重跑 identity-preflight → 用 `rejudge-436-20260614/fullpool-rejudge.py` 同款确定性重判（候选含 version）→ reuse 决策追加 `decisions-vN` → `dataset-library-decisions-apply` 出 resolution → batch（v55 脚本模板：`--process-id-file` 取新 ready 差集、全 canonical ledger sources、parallel 10-14、本地 CLI）→ coverage。
+- 类型改判：修转换器重转 → 成 product/waste flow → 正常进 ready → batch。
+- FP/UG：填 mapping UUID + 刷缓存 → `canonical_support_pending_upstream` blocker 解除 → 进 ready → batch。
+- 每批后从 `non-importable-scopes-v2.jsonl` 移除已解锁行 + 重出 coverage，验证 gap 单调下降。
+
+> scope 是多依赖的——一个 scope 常同时缺多个流，故各类「直接阻塞」有重叠，实际解锁随补齐范围**复合上升**（参考三轮自主 remap：解 262 流 → +1,168 verified）。
+
+---
+
 ## 7. References
 
 - 评审包：`$RUN/non-importable-review-v1/`（README.md、index.html、missing-dependencies-report.md/.xlsx、data/）。
@@ -140,3 +167,5 @@ profile 文档要求 kWh→MJ ×3.6、tkm→kg\*km ×1000 且禁止「silent」�
 - Profile 约束（含单位/隔间/类型口径）：`docs/import-profiles/bafu/constraints.md`。
 - 登记文件：`$RUN/non-importable-scopes-v1.jsonl` + `.report.json`（依赖列表截断于 40，完整以 ledger / scopes.csv 为准）。
 - 记忆：`bafu-v50-import-phase.md`（隔间修复、合同链、单位尺度、类型误判等沿革）。
+- **上游补齐手册 + 逐流清单**：`$RUN/upstream-supplementation-20260614/`（README.md + upstream-flows-to-create.csv/json 468 流 + upstream-fpug.json）—— 见 §8。
+- 最终登记：`$RUN/non-importable-scopes-v2.jsonl` + `.report.json`（5,004 scope，逐 scope 依赖 + disposition）。终验 coverage：`$RUN/universe-coverage-v11-final/`。
