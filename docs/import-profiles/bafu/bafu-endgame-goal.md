@@ -10,7 +10,11 @@
 
 ---
 
-## 1. 当前状态（2026-06-14，goal 执行第2轮进行中）
+## 1. 当前状态（2026-06-14，✅ GOAL 完成态达成）
+
+- **✅ coverage v11 终验**：`$RUN/universe-coverage-v11-final/` = **6,743 verified + 5,004 non-importable = 11,747, gap=0, active_human_review=0, retry=0, pending=0**。npm test 193/193 + doctor passed。满足 §6 全部完成判据。
+- **三轮自主 remap 累计 +1,168**（v7 终版 5,575 → 6,743）：B1(v53 +77) + rejudge-436(v54 +953) + full-pool(v55 +138)。262 个流经独立确定性校验 remap 到现有 flow。
+- **5,004 登记 non-importable**（`non-importable-scopes-v2.jsonl` + `.report.json`，每行带依赖+disposition）：成因全为上游硬卡——缺失 elementary(无远端等价)/PM 分箱/Noise non-material(须上游新建)、5 对 FP/UG canonical(须上游建库)、converter 类型误判的 technosphere flow(须 tidas-tools 修 §2-C)。纯 remap 自主空间已用尽。
 
 - **剩余 6,095 gap 精确分解**：4,348 卡「436 个未重判流」(91 remap+344 middle 桶) / **1,370 卡 5 对 FP/UG（上游硬卡）** / 312 桶剩余 disposition / 65 卡 Noise(上游)。自主天花板 ~4,660 可达；~1,435 只能登记 non-importable 收口。
 - **第2轮（rejudge-436）已闭环**：确定性重判 435 未重判流 → 76 remap + 3 wastewater → `decisions-v14`→`resolution-v17` ready 6,605 → `batch-v54-rejudge436-commit` **ok=953/953 blocked=0**（断网致 129 finalize_stage_timeout，网络恢复后重跑全清）→ **coverage v9 `universe-coverage-v9-rejudge436` verified 6,605（+953，累计 +1,030 vs v7）, gap 5,142, retry/pending/HR=0**。canonical ledgers 现 10 个（+v54）。name-split 词表两轮补：housing/recultivation/silo/cattle/pig/mine（v53）+ grain drying/emulsion polymerisation/bonded boards（v54）。359 流 near_match top3 无净匹配，待 **top30 LLM 重判（下一轮最大杠杆）**。
