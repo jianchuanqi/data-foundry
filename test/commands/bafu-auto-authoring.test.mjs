@@ -3069,6 +3069,16 @@ test("BAFU splitBafuNamePlan covers session rule families", () => {
       treatment: "polyvinylchlorid",
     },
     {
+      input: "Natural gas, vented",
+      base: "Natural gas",
+      treatment: "vented",
+    },
+    {
+      input: "Roads, company, internal",
+      base: "Roads",
+      treatment: "company, internal",
+    },
+    {
       input: "Particle board, melamin coated, doubleside coated (200 g",
       base: "Particle board",
       treatment: "melamin coated, doubleside coated (200 g",
