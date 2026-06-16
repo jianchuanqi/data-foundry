@@ -2663,42 +2663,30 @@
     },
     {
       "source_units": ["my", "m*a", "ma", "kmy", "km*a", "kma"],
-      "canonical_flow_property_id": "fd9d0d42-3655-5f1d-aa2f-e9ae1134fc82",
+      "canonical_flow_property_id": null,
       "canonical_reference_unit": "m*a",
-      "source_unit_scales": {
-        "my": 1.0,
-        "m*a": 1.0,
-        "ma": 1.0,
-        "kmy": 1000.0,
-        "km*a": 1000.0,
-        "kma": 1000.0
-      },
-      "reason": "BAFU account-local My Data canonical support (m*a); reuse the written FP/UG at state_code=0 (user override 2026-06-15)."
+      "reason": "Length*time units need an upstream canonical flow property.",
+      "canonical_flow_property_version": null,
+      "pending_canonical_support": true,
+      "pending_upstream_note": "PENDING UPSTREAM: create m*a canonical FP/UG."
     },
     {
       "source_units": ["a", "yr", "year", "hr", "h", "hour"],
-      "canonical_flow_property_id": "da11d28f-4db8-51eb-b3a9-8784b26771e6",
+      "canonical_flow_property_id": null,
       "canonical_reference_unit": "a",
-      "source_unit_scales": {
-        "a": 1.0,
-        "yr": 1.0,
-        "year": 1.0,
-        "hr": 0.00011415525114155251,
-        "h": 0.00011415525114155251,
-        "hour": 0.00011415525114155251
-      },
-      "reason": "BAFU account-local My Data canonical support (a); reuse the written FP/UG at state_code=0 (user override 2026-06-15)."
+      "reason": "Time units need an upstream canonical flow property.",
+      "canonical_flow_property_version": null,
+      "pending_canonical_support": true,
+      "pending_upstream_note": "PENDING UPSTREAM: create a canonical FP/UG."
     },
     {
       "source_units": ["personkm", "person*km", "pkm"],
-      "canonical_flow_property_id": "ccaf6424-b648-51b7-9cba-3c349302c6a3",
+      "canonical_flow_property_id": null,
       "canonical_reference_unit": "personkm",
-      "source_unit_scales": {
-        "personkm": 1.0,
-        "person*km": 1.0,
-        "pkm": 1.0
-      },
-      "reason": "BAFU account-local My Data canonical support (personkm); reuse the written FP/UG at state_code=0 (user override 2026-06-15)."
+      "reason": "Person*distance units need an upstream canonical flow property.",
+      "canonical_flow_property_version": null,
+      "pending_canonical_support": true,
+      "pending_upstream_note": "PENDING UPSTREAM: create personkm canonical FP/UG."
     }
   ]
 }

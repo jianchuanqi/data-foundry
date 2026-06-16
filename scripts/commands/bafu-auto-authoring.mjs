@@ -1969,7 +1969,13 @@ function inferBareProductNamePlan({ name, packagePayload }) {
   const source = stripGeneratedPrefixText(
     stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
   );
-  if (!source || /,/u.test(source)) return null;
+  // Comma-containing names are accepted as a whole-name base name (see the matching
+  // note in inferBareProcessNamePlan). This fallback runs only after every
+  // splitBafuNamePlan matcher returned null, so it never overrides a recognised
+  // base+treatment split; what remains are intrinsic compound product names
+  // (e.g. "Fuel in transport, aircraft, passenger"). The product-flow type guard
+  // below still restricts this to actual product flows.
+  if (!source) return null;
   const flow =
     packagePayload?.source_row?.flowDataSet ?? packagePayload?.entity_payload?.flowDataSet ?? {};
   const typeOfDataSet = lowerText(flow?.modellingAndValidation?.LCIMethod?.typeOfDataSet);
@@ -1995,7 +2001,17 @@ function inferBareProcessNamePlan({ name, packagePayload }) {
   const source = stripGeneratedPrefixText(
     stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
   );
-  if (!source || /,/u.test(source)) return null;
+  // Comma-containing names are accepted here as a whole-name base name. This fallback
+  // is reached ONLY after every splitBafuNamePlan / splitBafuNamePlanFromNameParts
+  // matcher returned null, so a name that any matcher would have split into a
+  // base + treatment/route never arrives here. What remains are intrinsic compound
+  // product/service names whose comma is part of the name itself (e.g. "Road,
+  // trolleybus", "Videoconference, laptop, participant", "Transport, high speed
+  // train, Infrastruktur"); treating the whole geography-stripped name as the base
+  // name is the correct authoring outcome. The production-context guard below still
+  // requires a real reference-product output (or production classification) before
+  // emitting a plan, so non-product rows are not mislabelled.
+  if (!source) return null;
   const process =
     packagePayload?.source_row?.processDataSet ??
     packagePayload?.entity_payload?.processDataSet ??
