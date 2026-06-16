@@ -1224,6 +1224,30 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
       treatment: wasteFacilityMatch.groups.route.trim(),
     };
   }
+  // Resource-correction storage split (runs after every specific matcher): BAFU
+  // construction-material flows carry a base + intrinsic use/type qualifier, then a
+  // formal availability phrase, then the "with resource correction" treatment, e.g.
+  // "Plywood, indoor use, at regional storage, with resource correction" or
+  // "Fibreboard, hard, at regional storage, with resource correction". The generic
+  // "<base>, <route>" fallback below leaves the availability phrase inside the base name,
+  // so the semantic_name_base_contains_unsplit_segments gate keeps re-firing and the
+  // curation gate stays needs_foundry_ai_authoring. We require the distinctive
+  // "with resource correction" tail so this never touches names whose pre-availability
+  // segment is a real route qualifier (e.g. "Copper, primary, at refinery"). The
+  // availability vocabulary mirrors the gate's basePatterns list; mix moves to
+  // mix_location and the base keeps its intrinsic comma-joined qualifier.
+  const resourceCorrectionStorageMatch =
+    /^(?<core>.+?),\s*(?<mix>(?:at|to)\s+(?:regional storage|plant|user|grid|market|sawmill|refinery|warehouse|consumer|power plant|feed mill)),\s*(?<treatment>with resource correction)$/iu.exec(
+      text,
+    );
+  if (resourceCorrectionStorageMatch?.groups?.core && resourceCorrectionStorageMatch?.groups?.mix) {
+    return {
+      source: text,
+      base_name: cleanNamePlanPart(resourceCorrectionStorageMatch.groups.core),
+      treatment: cleanNamePlanPart(resourceCorrectionStorageMatch.groups.treatment),
+      mix_location: cleanNamePlanPart(resourceCorrectionStorageMatch.groups.mix),
+    };
+  }
   const match = /^(?<core>[^,]+),\s*(?<treatment>.+)$/u.exec(text);
   if (!match?.groups?.core || !match?.groups?.treatment) return null;
   const core = match.groups.core.trim();
