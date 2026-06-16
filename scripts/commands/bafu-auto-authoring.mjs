@@ -1314,7 +1314,28 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
     /\b(?:raw|uncoated|coated|ore|concentrate|beneficiation|ventilated|mineral|gaseous|internet|foil|stone|crushed|devices|dried|solar)\b/u.test(
       treatmentText,
     );
-  if (!routeLike) return null;
+  if (!routeLike) {
+    // The tail after the first comma is not a recognised route, but it may still end
+    // in a formal availability/location phrase ("Tap water, desalinated sea water, at
+    // user") that the semantic_name_base_contains_unsplit_segments gate flags. Move
+    // that phrase into mix_location and keep the rest (a genuine compound product name)
+    // as the base. Route-like tails were already returned above, so this never steals a
+    // real route qualifier (e.g. "Copper, primary, at refinery" keeps base "Copper").
+    // The availability vocabulary mirrors the gate's basePatterns list.
+    const availabilitySplit =
+      /^(?<core>.+),\s*(?<mix>(?:at|to)\s+(?:freight ship|ship|plant|user|grid|market|sawmill|refinery|warehouse|consumer|regional storage|power plant|feed mill))$/iu.exec(
+        text,
+      );
+    if (availabilitySplit?.groups?.core && availabilitySplit?.groups?.mix) {
+      return {
+        source: text,
+        base_name: cleanNamePlanPart(availabilitySplit.groups.core),
+        treatment: "production",
+        mix_location: cleanNamePlanPart(availabilitySplit.groups.mix),
+      };
+    }
+    return null;
+  }
 
   return {
     source: text,
