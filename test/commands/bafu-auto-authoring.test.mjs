@@ -1822,8 +1822,11 @@ test("BAFU patch autofill splits disposal/incineration and transport route names
       baseName: "Tap water, water balance according to MoeK 2013, at user {TR}",
       locationCode: "TR",
       expectedBase: "Tap water",
-      expectedTreatment: "water balance according to MoeK 2013, at user",
-      expectedMix: "supply mix, Türkiye",
+      // The "according to MoeK 2013" source-locator citation is stripped (it would
+      // otherwise trip the semantic_name_source_locator_in_name gate in any name
+      // field), "water balance" becomes the treatment qualifier, "at user" the mix.
+      expectedTreatment: "water balance",
+      expectedMix: "at user, Türkiye",
     },
     {
       id: "11111111-2222-4333-8444-555555555583",

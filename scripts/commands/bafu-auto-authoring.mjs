@@ -163,19 +163,25 @@ function sourceLocatorMarkerInText(value) {
   ].some((regex) => regex.test(text));
 }
 
-// Strip a trailing methodology/source citation ("... according to MoeK 2013",
-// "... as per Smith et al. 2020") from a name. Such latin-author-year locators are
-// source provenance and trip the semantic_name_source_locator_in_name gate when left
-// in a name field; the conversion trace / referenced sources already record the
-// citation. Only the preposition-led trailing form is removed so genuine name tokens
-// are never touched.
+// Strip a methodology/source citation ("... according to MoeK 2013", "... as per
+// Smith et al. 2020") from a name, wherever it appears. Such latin-author-year
+// locators are source provenance and trip the semantic_name_source_locator_in_name
+// gate when left in a name field; the conversion trace / referenced sources already
+// record the citation. The citation can sit mid-string when an availability segment
+// follows it ("water balance according to MoeK 2013, at user"), so the match is NOT
+// anchored to the end; only the preposition-led "according to|as per|based on
+// <Author> <Year>" form is removed, leaving the surrounding name tokens intact for the
+// downstream matchers to split.
 function stripSourceLocatorSuffix(value) {
   return String(value ?? "")
     .replace(
-      /\s*,?\s*(?:according to|as per|based on)\s+[A-Z][A-Za-z.'-]+(?:\s+et\s+al\.?)?\s+(?:19|20)\d{2}\s*$/iu,
+      /\s*,?\s*(?:according to|as per|based on)\s+[A-Z][A-Za-z.'-]+(?:\s+et\s+al\.?)?\s+(?:19|20)\d{2}\b/giu,
       "",
     )
+    .replace(/\s*,(?:\s*,)+/gu, ",")
+    .replace(/^\s*,\s*/u, "")
     .replace(/\s*,\s*$/u, "")
+    .replace(/\s+/gu, " ")
     .trim();
 }
 
@@ -496,15 +502,25 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
       treatment: heatInCombustionUnitMatch.groups.route.trim(),
     };
   }
-  const tapWaterUserMatch =
-    /^(?<core>tap\s+water),\s*(?<route>water\s+balance\s+according\s+to\s+MoeK\s+2013,\s*at\s+user)$/iu.exec(
+  // Water-balance accounting flows ("Tap water, water balance, at user",
+  // "Water, deionised, water balance"): the methodology citation that originally
+  // trailed "water balance" (e.g. "according to MoeK 2013") is already removed by
+  // stripSourceLocatorSuffix, leaving "<product>, water balance[, at <availability>]".
+  // Keep the product as the base, "water balance" as the treatment qualifier, and any
+  // availability phrase as the mix so neither the base nor the treatment retains a
+  // source locator or an unsplit availability segment.
+  const waterBalanceMatch =
+    /^(?<core>.+?),\s*water\s+balance(?:,\s*(?<mix>(?:at|to)\s+(?:user|plant|grid|consumer|regional storage|sawmill|warehouse|market|power plant|feed mill)))?$/iu.exec(
       text,
     );
-  if (tapWaterUserMatch?.groups?.core && tapWaterUserMatch?.groups?.route) {
+  if (waterBalanceMatch?.groups?.core) {
     return {
       source: text,
-      base_name: tapWaterUserMatch.groups.core.trim(),
-      treatment: tapWaterUserMatch.groups.route.trim(),
+      base_name: cleanNamePlanPart(waterBalanceMatch.groups.core),
+      treatment: "water balance",
+      mix_location: waterBalanceMatch.groups.mix
+        ? cleanNamePlanPart(waterBalanceMatch.groups.mix)
+        : "production mix",
     };
   }
   const trackBedMatch = /^(?<core>track\s+bed)$/iu.exec(text);
