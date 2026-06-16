@@ -2189,7 +2189,12 @@ function completeNameSplitMixLocationPhrase(mixLocation, locationCode) {
 }
 
 function splitBafuNamePlanFromNameParts(name, expectedLocationCode = null) {
-  const baseName = textFromMultilang(name?.baseName).trim();
+  // Strip a trailing source-locator citation from the base name up front: this function
+  // appends treatment segments after the base name before delegating to
+  // splitBafuNamePlan, which would leave the citation stranded mid-string (e.g.
+  // "...water balance according to MoeK 2013, at plant") where the terminal-anchored
+  // strip can no longer reach it.
+  const baseName = stripSourceLocatorSuffix(textFromMultilang(name?.baseName).trim());
   const treatment = textFromMultilang(name?.treatmentStandardsRoutes).trim();
   if (!baseName || !treatment || normalizeIdentityText(treatment) === "source described route") {
     return null;
