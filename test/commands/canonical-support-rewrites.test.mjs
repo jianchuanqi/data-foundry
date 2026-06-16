@@ -222,6 +222,60 @@ test("override suppresses the pending-upstream blocker (mint account-local My Da
   assert.match(report.status, /^completed/u);
 });
 
+// A flow that ALREADY references the canonical FP UUID but at a stale version
+// (source @00.00.001 while the cache/written canonical is @01.00.000) must be bumped
+// to the canonical version under the override, so downstream remote-verify does not
+// report the reference as version_outdated.
+function flowRowCanonicalStaleVersion(uuid) {
+  return {
+    flowDataSet: {
+      flowInformation: { dataSetInformation: { "common:UUID": uuid } },
+      flowProperties: {
+        flowProperty: {
+          "@dataSetInternalID": "1",
+          referenceToFlowPropertyDataSet: {
+            "@type": "flow property data set",
+            "@refObjectId": MASS_DISTANCE_FP,
+            "@version": "00.00.001",
+            "common:shortDescription": { "@xml:lang": "en", "#text": "mass*distance" },
+          },
+          meanValue: "1",
+        },
+      },
+    },
+  };
+}
+
+test("override bumps an already-canonical FP reference from a stale version to the cached version", () => {
+  const dir = path.join(fixtureRoot, "override-version-bump");
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const report = run(dir, [flowRowCanonicalStaleVersion("77777777-7777-4777-8777-777777777777")], {
+    allowAccountLocalSupportAndElementary: true,
+  });
+  assert.match(report.status, /^completed/u);
+  assert.equal(report.counts.canonical_flow_property_reference_rewrites, 1);
+  const rows = readJson(path.join(dir, "out", "flows.canonical-support-rewritten.jsonl"));
+  // out file is JSONL — read the rewritten flow and assert the FP ref version was bumped.
+  const rewritten = fs
+    .readFileSync(path.join(dir, "out", "flows.canonical-support-rewritten.jsonl"), "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l))[0];
+  const ref = rewritten.flowDataSet.flowProperties.flowProperty.referenceToFlowPropertyDataSet;
+  assert.equal(ref["@refObjectId"], MASS_DISTANCE_FP);
+  assert.equal(ref["@version"], "01.00.000");
+  void rows;
+});
+
+test("default (no override) leaves an already-canonical stale-version FP reference untouched", () => {
+  const dir = path.join(fixtureRoot, "no-override-no-bump");
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const report = run(dir, [flowRowCanonicalStaleVersion("88888888-8888-4888-8888-888888888888")]);
+  assert.equal(report.counts.canonical_flow_property_reference_rewrites, 0);
+});
+
 test("override does NOT relax the unit-scale safety blocker (kept blocking)", () => {
   const dir = path.join(fixtureRoot, "override-scale");
   fs.rmSync(dir, { recursive: true, force: true });

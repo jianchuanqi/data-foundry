@@ -358,6 +358,9 @@ export function runDatasetMutationManifest({ repoRoot, options = {} } = {}) {
       unresolvedReferenceKeys: identityDecisionUnresolvedReferenceKeys(
         identityDecisionApplyContext,
       ),
+      allowAccountLocalSupportAndElementary: Boolean(
+        profile?.allowAccountLocalSupportAndElementary,
+      ),
     }),
   );
   if (

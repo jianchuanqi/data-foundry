@@ -246,6 +246,52 @@ export function createCanonicalSupportRewriteUtils({
           }
           continue;
         }
+        // Account-local override: a flow that ALREADY references the canonical FP
+        // UUID but at a stale version (e.g. a BAFU source flow referencing the Time
+        // FP @00.00.001 while the written My Data FP is @01.00.000) must be bumped to
+        // the cached canonical version. Otherwise every downstream remote-verify layer
+        // (reference closure, precommit verify, post-write readback) reports the
+        // reference as `version_outdated` and blocks the scope. The support-cache rewrite
+        // normally only swaps non-canonical UUIDs, so it would leave the stale version
+        // untouched; here we repoint the existing canonical reference to its latest
+        // proven version. Account-local minted FP/UG keep their source unit, so no scale
+        // conversion applies to this version bump.
+        if (allowAccountLocalSupportAndElementary && alreadyCanonical && provenCanonical) {
+          const cachedVersion = asText(provenCanonical.version);
+          if (cachedVersion && cachedVersion !== originalVersion) {
+            const next = canonicalFlowPropertyReference(provenCanonical, language);
+            value[key] = next;
+            stats.canonical_flow_property_reference_rewrites += 1;
+            stats.canonical_unit_group_reference_proofs += 1;
+            rewriteRows.push({
+              relation: "flow_property_reference_version_bump_to_canonical_support",
+              dataset_type: datasetType,
+              dataset_id: datasetIdentityCache?.id ?? null,
+              dataset_version: datasetIdentityCache?.version ?? null,
+              row_index: rowIndex,
+              source_file: repoRelativeMaybe(sourceFile),
+              path: pathExpression(childPath),
+              source_unit: unit || null,
+              canonical_reference_unit: mapping?.canonical_reference_unit ?? null,
+              amount_scale_to_canonical_reference: 1,
+              amount_scaling_required: false,
+              original: {
+                ref_object_id: originalId || null,
+                version: originalVersion || null,
+                short_description: flowPropertyReferenceText(child) || null,
+              },
+              canonical: {
+                ref_object_id: next["@refObjectId"],
+                version: next["@version"],
+                short_description: next["common:shortDescription"]["#text"],
+              },
+              canonical_reference_unit_group: unitGroupProof,
+              mapping_reason:
+                "Account-local canonical Flow Property version bump to the latest written My Data version.",
+            });
+          }
+          continue;
+        }
         if (!alreadyCanonical && canonical) {
           const next = canonicalFlowPropertyReference(canonical, language);
           value[key] = next;
