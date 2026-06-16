@@ -163,6 +163,22 @@ function sourceLocatorMarkerInText(value) {
   ].some((regex) => regex.test(text));
 }
 
+// Strip a trailing methodology/source citation ("... according to MoeK 2013",
+// "... as per Smith et al. 2020") from a name. Such latin-author-year locators are
+// source provenance and trip the semantic_name_source_locator_in_name gate when left
+// in a name field; the conversion trace / referenced sources already record the
+// citation. Only the preposition-led trailing form is removed so genuine name tokens
+// are never touched.
+function stripSourceLocatorSuffix(value) {
+  return String(value ?? "")
+    .replace(
+      /\s*,?\s*(?:according to|as per|based on)\s+[A-Z][A-Za-z.'-]+(?:\s+et\s+al\.?)?\s+(?:19|20)\d{2}\s*$/iu,
+      "",
+    )
+    .replace(/\s*,\s*$/u, "")
+    .trim();
+}
+
 function recyclingShareDescriptor(value) {
   const text = String(value ?? "");
   const percentMatch =
@@ -179,8 +195,10 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
   const wasteSplit = splitBafuWasteDisposalName(baseName);
   if (wasteSplit) return wasteSplit;
 
-  const text = stripGeneratedPrefixText(
-    stripTrailingLocationTokenText(textFromMultilang(baseName).trim(), expectedLocationCode),
+  const text = stripSourceLocatorSuffix(
+    stripGeneratedPrefixText(
+      stripTrailingLocationTokenText(textFromMultilang(baseName).trim(), expectedLocationCode),
+    ),
   );
   const sourceLocatorRecyclingMatch =
     /^(?<core>aluminium\s+profile|aluminium\s+sheet|steel\s+profile|steel\s+sheet|copper\s+sheet|sealing\s+sheet,\s*aluminium|chromium(?:-nickel)?\s+steel(?:\s+sheet)?(?:\s+18\/8)?|steel,\s*low\s+alloyed)(?:,\s*(?<treatment>uncoated|tin-coated|zinc-coated))?,\s*(?:(?<source>[A-Z][A-Za-z]+(?:\s+et\s+al\.)?\s+(?:19|20)\d{2})\s*,\s*)?(?<property>(?:high\s+)?recycling\s+share\s+.+?)(?:,\s*(?<mix>at\s+plant))?(?:,\s*(?<rescorr>with\s+resource\s+correction))?$/iu.exec(
@@ -1990,8 +2008,10 @@ function inferMixLocationPhrase({ isProcess, name, locationCode }) {
 
 function inferBareProductNamePlan({ name, packagePayload }) {
   const locationCode = datasetLocationCode({ isProcess: false, packagePayload });
-  const source = stripGeneratedPrefixText(
-    stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
+  const source = stripSourceLocatorSuffix(
+    stripGeneratedPrefixText(
+      stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
+    ),
   );
   // Comma-containing names are accepted as a whole-name base name (see the matching
   // note in inferBareProcessNamePlan). This fallback runs only after every
@@ -2022,8 +2042,10 @@ function inferBareProductNamePlan({ name, packagePayload }) {
 
 function inferBareProcessNamePlan({ name, packagePayload }) {
   const locationCode = datasetLocationCode({ isProcess: true, packagePayload });
-  const source = stripGeneratedPrefixText(
-    stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
+  const source = stripSourceLocatorSuffix(
+    stripGeneratedPrefixText(
+      stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
+    ),
   );
   // Comma-containing names are accepted here as a whole-name base name. This fallback
   // is reached ONLY after every splitBafuNamePlan / splitBafuNamePlanFromNameParts
