@@ -182,6 +182,47 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
   const text = stripGeneratedPrefixText(
     stripTrailingLocationTokenText(textFromMultilang(baseName).trim(), expectedLocationCode),
   );
+  // Exact-name overrides for BAFU product flows whose core/treatment boundary is
+  // unambiguous but does not match the structural patterns below. Keyed on the
+  // location- and generated-prefix-stripped name so they cannot over-match other
+  // flows (exact string equality only). Reviewed manually; ambiguous names
+  // (e.g. "Production, washing machine, V-ZUG", "Assembly, LCD screen") are
+  // deliberately omitted and remain human-review residue.
+  const exactNameSplitOverrides = {
+    "Fireproofed jute fibers, recycled": {
+      base_name: "Fireproofed jute fibers",
+      treatment: "recycled",
+    },
+    "Jute fibers, recycled": { base_name: "Jute fibers", treatment: "recycled" },
+    "Rectangular straw bale, baling and loading bales": {
+      base_name: "Rectangular straw bale",
+      treatment: "baling and loading bales",
+    },
+    "Rectangular straw bale, straw cultivation": {
+      base_name: "Rectangular straw bale",
+      treatment: "straw cultivation",
+    },
+    "Rammed earth wall, earth extraction": {
+      base_name: "Rammed earth wall",
+      treatment: "earth extraction",
+    },
+    "Wheat grains conventional, Barrois, at farm": {
+      base_name: "Wheat grains conventional, Barrois",
+      treatment: "at farm",
+    },
+    "Barley grains conventional, Barrois, at farm": {
+      base_name: "Barley grains conventional, Barrois",
+      treatment: "at farm",
+    },
+    "Tap water, desalinated sea water, at user": {
+      base_name: "Tap water, desalinated sea water",
+      treatment: "at user",
+    },
+  };
+  if (Object.prototype.hasOwnProperty.call(exactNameSplitOverrides, text)) {
+    const override = exactNameSplitOverrides[text];
+    return { source: text, base_name: override.base_name, treatment: override.treatment };
+  }
   const sourceLocatorRecyclingMatch =
     /^(?<core>aluminium\s+profile|aluminium\s+sheet|steel\s+profile|steel\s+sheet|copper\s+sheet|sealing\s+sheet,\s*aluminium|chromium(?:-nickel)?\s+steel(?:\s+sheet)?(?:\s+18\/8)?|steel,\s*low\s+alloyed)(?:,\s*(?<treatment>uncoated|tin-coated|zinc-coated))?,\s*(?:(?<source>[A-Z][A-Za-z]+(?:\s+et\s+al\.)?\s+(?:19|20)\d{2})\s*,\s*)?(?<property>(?:high\s+)?recycling\s+share\s+.+?)(?:,\s*(?<mix>at\s+plant))?(?:,\s*(?<rescorr>with\s+resource\s+correction))?$/iu.exec(
       text,
@@ -1244,7 +1285,7 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
     ) ||
     /\b(?:fossil|biogenic|land use change)\b/u.test(treatmentText) ||
     // v51-population qualifier vocabulary (product/route adjectives and nouns)
-    /\b(?:electric|conventional|steel|aluminium|copper|brass|zinc|components?|parts|concrete|collector|future|tower|matured|heat|pit|class|overlapped|pressure|agricultur(?:e|al)|organics?|borehole|infrastructure|system|sewage|rechargeable|prismatic|manufacturing|equipment|circuit|operation|maintenance|stack|unspecified|process|based|type|ion|battery|panels?|mounted|integrated|laminated|installation|roof|ground|facade|station|covered|sludge|electrolysis|graphite|render|machinery|charging|lignite|peat|cast|hydronic|anchored|drilled|vibrated|strutted|capture|sorbent|adsorbent|digested|silage|sprinkler|scrap|converter|chemicals|solid|cargo|urban|production|network|server|standard|printing|storehouse|distillation|molasses|polymerisation|polymerization)\b/u.test(
+    /\b(?:electric|conventional|steel|aluminium|copper|brass|zinc|components?|parts|concrete|collector|future|tower|matured|heat|pit|class|overlapped|pressure|agricultur(?:e|al)|organics?|borehole|infrastructure|system|sewage|rechargeable|prismatic|manufacturing|equipment|circuit|operation|maintenance|stack|unspecified|process|based|type|ion|battery|panels?|mounted|integrated|laminated|installation|roof|ground|facade|station|covered|sludge|electrolysis|graphite|render|machinery|charging|lignite|peat|cast|hydronic|anchored|drilled|vibrated|strutted|capture|sorbent|adsorbent|digested|silage|sprinkler|scrap|converter|chemicals|solid|cargo|urban|production|network|server|standard|printing|storehouse|distillation|molasses|polymerisation|polymerization|cattle|pig|pigs|poultry|sow|sows|livestock|onshore|offshore|plastic|wooden|mine|bauxite|limestone|recultivation|silo|temperature|drying|grain|polyvinylchlorid|polyvinylchloride|bonded|boards?|emulsion|suspension|bulk|vented|venting|flared|fugitive|company|internal|external|private|public|municipal)\b/u.test(
       treatmentText,
     ) ||
     // power ratings (3kW, 1MWe, 570 kWp, 100W), physical measurements, EURO classes

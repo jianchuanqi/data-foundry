@@ -1166,14 +1166,21 @@ export function createLibraryScopeWorkflowCommands({
     if (resolved && fileExists(resolved)) {
       try {
         const payload = readJson(resolved);
-        const trace =
+        const tracePayload =
           payload?.flowDataSet?.flowInformation?.dataSetInformation?.["common:other"]?.[
             "tidasimport:sourceTrace"
-          ]?.payload?.sourceClassification ?? null;
+          ]?.payload ?? null;
+        const trace = tracePayload?.sourceClassification ?? null;
         if (trace && typeof trace === "object") {
           const category = normalizedText(trace.category || trace.localCategory);
           const subCategory = normalizedText(trace.subCategory || trace.localSubCategory);
           if (category) result = { category, subCategory };
+        }
+        // openLCA JSON-LD lane: the converter writes the same uniform "air, unspecified"
+        // default as the BAFU lane and preserves the real FEDEFL compartment only in the
+        // entity trace ("Elementary flows/emission/air/troposphere/rural"). Recover it.
+        if (!result && normalizedText(tracePayload?.format) === "openlca-jsonld") {
+          result = openLcaCompartmentClassification(tracePayload?.payload?.entity?.category);
         }
       } catch {
         result = null;
@@ -1181,6 +1188,47 @@ export function createLibraryScopeWorkflowCommands({
     }
     sourceClassificationCache.set(sourceFile, result);
     return result;
+  }
+
+  function openLcaCompartmentClassification(categoryPath) {
+    // Translate the FEDEFL "/"-delimited compartment path into the ecoinvent-style
+    // {category, subCategory} shape that traceCompartment already maps onto remote ILCD
+    // category patterns, so the openLCA lane reuses the BAFU-tested compartment tiering.
+    const segments = String(categoryPath ?? "")
+      .split("/")
+      .map((segment) => normalizedText(segment))
+      .filter((segment) => segment && segment !== "elementary flows" && segment !== "non-fedefl");
+    if (segments.length === 0) return null;
+    const direction = segments[0];
+    const compartment = segments[1] ?? "";
+    const subText = segments.slice(2).join(" ");
+    if (direction === "resource") {
+      return { category: `resource, ${compartment || "unspecified"}`, subCategory: "" };
+    }
+    if (direction !== "emission") return null;
+    if (compartment === "air") {
+      let subCategory = "";
+      if (/indoor/u.test(subText)) subCategory = "indoor";
+      else if (/stratosphere/u.test(subText)) subCategory = "stratosphere";
+      else if (/urban/u.test(subText)) subCategory = "high. pop.";
+      else if (/rural|troposphere|high/u.test(subText)) subCategory = "low. pop.";
+      return { category: "emissions to air", subCategory };
+    }
+    if (compartment === "water") {
+      let subCategory = "";
+      if (/saline|ocean|sea/u.test(subText)) subCategory = "ocean";
+      else if (/subterranean|ground/u.test(subText)) subCategory = "ground water";
+      else if (/fresh|river|lake/u.test(subText)) subCategory = "river";
+      return { category: "emissions to water", subCategory };
+    }
+    if (compartment === "ground") {
+      let subCategory = "";
+      if (/agricultur/u.test(subText)) subCategory = "agricultural";
+      else if (/industri/u.test(subText)) subCategory = "industrial";
+      else if (/forest/u.test(subText)) subCategory = "forest";
+      return { category: "emissions to soil", subCategory };
+    }
+    return null;
   }
 
   function traceCompartment(sourceClassification) {
@@ -2369,6 +2417,7 @@ export function createLibraryScopeWorkflowCommands({
       evaluateElementaryIdentityDecision,
       traceCompartment,
       entitySourceClassification,
+      openLcaCompartmentClassification,
     },
   };
 }

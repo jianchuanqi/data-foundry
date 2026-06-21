@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-06-05T03:59:47.271Z",
+  "generated_at_utc": "2026-06-12T09:42:08.305Z",
   "source": {
     "table_state_code": 100,
     "policy": "Flow Properties and Unit Groups are read-only support choices for Foundry imports; import rows must reference existing canonical DB rows instead of creating My Data support rows."
@@ -1410,6 +1410,432 @@
       ]
     },
     {
+      "id": "03cc996d-7177-4738-aa32-1572a5172ccc",
+      "version": "03.01.000",
+      "state_code": 100,
+      "name": "Unit of currency | 货币",
+      "short_description": "Unit of currency | 货币",
+      "classification": "Economic unit groups",
+      "reference_unit": "0",
+      "units": [
+        {
+          "internal_id": "0",
+          "name": "EUR",
+          "mean_value": "1"
+        },
+        {
+          "internal_id": "1",
+          "name": "$",
+          "mean_value": "1.1573037276"
+        },
+        {
+          "internal_id": "2",
+          "name": "DM",
+          "mean_value": "1.95583"
+        },
+        {
+          "internal_id": "3",
+          "name": "sFr",
+          "mean_value": "1.6617122846"
+        },
+        {
+          "internal_id": "4",
+          "name": "Yen",
+          "mean_value": "100"
+        },
+        {
+          "internal_id": "5",
+          "name": "EUR_1999",
+          "mean_value": "1.02107948442535"
+        },
+        {
+          "internal_id": "6",
+          "name": "USD_1999",
+          "mean_value": "1.11926648659367"
+        },
+        {
+          "internal_id": "7",
+          "name": "CNY_1999",
+          "mean_value": "0.131239995689967"
+        },
+        {
+          "internal_id": "8",
+          "name": "EUR_2000",
+          "mean_value": "1"
+        },
+        {
+          "internal_id": "9",
+          "name": "USD_2000",
+          "mean_value": "1.08270508132602"
+        },
+        {
+          "internal_id": "10",
+          "name": "CNY_2000",
+          "mean_value": "0.130785110392953"
+        },
+        {
+          "internal_id": "11",
+          "name": "EUR_2001",
+          "mean_value": "0.977129641526404"
+        },
+        {
+          "internal_id": "12",
+          "name": "USD_2001",
+          "mean_value": "1.05294699738897"
+        },
+        {
+          "internal_id": "13",
+          "name": "CNY_2001",
+          "mean_value": "0.129851316323491"
+        },
+        {
+          "internal_id": "14",
+          "name": "EUR_2002",
+          "mean_value": "0.955642121135964"
+        },
+        {
+          "internal_id": "15",
+          "name": "USD_2002",
+          "mean_value": "1.03650765812003"
+        },
+        {
+          "internal_id": "16",
+          "name": "CNY_2002",
+          "mean_value": "0.130808798667451"
+        },
+        {
+          "internal_id": "17",
+          "name": "EUR_2003",
+          "mean_value": "0.936115214180207"
+        },
+        {
+          "internal_id": "18",
+          "name": "USD_2003",
+          "mean_value": "1.0135002401142"
+        },
+        {
+          "internal_id": "19",
+          "name": "CNY_2003",
+          "mean_value": "0.129350240840902"
+        },
+        {
+          "internal_id": "20",
+          "name": "EUR_2004",
+          "mean_value": "0.91648590021692"
+        },
+        {
+          "internal_id": "21",
+          "name": "USD_2004",
+          "mean_value": "0.987073934550467"
+        },
+        {
+          "internal_id": "22",
+          "name": "CNY_2004",
+          "mean_value": "0.124585304645792"
+        },
+        {
+          "internal_id": "23",
+          "name": "EUR_2005",
+          "mean_value": "0.896921806816842"
+        },
+        {
+          "internal_id": "24",
+          "name": "USD_2005",
+          "mean_value": "0.954683925774306"
+        },
+        {
+          "internal_id": "25",
+          "name": "CNY_2005",
+          "mean_value": "0.122410782278037"
+        },
+        {
+          "internal_id": "26",
+          "name": "EUR_2006",
+          "mean_value": "0.877770083102493"
+        },
+        {
+          "internal_id": "27",
+          "name": "USD_2006",
+          "mean_value": "0.924848819830551"
+        },
+        {
+          "internal_id": "28",
+          "name": "CNY_2006",
+          "mean_value": "0.120424463846324"
+        },
+        {
+          "internal_id": "29",
+          "name": "EUR_2007",
+          "mean_value": "0.859419143406035"
+        },
+        {
+          "internal_id": "30",
+          "name": "USD_2007",
+          "mean_value": "0.899197655750648"
+        },
+        {
+          "internal_id": "31",
+          "name": "CNY_2007",
+          "mean_value": "0.11489045743245"
+        },
+        {
+          "internal_id": "32",
+          "name": "EUR_2008",
+          "mean_value": "0.832239001969796"
+        },
+        {
+          "internal_id": "33",
+          "name": "USD_2008",
+          "mean_value": "0.865952857046902"
+        },
+        {
+          "internal_id": "34",
+          "name": "CNY_2008",
+          "mean_value": "0.108463709970996"
+        },
+        {
+          "internal_id": "35",
+          "name": "EUR_2009",
+          "mean_value": "0.829787234042553"
+        },
+        {
+          "internal_id": "36",
+          "name": "USD_2009",
+          "mean_value": "0.869042705940423"
+        },
+        {
+          "internal_id": "37",
+          "name": "CNY_2009",
+          "mean_value": "0.109259298214003"
+        },
+        {
+          "internal_id": "38",
+          "name": "EUR_2010",
+          "mean_value": "0.816512776465536"
+        },
+        {
+          "internal_id": "39",
+          "name": "USD_2010",
+          "mean_value": "0.85502000639443"
+        },
+        {
+          "internal_id": "40",
+          "name": "CNY_2010",
+          "mean_value": "0.105896733037569"
+        },
+        {
+          "internal_id": "41",
+          "name": "EUR_2011",
+          "mean_value": "0.795003136107046"
+        },
+        {
+          "internal_id": "42",
+          "name": "USD_2011",
+          "mean_value": "0.828854386575662"
+        },
+        {
+          "internal_id": "43",
+          "name": "CNY_2011",
+          "mean_value": "0.100324795311679"
+        },
+        {
+          "internal_id": "44",
+          "name": "EUR_2012",
+          "mean_value": "0.775624681285059"
+        },
+        {
+          "internal_id": "45",
+          "name": "USD_2012",
+          "mean_value": "0.81205032655558"
+        },
+        {
+          "internal_id": "46",
+          "name": "CNY_2012",
+          "mean_value": "0.0977638475428161"
+        },
+        {
+          "internal_id": "47",
+          "name": "EUR_2013",
+          "mean_value": "0.765244515999195"
+        },
+        {
+          "internal_id": "48",
+          "name": "USD_2013",
+          "mean_value": "0.800326877107939"
+        },
+        {
+          "internal_id": "49",
+          "name": "CNY_2013",
+          "mean_value": "0.095266855607268"
+        },
+        {
+          "internal_id": "50",
+          "name": "EUR_2014",
+          "mean_value": "0.761947700631199"
+        },
+        {
+          "internal_id": "51",
+          "name": "USD_2014",
+          "mean_value": "0.787551043127504"
+        },
+        {
+          "internal_id": "52",
+          "name": "CNY_2014",
+          "mean_value": "0.0934706840330198"
+        },
+        {
+          "internal_id": "53",
+          "name": "EUR_2015",
+          "mean_value": "0.7605"
+        },
+        {
+          "internal_id": "54",
+          "name": "USD_2015",
+          "mean_value": "0.786617900843989"
+        },
+        {
+          "internal_id": "55",
+          "name": "CNY_2015",
+          "mean_value": "0.0921465166492773"
+        },
+        {
+          "internal_id": "56",
+          "name": "EUR_2016",
+          "mean_value": "0.75875486381323"
+        },
+        {
+          "internal_id": "57",
+          "name": "USD_2016",
+          "mean_value": "0.776817699211788"
+        },
+        {
+          "internal_id": "58",
+          "name": "CNY_2016",
+          "mean_value": "0.0903397205915301"
+        },
+        {
+          "internal_id": "59",
+          "name": "EUR_2017",
+          "mean_value": "0.747199842798192"
+        },
+        {
+          "internal_id": "60",
+          "name": "USD_2017",
+          "mean_value": "0.760615747093537"
+        },
+        {
+          "internal_id": "61",
+          "name": "CNY_2017",
+          "mean_value": "0.0889230553832838"
+        },
+        {
+          "internal_id": "62",
+          "name": "EUR_2018",
+          "mean_value": "0.734356894553882"
+        },
+        {
+          "internal_id": "63",
+          "name": "USD_2018",
+          "mean_value": "0.742480053327926"
+        },
+        {
+          "internal_id": "64",
+          "name": "CNY_2018",
+          "mean_value": "0.0871155894958206"
+        },
+        {
+          "internal_id": "65",
+          "name": "EUR_2019",
+          "mean_value": "0.725667938931298"
+        },
+        {
+          "internal_id": "66",
+          "name": "USD_2019",
+          "mean_value": "0.729264253058728"
+        },
+        {
+          "internal_id": "67",
+          "name": "CNY_2019",
+          "mean_value": "0.0846610669204112"
+        },
+        {
+          "internal_id": "68",
+          "name": "EUR_2020",
+          "mean_value": "0.723872073101085"
+        },
+        {
+          "internal_id": "69",
+          "name": "USD_2020",
+          "mean_value": "0.720377785107187"
+        },
+        {
+          "internal_id": "70",
+          "name": "CNY_2020",
+          "mean_value": "0.0826611450780829"
+        },
+        {
+          "internal_id": "71",
+          "name": "EUR_2021",
+          "mean_value": "0.70560400816478"
+        },
+        {
+          "internal_id": "72",
+          "name": "USD_2021",
+          "mean_value": "0.688053980211224"
+        },
+        {
+          "internal_id": "73",
+          "name": "CNY_2021",
+          "mean_value": "0.0818581046814877"
+        },
+        {
+          "internal_id": "74",
+          "name": "EUR_2022",
+          "mean_value": "0.651001540832049"
+        },
+        {
+          "internal_id": "75",
+          "name": "USD_2022",
+          "mean_value": "0.637070503130134"
+        },
+        {
+          "internal_id": "76",
+          "name": "CNY_2022",
+          "mean_value": "0.0802738398002117"
+        },
+        {
+          "internal_id": "77",
+          "name": "EUR_2023",
+          "mean_value": "0.617539585870889"
+        },
+        {
+          "internal_id": "78",
+          "name": "USD_2023",
+          "mean_value": "0.611883315356385"
+        },
+        {
+          "internal_id": "79",
+          "name": "CNY_2023",
+          "mean_value": "0.0800857689200849"
+        },
+        {
+          "internal_id": "80",
+          "name": "EUR_2024",
+          "mean_value": "0.603236297295153"
+        },
+        {
+          "internal_id": "81",
+          "name": "USD_2024",
+          "mean_value": "0.594352731728333"
+        },
+        {
+          "internal_id": "82",
+          "name": "CNY_2024",
+          "mean_value": "0.0799114589030882"
+        }
+      ]
+    },
+    {
       "id": "3620148f-c5db-48ce-9065-a10092089aca",
       "version": "29.00.000",
       "state_code": 100,
@@ -1987,63 +2413,211 @@
     {
       "source_units": ["kg", "g", "mg", "ug", "t", "kt", "mg"],
       "canonical_flow_property_id": "93a60a56-a3c8-11da-a746-0800200b9a66",
+      "canonical_reference_unit": "kg",
+      "source_unit_scales": {
+        "kg": 1.0,
+        "g": 0.001,
+        "mg": 1e-6,
+        "ug": 1e-9,
+        "t": 1000.0,
+        "kt": 0.0002
+      },
       "reason": "Mass units must reuse the public canonical Mass flow property."
     },
     {
       "source_units": ["p", "unit", "item", "items", "item(s)", "dozen(s)"],
       "canonical_flow_property_id": "01846770-4cfe-4a25-8ad9-919d8d378345",
+      "canonical_reference_unit": "Item(s)",
+      "source_unit_scales": {
+        "p": 1.0,
+        "unit": 1.0,
+        "item": 1.0,
+        "items": 1.0,
+        "item(s)": 1.0,
+        "dozen(s)": 12.0
+      },
       "reason": "Countable-item units must reuse the public canonical Number of items flow property."
     },
     {
       "source_units": ["m", "km", "cm", "mm", "ft", "mi", "in", "yd"],
       "canonical_flow_property_id": "838aaa23-0117-11db-92e3-0800200c9a66",
+      "canonical_reference_unit": "m",
+      "source_unit_scales": {
+        "m": 1.0,
+        "km": 1000.0,
+        "cm": 0.01,
+        "mm": 0.001,
+        "ft": 0.3048,
+        "mi": 1609.347,
+        "in": 0.0254,
+        "yd": 0.9144
+      },
       "reason": "Length units must reuse the public canonical Length flow property."
     },
     {
       "source_units": ["mj", "kwh", "j", "gj", "mwh", "toe", "kcal", "btu", "tce"],
       "canonical_flow_property_id": "93a60a56-a3c8-11da-a746-0800200c9a66",
+      "canonical_reference_unit": "MJ",
+      "source_unit_scales": {
+        "mj": 1.0,
+        "kwh": 3.6,
+        "j": 1e-6,
+        "gj": 1000.0,
+        "mwh": 3600.0,
+        "toe": 41868.0,
+        "kcal": 0.0041867,
+        "btu": 0.001055056,
+        "tce": 29307.6
+      },
       "reason": "Energy units currently reuse the public canonical Net calorific value support row; this is the existing platform canonical available to imports.",
       "legacy_support_note": "The public library does not yet expose a generic Energy flow property; do not create an account-local replacement."
     },
     {
       "source_units": ["m3", "nm3", "l", "cuft"],
       "canonical_flow_property_id": "93a60a56-a3c8-22da-a746-0800200c9a66",
+      "canonical_reference_unit": "m3",
+      "source_unit_scales": {
+        "m3": 1.0,
+        "nm3": 1.0,
+        "l": 0.001,
+        "cuft": 0.028316846592
+      },
       "reason": "Volume units must reuse the public canonical Volume flow property."
     },
     {
       "source_units": ["m2", "km2", "ha", "ft2", "mi2", "cm2"],
       "canonical_flow_property_id": "93a60a56-a3c8-19da-a746-0800200c9a66",
+      "canonical_reference_unit": "m2",
+      "source_unit_scales": {
+        "m2": 1.0,
+        "km2": 1000000.0,
+        "ha": 10000.0,
+        "ft2": 0.09290304,
+        "mi2": 2589988.11,
+        "cm2": 0.0001
+      },
       "reason": "Area units must reuse the public canonical Area flow property."
     },
     {
       "source_units": ["m2a", "m2*a", "km2*a", "ha*a", "ft2*a", "mi2*a", "m2*d"],
       "canonical_flow_property_id": "93a60a56-a3c8-21da-a746-0800200c9a66",
+      "canonical_reference_unit": "m2*a",
+      "source_unit_scales": {
+        "m2a": 1.0,
+        "m2*a": 1.0,
+        "km2*a": 1000000.0,
+        "ha*a": 10000.0,
+        "ft2*a": 0.09290304,
+        "mi2*a": 2589988.1,
+        "m2*d": 0.002739726
+      },
       "reason": "Area*time units must reuse the public canonical Area*time flow property."
     },
     {
       "source_units": ["kbq", "bq", "ci", "rutherford"],
       "canonical_flow_property_id": "93a60a56-a3c8-17da-a746-0800200c9a66",
+      "canonical_reference_unit": "kBq",
+      "source_unit_scales": {
+        "kbq": 1.0,
+        "bq": 0.001,
+        "ci": 37000000.0,
+        "rutherford": 1000.0
+      },
       "reason": "Radioactivity units must reuse the public canonical Radioactivity flow property."
     },
     {
       "source_units": ["tkm", "t*km", "kg*km"],
       "canonical_flow_property_id": "118f2a40-50ec-457c-aa60-9bc6b6af9931",
+      "canonical_reference_unit": "kg*km",
+      "source_unit_scales": {
+        "tkm": 1000.0,
+        "t*km": 1000.0,
+        "kg*km": 1.0
+      },
       "reason": "Mass*distance units must reuse the public canonical mass*distance flow property."
     },
     {
       "source_units": ["m3a", "m3y", "m3*a", "m3*y", "l*a"],
       "canonical_flow_property_id": "441238a3-ba09-46ec-b35b-c30cfba746d1",
+      "canonical_reference_unit": "m3*a",
+      "source_unit_scales": {
+        "m3a": 1.0,
+        "m3y": 1.0,
+        "m3*a": 1.0,
+        "m3*y": 1.0,
+        "l*a": 0.001
+      },
       "reason": "Volume*time units must reuse the public canonical Volume*time flow property."
     },
     {
       "source_units": ["mol"],
       "canonical_flow_property_id": "341fd786-b2ad-4552-a762-5eafcab45dee",
+      "canonical_reference_unit": "mol",
+      "source_unit_scales": {
+        "mol": 1.0
+      },
       "reason": "Mole units must reuse the public canonical Moles flow property."
     },
     {
       "source_units": ["kg*a", "t*a", "kg*d", "t*d", "kga", "ta", "kgd", "td"],
       "canonical_flow_property_id": "b3f0f892-c5a3-4c66-a432-c09e3d1e9bd6",
+      "canonical_reference_unit": "kg*a",
+      "source_unit_scales": {
+        "kg*a": 1.0,
+        "t*a": 1000.0,
+        "kg*d": 0.002739726,
+        "t*d": 2.739726,
+        "kga": 1.0,
+        "ta": 1000.0,
+        "kgd": 0.002739726,
+        "td": 2.739726
+      },
       "reason": "Mass*time units must reuse the public canonical Mass*time flow property."
+    },
+    {
+      "source_units": ["my", "m*a", "ma", "kmy", "km*a", "kma"],
+      "canonical_flow_property_id": null,
+      "pending_canonical_support": true,
+      "canonical_reference_unit": "m*a",
+      "source_unit_scales": {
+        "my": 1.0,
+        "m*a": 1.0,
+        "ma": 1.0,
+        "kmy": 1000.0,
+        "km*a": 1000.0,
+        "kma": 1000.0
+      },
+      "reason": "Length*time units (meter-year / kilometer-year) must reuse a public canonical Length*time flow property once created upstream; kmy = 1000 m*a.",
+      "pending_upstream_note": "PENDING UPSTREAM: create canonical Length*time FP + Units of length*time UG (state_code 100, reference unit m*a, members my=1/kmy=1000), refresh cache, then set canonical_flow_property_id."
+    },
+    {
+      "source_units": ["a", "yr", "year", "hr", "h", "hour"],
+      "canonical_flow_property_id": null,
+      "pending_canonical_support": true,
+      "canonical_reference_unit": "a",
+      "source_unit_scales": {
+        "a": 1.0,
+        "yr": 1.0,
+        "year": 1.0,
+        "hr": 0.00011415525114155251,
+        "h": 0.00011415525114155251,
+        "hour": 0.00011415525114155251
+      },
+      "reason": "Time units (year/annum + hour) must reuse a public canonical Time flow property once created upstream; hr = 1/8760 a (365-day year). NOTE: BAFU a = year, NOT are (area).",
+      "pending_upstream_note": "PENDING UPSTREAM: create canonical Time FP + Units of time UG (state_code 100, reference unit a=year NOT are=100 m2, member hr=1/8760). Confirm 365 vs 365.25 vs the canonical UG, then set canonical_flow_property_id."
+    },
+    {
+      "source_units": ["personkm", "person*km", "pkm"],
+      "canonical_flow_property_id": null,
+      "pending_canonical_support": true,
+      "canonical_reference_unit": "personkm",
+      "source_unit_scales": {
+        "personkm": 1.0,
+        "person*km": 1.0,
+        "pkm": 1.0
+      },
+      "reason": "Person*distance (passenger-kilometer) units must reuse a public canonical Person*distance flow property once created upstream. NOT mass*distance (kg*km).",
+      "pending_upstream_note": "PENDING UPSTREAM: create canonical Person*distance FP + Units of person*distance UG (state_code 100, reference unit personkm), refresh cache, then set canonical_flow_property_id."
     }
   ]
 }

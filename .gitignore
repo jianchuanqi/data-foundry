@@ -21,7 +21,10 @@ skills-lock.json
 artifacts/
 reports/
 tmp/
-inputs/
+inputs/*
 !/inputs/README.md
+!/inputs/source-packages/
+inputs/source-packages/*
+!/inputs/source-packages/*.md
 *.local
 tasks/

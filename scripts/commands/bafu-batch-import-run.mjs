@@ -1165,6 +1165,25 @@ function completedReusableIdentityDecision(row) {
   );
 }
 
+// Invalidate a flow's run-level identity-preflight RESULT cache entry the moment
+// the flow is minted/committed. A later scope referencing the same source flow then
+// re-runs the (now cheap, post-mint) search and reuses the freshly created flow
+// instead of restoring the stale pre-mint result and minting a duplicate.
+// Paired with the cache in scripts/commands/identity-preflight-run.mjs. No-op unless
+// BAFU_IDENTITY_PREFLIGHT_RESULT_CACHE is set.
+function invalidateIdentityPreflightResultCacheEntry(identityKey) {
+  const raw = process.env.BAFU_IDENTITY_PREFLIGHT_RESULT_CACHE;
+  if (!raw || !identityKey) return false;
+  const cacheDir = resolveRepoPath(raw);
+  const entryDir = path.join(cacheDir, identityKey.replace(/[^A-Za-z0-9_.@-]+/gu, "-"));
+  try {
+    fs.rmSync(entryDir, { recursive: true, force: true });
+  } catch {
+    /* best-effort invalidation */
+  }
+  return true;
+}
+
 function identityDecisionSourceFiles(runDir) {
   if (!directoryExists(runDir)) return [];
   return fs
@@ -4228,6 +4247,9 @@ async function runOneScope({
         const identityKey = datasetIdentityKey(identity);
         const alreadyVerified = verifiedFlows.has(identityKey);
         verifiedFlows.add(identityKey);
+        invalidateIdentityPreflightResultCacheEntry(
+          `flow:${identity.id}@${identity.version || "00.00.001"}`,
+        );
         const okFlowRow = okDatasetRow({
           type: "flow",
           id: identity.id,

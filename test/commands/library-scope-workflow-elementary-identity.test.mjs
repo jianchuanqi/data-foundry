@@ -34,7 +34,38 @@ const { libraryScopeWorkflowTestHooks } = createLibraryScopeWorkflowCommands({
   writeJsonLines: () => {},
 });
 
-const { evaluateElementaryIdentityDecision } = libraryScopeWorkflowTestHooks;
+const { evaluateElementaryIdentityDecision, openLcaCompartmentClassification } =
+  libraryScopeWorkflowTestHooks;
+
+function sourceFileWithOpenLcaTrace(categoryPath) {
+  fs.mkdirSync(fixtureRoot, { recursive: true });
+  const file = path.join(
+    fixtureRoot,
+    `olca-flow-${categoryPath.replace(/[^a-z]/giu, "")}-${Math.abs(
+      [...categoryPath].reduce((acc, ch) => acc * 31 + ch.charCodeAt(0), 7) % 99991,
+    )}.json`,
+  );
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      flowDataSet: {
+        flowInformation: {
+          dataSetInformation: {
+            "common:other": {
+              "tidasimport:sourceTrace": {
+                payload: {
+                  format: "openlca-jsonld",
+                  payload: { entity: { category: categoryPath } },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  );
+  return file;
+}
 
 function sourceFileWithTrace({ category, subCategory }) {
   fs.mkdirSync(fixtureRoot, { recursive: true });
@@ -271,4 +302,122 @@ test("elementary identity evaluator overrides a mislabeled flow-property text on
   assert.equal(evaluation.decision, "reuse_existing_reference");
   assert.match(evaluation.candidate.fields.categories.join(" "), /non-urban air/u);
   assert.equal(evaluation.evidence.selected_candidate.flow_property_label_overridden, true);
+});
+
+test("openLcaCompartmentClassification maps FEDEFL paths to ecoinvent-style tokens", () => {
+  assert.deepEqual(openLcaCompartmentClassification("Elementary flows/emission/ground"), {
+    category: "emissions to soil",
+    subCategory: "",
+  });
+  assert.deepEqual(
+    openLcaCompartmentClassification(
+      "Elementary flows/emission/ground/human-dominated/agricultural",
+    ),
+    { category: "emissions to soil", subCategory: "agricultural" },
+  );
+  assert.deepEqual(
+    openLcaCompartmentClassification("Elementary flows/emission/air/troposphere/urban"),
+    { category: "emissions to air", subCategory: "high. pop." },
+  );
+  assert.deepEqual(
+    openLcaCompartmentClassification("Elementary flows/emission/air/troposphere/rural"),
+    { category: "emissions to air", subCategory: "low. pop." },
+  );
+  assert.deepEqual(
+    openLcaCompartmentClassification("Elementary flows/emission/water/saline water body/ocean"),
+    { category: "emissions to water", subCategory: "ocean" },
+  );
+  assert.deepEqual(
+    openLcaCompartmentClassification("Elementary flows/resource/ground/subterranean"),
+    { category: "resource, ground", subCategory: "" },
+  );
+  assert.equal(openLcaCompartmentClassification(""), null);
+});
+
+test("elementary identity evaluator recovers the openLCA compartment and picks the right one", () => {
+  // The converter writes a uniform "Emissions to air, unspecified" default on every
+  // openLCA elementary flow; the real compartment (emission/ground = soil) lives only in
+  // the trace. With CAS-equal candidates spread across air/soil compartments, the soil
+  // source path must steer the match to the soil candidate, not the air default.
+  const sourceFile = sourceFileWithOpenLcaTrace("Elementary flows/emission/ground");
+  const evaluation = evaluateElementaryIdentityDecision({
+    entity: {
+      dataset_id: "olca1",
+      name: "Propanoic acid, ...; source-described route; source-described geography",
+      source_file: sourceFile,
+      flow_property_refs: [{ short_description: "Mass" }],
+    },
+    report: {
+      status: "needs_review",
+      decision: "manual_review",
+      target: {
+        names: ["Propanoic acid, ..."],
+        fields: {
+          cas: "111479-05-1",
+          flow_property: "Mass",
+          categories: ["Emissions", "Emissions to air", "Emissions to air, unspecified"],
+        },
+      },
+      candidates: [
+        candidate({
+          names: ["propaquizafop"],
+          cas: "111479-05-1",
+          categories: ["Emissions", "Emissions to air", "Emissions to air, unspecified"],
+        }),
+        candidate({
+          names: ["propaquizafop"],
+          cas: "111479-05-1",
+          categories: ["Emissions", "Emissions to soil", "Emissions to soil, unspecified"],
+        }),
+      ],
+    },
+    usage: null,
+  });
+  assert.equal(evaluation.decision, "reuse_existing_reference");
+  assert.match(evaluation.evidence.selected_candidate.categories.join(" "), /to soil/u);
+});
+
+test("elementary identity evaluator rejects the long-term variant via the openLCA compartment", () => {
+  // A non-long-term openLCA air flow must not be deferred just because the remote also
+  // has a "(long-term)" sibling: the recovered compartment excludes it from competing.
+  const sourceFile = sourceFileWithOpenLcaTrace("Elementary flows/emission/air");
+  const evaluation = evaluateElementaryIdentityDecision({
+    entity: {
+      dataset_id: "olca2",
+      name: "Propaquizafop; source-described route; source-described geography",
+      source_file: sourceFile,
+      flow_property_refs: [{ short_description: "Mass" }],
+    },
+    report: {
+      status: "needs_review",
+      decision: "manual_review",
+      target: {
+        names: ["Propaquizafop"],
+        fields: {
+          cas: "111479-05-1",
+          flow_property: "Mass",
+          categories: ["Emissions", "Emissions to air", "Emissions to air, unspecified"],
+        },
+      },
+      candidates: [
+        candidate({
+          names: ["propaquizafop"],
+          cas: "111479-05-1",
+          categories: ["Emissions", "Emissions to air", "Emissions to air, unspecified"],
+        }),
+        candidate({
+          names: ["propaquizafop"],
+          cas: "111479-05-1",
+          categories: [
+            "Emissions",
+            "Emissions to air",
+            "Emissions to air, unspecified (long-term)",
+          ],
+        }),
+      ],
+    },
+    usage: null,
+  });
+  assert.equal(evaluation.decision, "reuse_existing_reference");
+  assert.doesNotMatch(evaluation.evidence.selected_candidate.categories.join(" "), /long-term/u);
 });

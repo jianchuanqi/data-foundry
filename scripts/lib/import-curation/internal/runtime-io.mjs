@@ -20,6 +20,23 @@ export function writeText(filePath, text) {
   fs.writeFileSync(filePath, text);
 }
 
+// Stream rows to a JSONL file one line at a time. Equivalent output to
+// writeText(filePath, jsonLines(rows)), but never materializes the whole file
+// as a single JS string — mega-scopes (thousands of large mutation items) can
+// exceed V8's max string length (RangeError: Invalid string length) when the
+// rows are JSON.stringify-joined in memory.
+export function writeJsonLines(filePath, rows) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const fd = fs.openSync(filePath, "w");
+  try {
+    for (const row of ensureArray(rows)) {
+      fs.writeSync(fd, `${JSON.stringify(row)}\n`);
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 export function readJson(filePath) {
   return JSON.parse(readText(filePath));
 }

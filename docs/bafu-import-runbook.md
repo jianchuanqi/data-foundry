@@ -6,6 +6,8 @@
 
 ## 0. 三十秒定位
 
+> 全量导入已闭环（coverage v7：5,575 verified + 6,172 non-importable）。**收尾阶段（解锁 6,172、修单位尺度缺陷）的 agent 入口在 [`docs/import-profiles/bafu/bafu-endgame-goal.md`](import-profiles/bafu/bafu-endgame-goal.md)**（goal 模式）。本运行手册仍是命令模板/分诊表/恢复清单的来源。
+
 - **目标**：把 `inputs/BAFU-2025 Version 2 - TIDAS 2026-03-09` 下全部 **11,747** 个 process 导入远端 TIDAS 库，每个 process 最终为 _verified_ 或 _明确 non-importable_。
 - **工作区**：`RUN=.foundry/workspaces/bafu-full-import-20260607T080646Z`（下文所有 `$RUN` 指它）。
 - **阶段日志**：`$RUN/batch-import-v50-pending-ready-staging/v50-phase-journal.md`

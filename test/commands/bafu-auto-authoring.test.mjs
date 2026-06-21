@@ -3044,6 +3044,41 @@ test("BAFU splitBafuNamePlan covers session rule families", () => {
       treatment: "wrecking",
     },
     {
+      input: "Loose housing system, cattle",
+      base: "Loose housing system",
+      treatment: "cattle",
+    },
+    {
+      input: "Recultivation, bauxite mine",
+      base: "Recultivation",
+      treatment: "bauxite mine",
+    },
+    {
+      input: "Tower silo, plastic",
+      base: "Tower silo",
+      treatment: "plastic",
+    },
+    {
+      input: "Grain drying, high temperature",
+      base: "Grain drying",
+      treatment: "high temperature",
+    },
+    {
+      input: "Emulsion polymerisation, polyvinylchlorid",
+      base: "Emulsion polymerisation",
+      treatment: "polyvinylchlorid",
+    },
+    {
+      input: "Natural gas, vented",
+      base: "Natural gas",
+      treatment: "vented",
+    },
+    {
+      input: "Roads, company, internal",
+      base: "Roads",
+      treatment: "company, internal",
+    },
+    {
       input: "Particle board, melamin coated, doubleside coated (200 g",
       base: "Particle board",
       treatment: "melamin coated, doubleside coated (200 g",
