@@ -23,6 +23,9 @@ export function createCliWrapperCommands({
       cwd: repoRoot,
       env: process.env,
       encoding: "utf8",
+      // Mega-scope stages emit large JSON payloads on stdout; the 1MB spawnSync
+      // default overflows with ENOBUFS. Cap below V8's max string length.
+      maxBuffer: 512 * 1024 * 1024,
     });
     const exitCode = typeof result.status === "number" ? result.status : 1;
     if (result.error) {

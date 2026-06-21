@@ -16,6 +16,7 @@ export {
   repoRelativePath,
   resolveRepoPath,
   writeJson,
+  writeJsonLines,
   writeText,
 } from "./runtime-io.mjs";
 export { readClassificationDecisionApplyContext } from "./workflow-decision-apply-context.mjs";

@@ -59,6 +59,7 @@ const {
   sourceContactRewriteSemanticEvidenceCount,
   supportDatasetTypes,
   writeJson,
+  writeJsonLines,
   writeText,
 } = mutationManifestWorkflow;
 
@@ -660,16 +661,25 @@ export function runDatasetMutationManifest({ repoRoot, options = {} } = {}) {
     unresolved_exchange_traces:
       unresolvedExchangeExternalizationContext?.tracesFileRelative ?? null,
   };
-  writeJson(reportPath, { ...report, files });
-  writeText(itemsPath, jsonLines(items));
-  writeText(writeRowsPath, jsonLines(readyWriteRows));
-  writeText(blockedWriteRowsPath, jsonLines(blockedWriteRows));
-  writeText(referenceRowsPath, jsonLines(referenceRows));
-  writeText(unresolvedTracesPath, jsonLines(unresolvedTraceItems));
-  writeText(unresolvedExchangeTracesPath, jsonLines(unresolvedExchangeTraceItems));
-  writeText(sourceExchangeCompletenessPath, jsonLines(sourceExchangeCompletenessItems));
-  writeText(sourceReferenceRewritesPath, jsonLines(sourceReferenceRewriteContext.scopedRows));
-  writeText(identityReferenceRewritesPath, jsonLines(identityReferenceRewriteContext.scopedRows));
+  // `items` can be enormous for mega-scopes (thousands of flow mutations); embedding
+  // it inline here overflows JSON.stringify's max string length (RangeError: Invalid
+  // string length) and aborts the finalize stage. It is persisted verbatim to the
+  // items JSONL (files.items) and stays on the in-memory return value for in-process
+  // consumers, so omit the redundant inline copy from the written report file.
+  const { items: _omitInlineItems, ...reportWithoutItems } = report;
+  writeJson(reportPath, { ...reportWithoutItems, files });
+  // Stream these JSONL writes: mega-scopes (1000+ flow mutations) produce row sets
+  // whose JSON.stringify-joined form exceeds V8's max string length, so build them
+  // line-by-line on disk instead of as one in-memory string.
+  writeJsonLines(itemsPath, items);
+  writeJsonLines(writeRowsPath, readyWriteRows);
+  writeJsonLines(blockedWriteRowsPath, blockedWriteRows);
+  writeJsonLines(referenceRowsPath, referenceRows);
+  writeJsonLines(unresolvedTracesPath, unresolvedTraceItems);
+  writeJsonLines(unresolvedExchangeTracesPath, unresolvedExchangeTraceItems);
+  writeJsonLines(sourceExchangeCompletenessPath, sourceExchangeCompletenessItems);
+  writeJsonLines(sourceReferenceRewritesPath, sourceReferenceRewriteContext.scopedRows);
+  writeJsonLines(identityReferenceRewritesPath, identityReferenceRewriteContext.scopedRows);
   return {
     ...report,
     files,

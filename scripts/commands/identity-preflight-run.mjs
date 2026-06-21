@@ -1,7 +1,27 @@
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { readOnlyStageContract } from "../lib/stage-contract.mjs";
+
+// Run-level identity-preflight RESULT cache (env-gated; off unless
+// BAFU_IDENTITY_PREFLIGHT_RESULT_CACHE points at a directory). The remote
+// candidate search is a pure function of the flow's IDENTITY, so the same flow
+// referenced by many scopes need only be searched once. The cache is keyed by
+// dataset identity (type:id@version) — NOT by full content hash: the same flow id
+// carries identical identity fields across scopes (only provenance/sourceTrace
+// metadata varies), so content hashing would miss every cross-scope hit. The batch
+// runner invalidates a flow's entry the moment that flow is minted/committed, so a
+// later scope re-searches and reuses the freshly minted flow instead of duplicating it.
+function identityPreflightResultCacheDir(resolveRepoPath) {
+  const raw = process.env.BAFU_IDENTITY_PREFLIGHT_RESULT_CACHE;
+  return raw ? resolveRepoPath(raw) : null;
+}
+function identityPreflightResultCacheEntryDir(cacheDir, datasetType, datasetId, datasetVersion) {
+  if (!cacheDir || !datasetId) return null;
+  const key = `${datasetType || "flow"}:${datasetId}@${datasetVersion || "00.00.001"}`;
+  return path.join(cacheDir, key.replace(/[^A-Za-z0-9_.@-]+/gu, "-"));
+}
 
 const identityPreflightRunStageContract = readOnlyStageContract([
   {
@@ -244,6 +264,7 @@ export function createIdentityPreflightRunCommands({
         };
     const logDir = path.join(outDir, "logs");
     const resultRows = [];
+    const resultCacheDir = identityPreflightResultCacheDir(resolveRepoPath);
 
     selectedRows.forEach((row, selectedIndex) => {
       const datasetType = asText(row.dataset_type || row.type);
@@ -256,6 +277,58 @@ export function createIdentityPreflightRunCommands({
       const logToken = safeFileToken(key, `row-${selectedIndex}`);
       const stdoutLog = path.join(logDir, `${logToken}.stdout.json`);
       const stderrLog = path.join(logDir, `${logToken}.stderr.log`);
+
+      // Restore a cached search result for this flow identity (skips the remote search).
+      const resultCacheEntryDir = identityPreflightResultCacheEntryDir(
+        resultCacheDir,
+        datasetType,
+        datasetId,
+        datasetVersion,
+      );
+      if (resultCacheEntryDir && reportFile && outputDir && !fileExists(reportFile)) {
+        const cachedReport = path.join(resultCacheEntryDir, "identity-decision.json");
+        let restoredReport = null;
+        if (fileExists(cachedReport)) {
+          try {
+            // Best-effort restore. A racing/partial cache entry (a concurrent writer
+            // mid-publish) must never crash the stage — fall through to a fresh search.
+            fs.mkdirSync(outputDir, { recursive: true });
+            fs.cpSync(resultCacheEntryDir, path.join(outputDir, "outputs"), { recursive: true });
+            if (fileExists(reportFile)) {
+              restoredReport = readJson(reportFile);
+            }
+          } catch {
+            restoredReport = null;
+          }
+          if (!restoredReport) {
+            // The cache entry was unusable (racing/partial/truncated JSON). Remove the
+            // half-copied outputs so a stale, corrupt reportFile cannot poison the
+            // onlyPending short-circuit below; fall through to a fresh search instead.
+            try {
+              fs.rmSync(path.join(outputDir, "outputs"), { recursive: true, force: true });
+            } catch {
+              /* best-effort cleanup */
+            }
+          }
+        }
+        if (restoredReport) {
+          resultRows.push({
+            selected_index: selectedIndex,
+            dataset_type: datasetType,
+            dataset_id: datasetId,
+            dataset_version: datasetVersion,
+            status: "restored_from_result_cache",
+            cli_exit_code: null,
+            report_status: restoredReport.status ?? null,
+            decision: restoredReport.decision ?? null,
+            request_file: repoRelativeMaybe(requestFile),
+            output_dir: repoRelativeMaybe(outputDir),
+            report_file: repoRelativeMaybe(reportFile),
+            result_cache_entry: repoRelativeMaybe(resultCacheEntryDir),
+          });
+          return;
+        }
+      }
 
       if (onlyPending && reportFile && fileExists(reportFile)) {
         const existingReport = readJson(reportFile);
@@ -361,6 +434,9 @@ export function createIdentityPreflightRunCommands({
           cwd: repoRoot,
           env: process.env,
           encoding: "utf8",
+          // Mega-scope flows return large preflight payloads on stdout; the 1MB
+          // spawnSync default overflows with ENOBUFS. Cap below V8's max string length.
+          maxBuffer: 512 * 1024 * 1024,
           timeout: spawnTimeoutMs,
           killSignal: "SIGTERM",
         });
@@ -414,6 +490,42 @@ export function createIdentityPreflightRunCommands({
         if (!retriableIdentityPreflightFailure(attemptRow)) break;
       }
       const finalAttempt = attemptRows.at(-1);
+      // Persist a freshly produced result into the run-level cache (keyed by flow
+      // identity) so other scopes referencing the same flow restore it instead of re-searching.
+      if (
+        resultCacheEntryDir &&
+        finalAttempt?.status === "completed" &&
+        outputDir &&
+        reportFile &&
+        fileExists(reportFile) &&
+        fileExists(path.join(outputDir, "outputs"))
+      ) {
+        try {
+          fs.mkdirSync(path.dirname(resultCacheEntryDir), { recursive: true });
+          // Publish atomically: copy into a process-unique temp dir on the same
+          // filesystem, then rename into place. Parallel scope workers share this
+          // cache dir and reference the same flows (high cross-scope overlap), so a
+          // non-atomic rm+cp races — one worker's rmSync deletes a subtree another
+          // is mid-copy on, throwing EINVAL and aborting the whole stage. rename is
+          // atomic; if another worker already published this identity, keep theirs
+          // (same flow identity => equivalent result). Cache writes are best-effort
+          // and must never fail the import.
+          const tmpDir = `${resultCacheEntryDir}.tmp-${process.pid}-${selectedIndex}`;
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+          fs.cpSync(path.join(outputDir, "outputs"), tmpDir, { recursive: true });
+          if (fileExists(resultCacheEntryDir)) {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          } else {
+            try {
+              fs.renameSync(tmpDir, resultCacheEntryDir);
+            } catch {
+              fs.rmSync(tmpDir, { recursive: true, force: true });
+            }
+          }
+        } catch {
+          // Cache persistence is best-effort; never fail the import because of it.
+        }
+      }
       resultRows.push({
         ...finalAttempt,
         retry_attempts: attemptRows.map((attemptRow) => ({
