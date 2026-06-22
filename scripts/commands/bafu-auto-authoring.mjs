@@ -242,6 +242,14 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
       base_name: "Tap water, desalinated sea water",
       treatment: "at user",
     },
+    "Production, washing machine, V-ZUG": {
+      base_name: "washing machine, V-ZUG",
+      treatment: "Production",
+    },
+    "Assembly, LCD screen": {
+      base_name: "LCD screen",
+      treatment: "Assembly",
+    },
   };
   if (Object.prototype.hasOwnProperty.call(exactNameSplitOverrides, text)) {
     const override = exactNameSplitOverrides[text];
