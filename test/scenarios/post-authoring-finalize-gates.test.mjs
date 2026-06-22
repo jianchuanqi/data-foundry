@@ -218,7 +218,8 @@ process.exit(2);
     const mutationManifest = readJson(path.join(repoRoot, finalize.json.files.mutation_manifest));
     assert.equal(mutationManifest.status, "ready_for_remote_write");
     assert.equal(mutationManifest.counts.blockers, 0);
-    assert.equal(mutationManifest.items[0].dry_run_status, "success");
+    const mutationItems = readJsonLines(path.join(repoRoot, mutationManifest.files.items));
+    assert.equal(mutationItems[0].dry_run_status, "success");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
