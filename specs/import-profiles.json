@@ -24,6 +24,18 @@
       "waiver_reasons": {
         "process_material_balance_deviation": "BAFU profile treats process_material_balance_deviation as a source-data QA observation, not a remote-write blocker. Other schema, placeholder, reference, unit, required-field, and trace blockers remain blocking."
       },
+      "allow_account_local_support_and_elementary": {
+        "enabled": true,
+        "authorized_by": "user override 2026-06-15: build all buildable BAFU data as My Data (state_code=0) first, then cross-reference within the My Data scope during preparation. Explicit, reversible override of the reference-only support and elementary-flow-reuse governance for the BAFU account.",
+        "scope": [
+          "elementary_flow_write",
+          "elementary_flow_create_new",
+          "flowproperty_write",
+          "unitgroup_write",
+          "canonical_support_local_mint"
+        ],
+        "note": "Set enabled=false to restore reference-only governance. Does NOT relax the unit-scale safety blocker (canonical_support_amount_scaling_required) or schema/curation/full-context proof gates — only the reference-only and elementary-create_new policy walls. Account-local rows are written at state_code=0 (My Data) and keep their source units so amounts stay self-consistent."
+      },
       "full_context_ai_completion": {
         "required": true,
         "dataset_types": ["flow", "process", "lifecyclemodel"],

@@ -926,8 +926,13 @@ export function sourcePrewriteIdentityBlockers(payload, datasetType) {
   return blockers;
 }
 
-export function flowPrewriteIdentityBlockers(payload, datasetType) {
+export function flowPrewriteIdentityBlockers(
+  payload,
+  datasetType,
+  allowAccountLocalSupportAndElementary = false,
+) {
   if (datasetType !== "flow") return [];
+  if (allowAccountLocalSupportAndElementary) return [];
   if (!flowUsesElementaryClassification(payload)) return [];
   const root = datasetRoot(payload, "flow");
   const info = dataSetInformation(root, "flow");
@@ -1057,10 +1062,15 @@ export function prewriteContentQualityBlockers({ repoRoot, payload, datasetType 
   return blockers;
 }
 
-export function prewriteIdentityBlockers(payload, datasetType, repoRoot = null) {
+export function prewriteIdentityBlockers(
+  payload,
+  datasetType,
+  repoRoot = null,
+  { allowAccountLocalSupportAndElementary = false } = {},
+) {
   return [
     ...sourcePrewriteIdentityBlockers(payload, datasetType),
-    ...flowPrewriteIdentityBlockers(payload, datasetType),
+    ...flowPrewriteIdentityBlockers(payload, datasetType, allowAccountLocalSupportAndElementary),
     ...prewriteContentQualityBlockers({ repoRoot, payload, datasetType }),
   ];
 }

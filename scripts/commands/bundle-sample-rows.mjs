@@ -63,6 +63,8 @@ export function createBundleSampleRowsCommands({
   addDedupedBundleRow,
   asText,
   attachIdentityPreflightRows,
+  profileFor,
+  repoRoot,
   buildBafuFallbackSourcePayload,
   buildBafuProcessContextSourcePayload,
   buildIdentityPreflightArtifacts,
@@ -605,6 +607,21 @@ export function createBundleSampleRowsCommands({
     const rowsDir = path.join(outDir, "rows");
     const cliBin = resolveTiangongLcaCliBin();
     const canonicalSupportCache = loadCanonicalSupportCache(options);
+    // The override only applies to an EXPLICITLY selected profile (e.g. --profile bafu,
+    // which the orchestrator passes). An unspecified profile defaults to generic so the
+    // reference-only governance stays the safe default for ad-hoc runs.
+    const allowAccountLocalSupportAndElementary =
+      typeof profileFor === "function"
+        ? Boolean(
+            profileFor(
+              repoRoot,
+              asText(options.profile || "generic")
+                .trim()
+                .toLowerCase(),
+              options,
+            )?.allowAccountLocalSupportAndElementary,
+          )
+        : false;
     const classificationCommandsByType = {
       process: classificationAuthoringCommands({
         cliBin,
@@ -772,6 +789,7 @@ export function createBundleSampleRowsCommands({
             blockers,
             datasetIdentityCache: datasetIdentity(payload, type),
             language: asText(options.language || options.lang || "en") || "en",
+            allowAccountLocalSupportAndElementary,
           });
           collectBundleQualityFindings({
             payload,
@@ -791,6 +809,7 @@ export function createBundleSampleRowsCommands({
             blockers,
             stats: sanitizeStats,
             elementaryFlowReuseRows,
+            allowAccountLocalSupportAndElementary,
           });
           collectLocationQualityFindings({
             payload,

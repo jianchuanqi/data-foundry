@@ -163,6 +163,28 @@ function sourceLocatorMarkerInText(value) {
   ].some((regex) => regex.test(text));
 }
 
+// Strip a methodology/source citation ("... according to MoeK 2013", "... as per
+// Smith et al. 2020") from a name, wherever it appears. Such latin-author-year
+// locators are source provenance and trip the semantic_name_source_locator_in_name
+// gate when left in a name field; the conversion trace / referenced sources already
+// record the citation. The citation can sit mid-string when an availability segment
+// follows it ("water balance according to MoeK 2013, at user"), so the match is NOT
+// anchored to the end; only the preposition-led "according to|as per|based on
+// <Author> <Year>" form is removed, leaving the surrounding name tokens intact for the
+// downstream matchers to split.
+function stripSourceLocatorSuffix(value) {
+  return String(value ?? "")
+    .replace(
+      /\s*,?\s*(?:according to|as per|based on)\s+[A-Z][A-Za-z.'-]+(?:\s+et\s+al\.?)?\s+(?:19|20)\d{2}\b/giu,
+      "",
+    )
+    .replace(/\s*,(?:\s*,)+/gu, ",")
+    .replace(/^\s*,\s*/u, "")
+    .replace(/\s*,\s*$/u, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
 function recyclingShareDescriptor(value) {
   const text = String(value ?? "");
   const percentMatch =
@@ -179,8 +201,10 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
   const wasteSplit = splitBafuWasteDisposalName(baseName);
   if (wasteSplit) return wasteSplit;
 
-  const text = stripGeneratedPrefixText(
-    stripTrailingLocationTokenText(textFromMultilang(baseName).trim(), expectedLocationCode),
+  const text = stripSourceLocatorSuffix(
+    stripGeneratedPrefixText(
+      stripTrailingLocationTokenText(textFromMultilang(baseName).trim(), expectedLocationCode),
+    ),
   );
   // Exact-name overrides for BAFU product flows whose core/treatment boundary is
   // unambiguous but does not match the structural patterns below. Keyed on the
@@ -519,15 +543,25 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
       treatment: heatInCombustionUnitMatch.groups.route.trim(),
     };
   }
-  const tapWaterUserMatch =
-    /^(?<core>tap\s+water),\s*(?<route>water\s+balance\s+according\s+to\s+MoeK\s+2013,\s*at\s+user)$/iu.exec(
+  // Water-balance accounting flows ("Tap water, water balance, at user",
+  // "Water, deionised, water balance"): the methodology citation that originally
+  // trailed "water balance" (e.g. "according to MoeK 2013") is already removed by
+  // stripSourceLocatorSuffix, leaving "<product>, water balance[, at <availability>]".
+  // Keep the product as the base, "water balance" as the treatment qualifier, and any
+  // availability phrase as the mix so neither the base nor the treatment retains a
+  // source locator or an unsplit availability segment.
+  const waterBalanceMatch =
+    /^(?<core>.+?),\s*water\s+balance(?:,\s*(?<mix>(?:at|to)\s+(?:user|plant|grid|consumer|regional storage|sawmill|warehouse|market|power plant|feed mill)))?$/iu.exec(
       text,
     );
-  if (tapWaterUserMatch?.groups?.core && tapWaterUserMatch?.groups?.route) {
+  if (waterBalanceMatch?.groups?.core) {
     return {
       source: text,
-      base_name: tapWaterUserMatch.groups.core.trim(),
-      treatment: tapWaterUserMatch.groups.route.trim(),
+      base_name: cleanNamePlanPart(waterBalanceMatch.groups.core),
+      treatment: "water balance",
+      mix_location: waterBalanceMatch.groups.mix
+        ? cleanNamePlanPart(waterBalanceMatch.groups.mix)
+        : "production mix",
     };
   }
   const trackBedMatch = /^(?<core>track\s+bed)$/iu.exec(text);
@@ -1265,6 +1299,30 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
       treatment: wasteFacilityMatch.groups.route.trim(),
     };
   }
+  // Resource-correction storage split (runs after every specific matcher): BAFU
+  // construction-material flows carry a base + intrinsic use/type qualifier, then a
+  // formal availability phrase, then the "with resource correction" treatment, e.g.
+  // "Plywood, indoor use, at regional storage, with resource correction" or
+  // "Fibreboard, hard, at regional storage, with resource correction". The generic
+  // "<base>, <route>" fallback below leaves the availability phrase inside the base name,
+  // so the semantic_name_base_contains_unsplit_segments gate keeps re-firing and the
+  // curation gate stays needs_foundry_ai_authoring. We require the distinctive
+  // "with resource correction" tail so this never touches names whose pre-availability
+  // segment is a real route qualifier (e.g. "Copper, primary, at refinery"). The
+  // availability vocabulary mirrors the gate's basePatterns list; mix moves to
+  // mix_location and the base keeps its intrinsic comma-joined qualifier.
+  const resourceCorrectionStorageMatch =
+    /^(?<core>.+?),\s*(?<mix>(?:at|to)\s+(?:regional storage|plant|user|grid|market|sawmill|refinery|warehouse|consumer|power plant|feed mill)),\s*(?<treatment>with resource correction)$/iu.exec(
+      text,
+    );
+  if (resourceCorrectionStorageMatch?.groups?.core && resourceCorrectionStorageMatch?.groups?.mix) {
+    return {
+      source: text,
+      base_name: cleanNamePlanPart(resourceCorrectionStorageMatch.groups.core),
+      treatment: cleanNamePlanPart(resourceCorrectionStorageMatch.groups.treatment),
+      mix_location: cleanNamePlanPart(resourceCorrectionStorageMatch.groups.mix),
+    };
+  }
   const match = /^(?<core>[^,]+),\s*(?<treatment>.+)$/u.exec(text);
   if (!match?.groups?.core || !match?.groups?.treatment) return null;
   const core = match.groups.core.trim();
@@ -1297,7 +1355,28 @@ function splitBafuNamePlan(baseName, expectedLocationCode = null) {
     /\b(?:raw|uncoated|coated|ore|concentrate|beneficiation|ventilated|mineral|gaseous|internet|foil|stone|crushed|devices|dried|solar)\b/u.test(
       treatmentText,
     );
-  if (!routeLike) return null;
+  if (!routeLike) {
+    // The tail after the first comma is not a recognised route, but it may still end
+    // in a formal availability/location phrase ("Tap water, desalinated sea water, at
+    // user") that the semantic_name_base_contains_unsplit_segments gate flags. Move
+    // that phrase into mix_location and keep the rest (a genuine compound product name)
+    // as the base. Route-like tails were already returned above, so this never steals a
+    // real route qualifier (e.g. "Copper, primary, at refinery" keeps base "Copper").
+    // The availability vocabulary mirrors the gate's basePatterns list.
+    const availabilitySplit =
+      /^(?<core>.+),\s*(?<mix>(?:at|to)\s+(?:freight ship|ship|plant|user|grid|market|sawmill|refinery|warehouse|consumer|regional storage|power plant|feed mill))$/iu.exec(
+        text,
+      );
+    if (availabilitySplit?.groups?.core && availabilitySplit?.groups?.mix) {
+      return {
+        source: text,
+        base_name: cleanNamePlanPart(availabilitySplit.groups.core),
+        treatment: "production",
+        mix_location: cleanNamePlanPart(availabilitySplit.groups.mix),
+      };
+    }
+    return null;
+  }
 
   return {
     source: text,
@@ -2007,10 +2086,18 @@ function inferMixLocationPhrase({ isProcess, name, locationCode }) {
 
 function inferBareProductNamePlan({ name, packagePayload }) {
   const locationCode = datasetLocationCode({ isProcess: false, packagePayload });
-  const source = stripGeneratedPrefixText(
-    stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
+  const source = stripSourceLocatorSuffix(
+    stripGeneratedPrefixText(
+      stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
+    ),
   );
-  if (!source || /,/u.test(source)) return null;
+  // Comma-containing names are accepted as a whole-name base name (see the matching
+  // note in inferBareProcessNamePlan). This fallback runs only after every
+  // splitBafuNamePlan matcher returned null, so it never overrides a recognised
+  // base+treatment split; what remains are intrinsic compound product names
+  // (e.g. "Fuel in transport, aircraft, passenger"). The product-flow type guard
+  // below still restricts this to actual product flows.
+  if (!source) return null;
   const flow =
     packagePayload?.source_row?.flowDataSet ?? packagePayload?.entity_payload?.flowDataSet ?? {};
   const typeOfDataSet = lowerText(flow?.modellingAndValidation?.LCIMethod?.typeOfDataSet);
@@ -2033,10 +2120,22 @@ function inferBareProductNamePlan({ name, packagePayload }) {
 
 function inferBareProcessNamePlan({ name, packagePayload }) {
   const locationCode = datasetLocationCode({ isProcess: true, packagePayload });
-  const source = stripGeneratedPrefixText(
-    stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
+  const source = stripSourceLocatorSuffix(
+    stripGeneratedPrefixText(
+      stripTrailingLocationTokenText(textFromMultilang(name?.baseName).trim(), locationCode),
+    ),
   );
-  if (!source || /,/u.test(source)) return null;
+  // Comma-containing names are accepted here as a whole-name base name. This fallback
+  // is reached ONLY after every splitBafuNamePlan / splitBafuNamePlanFromNameParts
+  // matcher returned null, so a name that any matcher would have split into a
+  // base + treatment/route never arrives here. What remains are intrinsic compound
+  // product/service names whose comma is part of the name itself (e.g. "Road,
+  // trolleybus", "Videoconference, laptop, participant", "Transport, high speed
+  // train, Infrastruktur"); treating the whole geography-stripped name as the base
+  // name is the correct authoring outcome. The production-context guard below still
+  // requires a real reference-product output (or production classification) before
+  // emitting a plan, so non-product rows are not mislabelled.
+  if (!source) return null;
   const process =
     packagePayload?.source_row?.processDataSet ??
     packagePayload?.entity_payload?.processDataSet ??
@@ -2168,7 +2267,12 @@ function completeNameSplitMixLocationPhrase(mixLocation, locationCode) {
 }
 
 function splitBafuNamePlanFromNameParts(name, expectedLocationCode = null) {
-  const baseName = textFromMultilang(name?.baseName).trim();
+  // Strip a trailing source-locator citation from the base name up front: this function
+  // appends treatment segments after the base name before delegating to
+  // splitBafuNamePlan, which would leave the citation stranded mid-string (e.g.
+  // "...water balance according to MoeK 2013, at plant") where the terminal-anchored
+  // strip can no longer reach it.
+  const baseName = stripSourceLocatorSuffix(textFromMultilang(name?.baseName).trim());
   const treatment = textFromMultilang(name?.treatmentStandardsRoutes).trim();
   if (!baseName || !treatment || normalizeIdentityText(treatment) === "source described route") {
     return null;

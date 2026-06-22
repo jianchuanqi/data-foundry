@@ -506,13 +506,28 @@ export function remoteVerifyChecks(repoRoot, remoteVerifyArtifact) {
   return checksPath && fileExists(checksPath) ? readJsonLines(checksPath) : [];
 }
 
-export function remoteVerifiedReferenceKeys(repoRoot, remoteVerifyArtifact) {
+export function remoteVerifiedReferenceKeys(
+  repoRoot,
+  remoteVerifyArtifact,
+  { acceptExactExistingOutdated = false } = {},
+) {
+  // `version_outdated` is returned by the CLI remote-verify ONLY when the exact
+  // referenced version EXISTS remotely but a newer version is also published
+  // (otherwise the status would be `missing_version`). For a *reference* row the
+  // referenced dataset existing at that exact version is sufficient proof of the
+  // write dependency closure — the "use latest" preference is a publish-quality
+  // concern, not a reference-integrity one. Under the BAFU My Data override we
+  // accept such references (e.g. account-local FP/UG at state_code=0 referenced
+  // at their source version while a 01.00.000 row also exists).
+  const acceptableStatuses = acceptExactExistingOutdated
+    ? new Set(["ok", "version_outdated"])
+    : new Set(["ok"]);
   return new Set(
     remoteVerifyChecks(repoRoot, remoteVerifyArtifact)
       .filter(
         (check) =>
           asText(check?.role) === "reference" &&
-          asText(check?.status) === "ok" &&
+          acceptableStatuses.has(asText(check?.status)) &&
           asText(check?.table) &&
           asText(check?.id),
       )
@@ -550,9 +565,12 @@ export function buildReferenceClosureBlockers({
   remoteVerifyArtifact,
   provenReferenceKeys = new Set(),
   unresolvedReferenceKeys = new Set(),
+  allowAccountLocalSupportAndElementary = false,
 }) {
   const plannedRootKeys = plannedRootReferenceKeys(rows, datasetType);
-  const remoteOkKeys = remoteVerifiedReferenceKeys(repoRoot, remoteVerifyArtifact);
+  const remoteOkKeys = remoteVerifiedReferenceKeys(repoRoot, remoteVerifyArtifact, {
+    acceptExactExistingOutdated: allowAccountLocalSupportAndElementary,
+  });
   const blockers = [];
   const seen = new Set();
   rows.forEach((row, rowIndex) => {
@@ -653,6 +671,7 @@ export function buildWriteCandidateItem({
   identityDecisionApplyContext,
   cleanupContext = null,
   evidenceScopeBlockers = [],
+  allowAccountLocalSupportAndElementary = false,
 }) {
   const key = identityKey(identity);
   const blockers = [];
@@ -675,7 +694,7 @@ export function buildWriteCandidateItem({
       issues: ensureArray(schemaRow?.issues),
     });
   }
-  if (referenceOnlySupportDatasetTypes.has(datasetType)) {
+  if (referenceOnlySupportDatasetTypes.has(datasetType) && !allowAccountLocalSupportAndElementary) {
     blockers.push({
       code: "reference_only_support_type_write_blocked",
       stage: "support_reference_policy",
@@ -683,7 +702,11 @@ export function buildWriteCandidateItem({
         "Unit Groups and Flow Properties are reference-only support data for Foundry imports. Select existing database rows and rewrite references instead of writing account-local My Data rows.",
     });
   }
-  blockers.push(...prewriteIdentityBlockers(identity.payload, datasetType, repoRoot));
+  blockers.push(
+    ...prewriteIdentityBlockers(identity.payload, datasetType, repoRoot, {
+      allowAccountLocalSupportAndElementary,
+    }),
+  );
 
   const curationStatus = curationEntity?.status ?? null;
   if (curationGateProvided && !curationEntity) {

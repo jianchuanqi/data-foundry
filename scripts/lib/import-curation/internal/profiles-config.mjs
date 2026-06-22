@@ -13,6 +13,16 @@ export function normalizeProfile(rawProfile, profileId) {
     fullContextAiCompletion: normalizeFullContextAiCompletion(
       profile.fullContextAiCompletion ?? profile.full_context_ai_completion,
     ),
+    allowAccountLocalSupportAndElementary: Boolean(
+      (
+        profile.allow_account_local_support_and_elementary ??
+        profile.allowAccountLocalSupportAndElementary
+      )?.enabled,
+    ),
+    accountLocalSupportOverride:
+      profile.allow_account_local_support_and_elementary ??
+      profile.allowAccountLocalSupportAndElementary ??
+      null,
   };
 }
 

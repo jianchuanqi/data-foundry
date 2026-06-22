@@ -9,12 +9,14 @@ export function createIdentityDecisionCommands({
   hasUnresolvedAiPlaceholder,
   normalizedList,
   nowIso,
+  profileFor,
   readJson,
   readJsonLines,
   readRowsFile,
   readText,
   referenceShortDescription,
   repoRelativePath,
+  repoRoot,
   resolveRepoPath,
   sha256Text,
   unique,
@@ -283,6 +285,16 @@ export function createIdentityDecisionCommands({
       };
     }
     const datasetType = asText(options.type || options.datasetType || "flow").toLowerCase();
+    const applyProfile =
+      typeof profileFor === "function"
+        ? profileFor(
+            repoRoot,
+            asText(options.profile || "generic")
+              .trim()
+              .toLowerCase(),
+            options,
+          )
+        : { allowAccountLocalSupportAndElementary: false };
     const rowsFile = resolveRepoPath(options.rowsFile || options.input || options.rows);
     const decisionsFile = resolveRepoPath(
       options.decisions || options.identityDecisions || options.decisionFile,
@@ -345,7 +357,8 @@ export function createIdentityDecisionCommands({
       if (
         datasetType === "flow" &&
         decision.decision === "create_new" &&
-        isElementaryFlowIdentityRow(row)
+        isElementaryFlowIdentityRow(row) &&
+        !applyProfile.allowAccountLocalSupportAndElementary
       ) {
         blockers.push({
           code: "elementary_flow_identity_create_new_blocked",

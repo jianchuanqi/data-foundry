@@ -1370,6 +1370,45 @@
         "version": "",
         "short_description": "Units of mass"
       }
+    },
+    {
+      "id": "da11d28f-4db8-51eb-b3a9-8784b26771e6",
+      "version": "01.00.000",
+      "state_code": 0,
+      "name": "Time | 时间",
+      "short_description": "Time | 时间",
+      "classification": "Technical flow properties",
+      "reference_unit_group": {
+        "id": "49ce0c2f-2241-54e3-8e75-e75ffbdaecfb",
+        "version": "01.00.000",
+        "short_description": "Units of time"
+      }
+    },
+    {
+      "id": "fd9d0d42-3655-5f1d-aa2f-e9ae1134fc82",
+      "version": "01.00.000",
+      "state_code": 0,
+      "name": "Length*time | 长度*时间",
+      "short_description": "Length*time | 长度*时间",
+      "classification": "Technical flow properties",
+      "reference_unit_group": {
+        "id": "8a1e27de-c1e7-5049-94bd-6c7ba80f52d1",
+        "version": "01.00.000",
+        "short_description": "Unit of m*a"
+      }
+    },
+    {
+      "id": "ccaf6424-b648-51b7-9cba-3c349302c6a3",
+      "version": "01.00.000",
+      "state_code": 0,
+      "name": "Person*distance | 人*距离",
+      "short_description": "Person*distance | 人*距离",
+      "classification": "Technical flow properties",
+      "reference_unit_group": {
+        "id": "7a8c3137-d442-5022-9c11-4023a5c219fc",
+        "version": "01.00.000",
+        "short_description": "Unit of personkm"
+      }
     }
   ],
   "unit_groups": [
@@ -2407,6 +2446,54 @@
           "mean_value": "1"
         }
       ]
+    },
+    {
+      "id": "49ce0c2f-2241-54e3-8e75-e75ffbdaecfb",
+      "version": "01.00.000",
+      "state_code": 0,
+      "name": "Units of time",
+      "short_description": "Units of time",
+      "classification": "Technical unit groups",
+      "reference_unit": "0",
+      "units": [
+        {
+          "internal_id": "0",
+          "name": "a",
+          "mean_value": "1"
+        }
+      ]
+    },
+    {
+      "id": "8a1e27de-c1e7-5049-94bd-6c7ba80f52d1",
+      "version": "01.00.000",
+      "state_code": 0,
+      "name": "Unit of m*a",
+      "short_description": "Unit of m*a",
+      "classification": "Technical unit groups",
+      "reference_unit": "0",
+      "units": [
+        {
+          "internal_id": "0",
+          "name": "m*a",
+          "mean_value": "1"
+        }
+      ]
+    },
+    {
+      "id": "7a8c3137-d442-5022-9c11-4023a5c219fc",
+      "version": "01.00.000",
+      "state_code": 0,
+      "name": "Unit of personkm",
+      "short_description": "Unit of personkm",
+      "classification": "Technical unit groups",
+      "reference_unit": "0",
+      "units": [
+        {
+          "internal_id": "0",
+          "name": "personkm",
+          "mean_value": "1"
+        }
+      ]
     }
   ],
   "flow_property_mappings": [
@@ -2577,47 +2664,29 @@
     {
       "source_units": ["my", "m*a", "ma", "kmy", "km*a", "kma"],
       "canonical_flow_property_id": null,
-      "pending_canonical_support": true,
       "canonical_reference_unit": "m*a",
-      "source_unit_scales": {
-        "my": 1.0,
-        "m*a": 1.0,
-        "ma": 1.0,
-        "kmy": 1000.0,
-        "km*a": 1000.0,
-        "kma": 1000.0
-      },
-      "reason": "Length*time units (meter-year / kilometer-year) must reuse a public canonical Length*time flow property once created upstream; kmy = 1000 m*a.",
-      "pending_upstream_note": "PENDING UPSTREAM: create canonical Length*time FP + Units of length*time UG (state_code 100, reference unit m*a, members my=1/kmy=1000), refresh cache, then set canonical_flow_property_id."
+      "reason": "Length*time units need an upstream canonical flow property.",
+      "canonical_flow_property_version": null,
+      "pending_canonical_support": true,
+      "pending_upstream_note": "PENDING UPSTREAM: create m*a canonical FP/UG."
     },
     {
       "source_units": ["a", "yr", "year", "hr", "h", "hour"],
       "canonical_flow_property_id": null,
-      "pending_canonical_support": true,
       "canonical_reference_unit": "a",
-      "source_unit_scales": {
-        "a": 1.0,
-        "yr": 1.0,
-        "year": 1.0,
-        "hr": 0.00011415525114155251,
-        "h": 0.00011415525114155251,
-        "hour": 0.00011415525114155251
-      },
-      "reason": "Time units (year/annum + hour) must reuse a public canonical Time flow property once created upstream; hr = 1/8760 a (365-day year). NOTE: BAFU a = year, NOT are (area).",
-      "pending_upstream_note": "PENDING UPSTREAM: create canonical Time FP + Units of time UG (state_code 100, reference unit a=year NOT are=100 m2, member hr=1/8760). Confirm 365 vs 365.25 vs the canonical UG, then set canonical_flow_property_id."
+      "reason": "Time units need an upstream canonical flow property.",
+      "canonical_flow_property_version": null,
+      "pending_canonical_support": true,
+      "pending_upstream_note": "PENDING UPSTREAM: create a canonical FP/UG."
     },
     {
       "source_units": ["personkm", "person*km", "pkm"],
       "canonical_flow_property_id": null,
-      "pending_canonical_support": true,
       "canonical_reference_unit": "personkm",
-      "source_unit_scales": {
-        "personkm": 1.0,
-        "person*km": 1.0,
-        "pkm": 1.0
-      },
-      "reason": "Person*distance (passenger-kilometer) units must reuse a public canonical Person*distance flow property once created upstream. NOT mass*distance (kg*km).",
-      "pending_upstream_note": "PENDING UPSTREAM: create canonical Person*distance FP + Units of person*distance UG (state_code 100, reference unit personkm), refresh cache, then set canonical_flow_property_id."
+      "reason": "Person*distance units need an upstream canonical flow property.",
+      "canonical_flow_property_version": null,
+      "pending_canonical_support": true,
+      "pending_upstream_note": "PENDING UPSTREAM: create personkm canonical FP/UG."
     }
   ]
 }
