@@ -342,6 +342,24 @@ export function nameFieldPath(datasetType, field) {
   return `${prefix}.${field}`;
 }
 
+// A trailing "{LOC}" brace in baseName that merely restates the dataset location
+// (mixAndLocationTypes) is redundant, not an unsplit qualifier. Strip it before the
+// base-segment scan so it does not raise a false
+// `semantic_name_base_contains_unsplit_segments` finding (which would otherwise force an
+// unsupported name split, e.g. "Tyre wear emissions, passenger car {RER}" with
+// mixAndLocationTypes "RER"). Genuine qualifier braces, or location braces that do NOT
+// match the dataset location, are left in place and still flagged.
+function stripRedundantTrailingLocationBrace(baseName, mix) {
+  const text = String(baseName ?? "").trim();
+  const match = /\{(?<code>[A-Z0-9][A-Z0-9+&-]*)\}\s*$/u.exec(text);
+  if (!match?.groups?.code) return text;
+  const mixCode = locationCodeCandidate(mix);
+  if (!mixCode) return text;
+  const braceCode = locationCodeCandidate(match.groups.code);
+  if (!braceCode || braceCode !== mixCode) return text;
+  return text.slice(0, match.index).trim();
+}
+
 export function namePlanQualityFindings(name) {
   const baseName = textValue(name?.baseName);
   const treatment = textValue(name?.treatmentStandardsRoutes);
@@ -418,8 +436,9 @@ export function namePlanQualityFindings(name) {
       regex: /\{[A-Z0-9][A-Z0-9+&-]*\}/u,
     },
   ];
+  const baseNameForBaseScan = stripRedundantTrailingLocationBrace(baseName, mix);
   const baseMatches = basePatterns
-    .filter((pattern) => pattern.regex.test(baseName))
+    .filter((pattern) => pattern.regex.test(baseNameForBaseScan))
     .map((pattern) => pattern.kind);
   if (baseMatches.length > 0) {
     findings.push({
