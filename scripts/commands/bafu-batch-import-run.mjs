@@ -3054,6 +3054,7 @@ async function runIdentityAndPatch({
       stage: `${stagePrefix}.identity_apply`,
       argv: foundryCommand("dataset-identity-decisions-apply", {
         type,
+        profile: "bafu",
         rowsFile: repoRelative(inputRowsFile),
         decisions: repoRelative(carryForward.outputFile),
         outDir: repoRelative(identityApplyDir),
@@ -3119,6 +3120,7 @@ async function runIdentityAndPatch({
         stage: `${stagePrefix}.identity_apply`,
         argv: foundryCommand("dataset-identity-decisions-apply", {
           type,
+          profile: "bafu",
           rowsFile: repoRelative(inputRowsFile),
           decisions: repoRelative(carryForward.outputFile),
           outDir: repoRelative(identityApplyDir),

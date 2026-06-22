@@ -1,6 +1,7 @@
 export {
   foundryTraceSummary,
   listImportProfiles,
+  profileFor,
   runDatasetAuthoringPatchCollect,
   runDatasetAuthoringTaskBuild,
   runDatasetCurationCleanup,

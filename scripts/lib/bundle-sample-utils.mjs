@@ -123,8 +123,12 @@ export function createBundleSampleUtils({
     blockers,
     stats,
     elementaryFlowReuseRows,
+    allowAccountLocalSupportAndElementary = false,
   }) {
     if (type !== "flow") return;
+    // Override: BAFU profile may mint account-local (My Data, state_code=0) elementary
+    // flows; do not require reuse-from-existing or block the bundle.
+    if (allowAccountLocalSupportAndElementary) return;
     if (flowClassificationSchemaType(payload) !== "flow-elementary") return;
     const identity = datasetIdentity(payload, type);
     const sourceClassification = processSourceClassificationSummary(sourceTraces);

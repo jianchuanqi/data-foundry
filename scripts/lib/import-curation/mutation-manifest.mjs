@@ -359,6 +359,9 @@ export function runDatasetMutationManifest({ repoRoot, options = {} } = {}) {
       unresolvedReferenceKeys: identityDecisionUnresolvedReferenceKeys(
         identityDecisionApplyContext,
       ),
+      allowAccountLocalSupportAndElementary: Boolean(
+        profile?.allowAccountLocalSupportAndElementary,
+      ),
     }),
   );
   if (
@@ -421,6 +424,9 @@ export function runDatasetMutationManifest({ repoRoot, options = {} } = {}) {
       identityDecisionApplyContext,
       cleanupContext,
       evidenceScopeBlockers,
+      allowAccountLocalSupportAndElementary: Boolean(
+        profile?.allowAccountLocalSupportAndElementary,
+      ),
     });
   });
   const referenceItems = buildReferenceReuseItems({
