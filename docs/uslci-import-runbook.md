@@ -120,16 +120,21 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 4. 写 `docs/import-profiles/uslci/constraints.md`（当前 constraints 是"无 waiver"占位）+ 更新 profile.md，**显式授权** override 并带审计字段（否则治理文档与 JSON 冲突）。topic commit 落 foundry main。
 5. **不变量**：override **不放松** 单位尺度门禁 `canonical_support_amount_scaling_required`；conversion-v2 的单位归一化（§7-2）是安全网，My Data 行保留源单位故自洽。
 
-### Phase 3A — classification 授权（process 2,112 + flow-product 1,638 = 3,750，杠杆 1）
+### Phase 3A — classification 授权（process 2,112 + flow-product 1,638 = 3,750，杠杆 1）✅ 链已验证
 
-走**完全 generic、profile 中立**的链（`classification-decisions.mjs` 零 bafu 引用）：
+走**完全 generic、profile 中立**的链（`classification-decisions.mjs` 零 bafu 引用）。**pilot（15 process + 85 flow-product）已端到端打通**：6 scope 仅凭 classification 即 ready、pilot-15 classification blocker 归零。**经验证的精确配方 + 坑**（细节见 `$RUN/phase-journal.md`）：
 
-1. 产出分类 authoring 队列（`authoring-plan-v1/chunks/` 是模板不是队列）：`dataset-bundle-sample-rows --profile uslci …` 或从 resolution-v4 blocked ledger 生成；拆 process（2,112）/ flow-product（1,638）。
-2. 分片绑定单一 sha：`dataset-classification-decision-task-build --profile uslci --category-type <process|flow-product> --offset N --limit M --chunk-label … --shared-context-cache-dir <一个目录> --out-dir $RUN/decisions-v4-classification/tasks/<shard>`。
-3. **AI 授权合同（按语义分类）**：process → ISIC 4 位 leaf（`tidas_processes_category.json`）；flow-product → CPC level-4 leaf（`tidas_flows_product_category.json`）。**NAICS 派生的 converted_classification 只是弱提示**（已知错配，如 "Transport … chemical products" 误指 "membership organizations"）。每行需 `decision_status:completed` + leaf code + `authoring_context.context_bundle_sha256`（匹配任务 hash）+ evidence + used_context_kinds。**绝不无 sha-bundle 证据授权**（BAFU appended-rows 事故教训）。
-4. 投影 `dataset-library-classification-decisions-project --profile uslci …`（强制 leaf-only）→ 投影前跑确定性校验（errors 0 / missing 0）→ `dataset-classification-decisions-apply --profile uslci …` 合入 decisions-v4。预期 ~1,056 个 scope 仅凭 classification 即 ready。
+1. **context pack**（USLCI 此前无，必须生成；process/flow 各一次，profile 值是 `ai-import` 不是 uslci）： `tiangong-lca dataset context-pack --type <process|flow> --profile ai-import --out-dir <SR>/context/<type> --json`。
+2. **队列**：`dataset-bundle-sample-rows --profile uslci --bundles-dir $RUN/conversion-v3/process-bundles [--sample-size N] --out-dir <SR>` → `classification-authoring-queue.jsonl`（含两类）+ `rows/*.jsonl`。⚠️ `authoring-plan-v1` 模板和 resolution blocked-ledger **都不能替代**队列（缺 `classification_workflow.commands.input_rows`）。
+3. **按 category_type 拆队列 + 按 dataset_id 去重**（一个 flow 被 k 个 process 引用就出现 k 次；apply 拒绝重复队列行/重复决策）。
+4. **task-build 按类型、对 per-type 去重队列**：`dataset-classification-decision-task-build --profile uslci --classification-queue <per-type-deduped-queue> --rows-file <SR>/rows/<processes|flows>.jsonl --schema-file/--yaml-file/--ruleset-file <SR>/context/<type>/outputs/* --classification-schema tidas_<processes|flows_product>_category.json --location-schema … --category-type <process|flow-product> --chunk-label … --shared-context-cache-dir <一个目录> --out-dir …`。⚠️ task 记录的 `task_queue` = 该队列文件 → 后续 project/apply **必须用同一队列文件**（否则 `classification_decision_task_queue_mismatch`）；改队列即换 sha → 决策须从新模板**重新加盖** `authoring_context`。
+5. **AI 授权合同（按语义分类）**：process → ISIC 4 位 leaf（`tidas_processes_category.json`）；flow-product → CPC level-4（5 位）leaf（`tidas_flows_product_category.json`）。**NAICS 弱提示通常为空**（被剥离）→ 纯按含义分类。每行需 `code`+`selected_code` + `decision_status:completed` + basis + confidence + `used_context_kinds[schema,methodology_yaml,ruleset,classification_schema]` + `evidence{}` + 保留 `authoring_context.context_bundle_sha256`。**按 dataset_id 去重决策**。**绝不无 sha-bundle 证据授权**（BAFU appended-rows 事故教训）。
+6. **project 按类型**（单 `--decision-task`，**不可重复**，传两个会抛错）：`dataset-library-classification-decisions-project --profile uslci --classification-queue <per-type-queue> --library-decisions <authored> --decision-task <per-type-task> --out-dir …`（强制 leaf-only，拒 `library_classification_decision_not_leaf`）。出场 errors 0 / manual_review 0。
+7. **apply 按类型** → `decisions/<type>-classification-decisions.jsonl`。
+8. 合并两类的 `decisions/*-classification-decisions.jsonl` 为 decisions-vN 目录的 `classification-decisions.jsonl` → `dataset-library-decisions-apply` → resolution。
 
-- **不要**用 `dataset-bafu-leaf-classification-*`（ecoinvent 名称→code 硬编码，不吃 USLCI NAICS 名）。
+- **不要**用 `dataset-bafu-leaf-classification-*`（ecoinvent 名称→code 硬编码，不吃 USLCI 名）。
+- **全量放大**：对全部 2,112 scope 跑 bundle-sample（不加 --sample-size）→ 拆+去重 → ~90-100 行/shard 分片 task-build → 并行 AI 授权代理（每 shard 一个，对标 BAFU）→ project+apply → decisions-v4 → resolution-v5。预期 ~1,056 scope 仅凭 classification 即 ready，其余需杠杆 2。
 
 ### Phase 3B — elementary：remap-first, mint-last（931 deps / 986 scopes，杠杆 2 之一）
 
@@ -175,7 +180,7 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 ## 6. 当前状态快照（每会话结束前更新）
 
-- **阶段**：Phase 0/1/2/identity 完成；**方案已按 foundry main 新能力重制为双杠杆（2026-06-23）**。下一步 = Phase 3-PRE（授权 My Data override，待用户批准 D4-elementary）+ Phase 3A（classification）。
+- **阶段**：Phase 0/1/2/identity 完成；CAP-20260623-001（隔间 bug）已修 → conversion-v3 就绪；**Phase 3A classification 链已 pilot 验证端到端打通**（6 scope 仅凭分类即 ready）。下一步 = Phase 3A 全量放大（无需授权）+ Phase 3-PRE（My Data override，待 D4-elementary 批准）。
 - **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci，active/Doing；`$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT）。
 - **live canonical 链**（盘上已核验）：`conversion-v2`（单位归一化，独立校验器 78,757/78,757 全对）+ `library-index-v2` + `decisions-v3`（identity 2,988 + canonical-support 20）+ `library-resolution-v4` + `identity-from-preflight-v3`。v1/v2-support/resolution-v1~v3 仅留 forensic。
 - **universe**：1,358（`$RUN/universe-v1/`；排除 754 个未引用 library 过程）。
