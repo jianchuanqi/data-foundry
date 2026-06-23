@@ -19,7 +19,11 @@ __pycache__/
 .agents/skills/tiangong-kb-*/
 skills-lock.json
 artifacts/
-reports/
+# reports/: generated report artifacts are ignored; generator scripts + READMEs are tracked
+reports/**
+!reports/**/
+!reports/**/*.py
+!reports/**/README.md
 tmp/
 inputs/*
 !/inputs/README.md
