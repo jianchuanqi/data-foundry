@@ -7,6 +7,7 @@
 ## 0. 三十秒定位
 
 - **Goal**：把 `inputs/National_Renewable_Energy_Laboratory-USLCI_Database_Public` 的 **1,358** 个 process（1,341 USLCI + 17 个被传递引用的 library 电网过程）导入远端 TIDAS 库，gap 0。**收尾口径（对标 BAFU 99.94% close-out）**：每个 process 最终为 _verified_（reuse 既有 canonical **或** created-account-local My Data，readback-verified）或带逐项证据的 _registered-non-importable_。account-local My Data 创建能力使绝大多数原"无 canonical 匹配"项可建可导，非可导入应是极小残留。
+- **质量要求：尽量无损导入**（用户 2026-06-23 明确）。USLCI 数据本身很丰富，这些必须落进 TIDAS 字段、不能只留在 sourceTrace：**881 个 process 的 pedigree 数据质量条目**（+ 逐 exchange pedigree）、**5,651 条 exchange 的不确定性分布（含分布参数）**、**61 个 process 的分配因子**、**852 个 process 的评审记录**。真正无 TIDAS 落点的字段必须逐项列出原因（见 §7.1 数据保真表）。落地见 CAP-20260623-002（tidas-tools 转换器增强 → conversion-v4 commit-canonical）。
 - **Profile**：`uslci`（`specs/import-profiles.json`；约束见 `docs/import-profiles/uslci/`）。Lane：`external-dataset-curated-import`，**禁止新增 USLCI 专用 Foundry 代码路径，直到 pilot 证明必要**。
 - **任务文件**：`tasks/active/external-import-20260612-uslci.md`（已 claim，state Doing；队列内容是本地运行态，不入 git）。
 - **源包事实与 sha256**：`inputs/source-packages/uslci-database-public.md`（这是 source manifest，所有计数和复现命令在那里，本文不重复）。
@@ -201,12 +202,25 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 | 2 | ~~转换器不做单位换算，数值错最高 1000×~~ **已解决**：tidas-tools a3e1aa9（2026-06-12）在 openlca adapter 加归一化 pass；conversion-v2 修正 9,478 条（unresolved 0），独立校验器 78,757/78,757 全对 | 无（历史） | 留意：474 条 amountFormula 公式本身未重缩放（仅存 trace，QA 在 pilot 定性）；84 条 ref_unit_name_mismatch 为源数据 refUnit 文本怪癖，数值已验证正确 |
 | 3 | ~~FEDEFL elementary 匹配率未知~~ **已量化**：reuse 2,988/3,919（76%）。残余 931 不再是死路——override 下可 remap-first/mint-last（Phase 3B） | 不再是永久尾巴 | ⚠️ **隔间权威源 = `sourceTrace.payload` 的 openLCA 路径，绝不用转换器写死的 elementaryFlowCategorization**；re-judge 需适配 FEDEFL trace 形状（generic + 测试），否则隔间污染产生错误决策 |
 | 3b | **My Data override 未在 uslci profile 启用** | 931 elementary + 7 FP + 4 UG 仍 blocked | Phase 3-PRE 加 `allow_account_local_support_and_elementary` block（待 D4-elementary 用户授权）；纯 profile 数据，零 gate 代码改动 |
-| 4 | dq_systems / pedigree 只进 sourceTrace（881 个 process 的 dqEntry + per-exchange pedigree 不映射 TIDAS 数据质量字段） | 数据质量信息暂 trace-only | Phase 3 决策：tidas-tools 增强 或 接受 trace-only（capability-development-request） |
+| 4 | **数据保真缺口（lossless 要求）**：pedigree DQ / 不确定性分布参数 / 分配因子 只进 sourceTrace，未落 TIDAS 字段 | 富数据丢失，违反 §0 无损要求；**commit 前置** | CAP-20260623-002（tidas-tools 转换器增强）→ conversion-v4；详见 §7.1 |
 | 5 | bin/ 8 个 source 附件（PDF/JPG）转换时丢弃 | 来源证据不全 | D2 一并定（附件→TIDAS digital file 或 trace 记录） |
 | 6 | ~~转换器对所有 elementary flow 硬编码隔间 `Emissions to air, unspecified`~~ **已修复**：tidas-tools `cc3aaaf` 加 `_elementary_categorization` 映射真实 FEDEFL 隔间；**conversion-v3** 实测 4,872 个 elementary **0 隔间错配**、TIDAS 校验 0、单位归一化仍 78,757/78,757 全对（CAP-20260623-001 → Done） | 无（历史） | mint 用 **conversion-v3**（非 v2）；35 个 economic/non-FEDEFL 回退默认（可接受残留） |
-| 7 | 61 个 allocationFactors、1,425 条 amountFormula 仅存 trace（**注**：25 个 LCI_RESULT 是带 `typeOfDataSet="LCI result"` 的正常 TIDAS **process**，非 trace-only，见 §8） | QA 定性未定 | pilot 时定 warning vs blocker（D3） |
+| 7 | 1,425 条 amountFormula 公式仅存 trace（**注**：25 个 LCI_RESULT 是带 `typeOfDataSet="LCI result"` 的正常 TIDAS **process**，非 trace-only，见 §8） | QA 定性未定 | pilot 时定 warning vs blocker（D3） |
 | 8 | 纯英文源 vs TIDAS zh/en 双语治理 | curation gate 可能 block | Phase 3-5 定 transcreation 批量路径 |
 | 9 | 12 个 currency、399 个 location 实体、categories.json 不转换为 TIDAS 实体 | 无（currency 零引用；location 仅供代码解析；类目以各实体 `category` 字段为准） | 已定性，无需处理 |
+
+### 7.1 数据保真 / lossless fidelity（§0 无损要求的逐项账，commit 前置）
+
+源数据丰富，必须落进 TIDAS 字段而非仅 sourceTrace。盘上对 conversion-v3 逐项核验：
+
+| 富字段 | 量 | conversion-v3 现状 | TIDAS 目标字段（schema 已支持） | 工作 |
+| --- | --- | --- | --- | --- |
+| 评审记录 reviews | 852 process | ✅ **已保留**（`modellingAndValidation.validation.review`：类型/范围/详情/评审人 ref） | — | 保持（回归守护） |
+| 不确定性分布 | 5,651 exchange | ⚠️ **类型保留、参数丢失**（log-normal 的 geomMean/geomSd 未映射，min/max=None） | `relativeStandardDeviation95In`（geomSd/sd）、`minimumAmount`/`maximumAmount`（uniform/triangular） | CAP-20260623-002 |
+| pedigree 数据质量 | 881 process + 逐 exchange | ❌ **仅 trace**（process.dqEntry `(2;1)` + dqSystem ref + exchange `(3;1;1;1;1)`，writer 不落 TIDAS DQ 字段） | `dataQualityIndicators`（process）+ exchange `dataDerivationTypeStatus`/DQ | CAP-20260623-002 |
+| 分配因子 allocationFactors | 61 process | ❌ **仅方法名 + trace**（per-product 因子未落；如 a591c53f 有 7,291 因子） | exchange `allocations` | CAP-20260623-002 |
+
+**口径**：CAP-20260623-002 完成后重转换 **conversion-v4**（commit-canonical），确定性保真扫描确认上述落入 TIDAS 字段；TIDAS 校验 0、单位归一化全过、隔间正确性（CAP-001）保持。真正无 TIDAS 落点的字段逐项列原因，作为 §0 无损要求的"已知有据残留"交用户做数据质量定夺（D3）。classification（基于 conversion-v3）不触及这些字段，可并行；但**最终 commit 用 conversion-v4**。
 
 ## 8. 与 BAFU 的差异速查
 
@@ -238,6 +252,7 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 > **原则（写入 §1-3 的延伸）**：导入过程中确认的转换/校验缺陷，按归属在 owning 项目同步修复（converter/校验 → tidas-tools；CLI 包装 → tiangong-lca-cli），**绝不在 foundry 打补丁绕过**。确认即开 capability-development-request 任务（模板 `tasks/templates/`），带独立验证 + 全测试，对标已闭环的单位归一化（a3e1aa9）与本会话的 CAP-20260623-001。
 
+- **tidas-tools（待修，CAP-20260623-002，commit 前置）**：富字段无损保真——pedigree DQ（881 process + 逐 exchange）、不确定性分布参数（5,651 exchange，log-normal 的 geomSd 等）、分配因子（61 process）现仅进 sourceTrace，须落 TIDAS 字段（`dataQualityIndicators`/`dataDerivationTypeStatus`、`relativeStandardDeviation95In`/min-max、`allocations`，schema 已支持）。修后重转换 **conversion-v4**（commit-canonical）+ 确定性保真扫描。reviews（852）已保留，作回归守护。详见 §7.1。
 - **tidas-tools（✅ 已修复 BUG，CAP-20260623-001 → Done）**：`_flow_classification()` 原对**所有** elementary flow 硬编码 `Emissions to air, unspecified`，无视真实隔间（water 1,966 / soil 703 / **resource 360** 全写成"空气排放"，resource 连类目大类都错）。**修复 = tidas-tools commit `cc3aaaf`**：加 `_elementary_categorization` 把 FEDEFL `/` 路径映射进 TIDAS `common:elementaryFlowCategorization` 正确叶子（catId 按 `tidas_flows_elementary_category.json`），dataset-agnostic（ecoSpold 单 token/无路径回退默认，**BAFU 零回归**），+1 测试套件 92 passed。**conversion-v3** 实测：4,872 elementary **0 隔间错配**（原 ~3,072 错）、TIDAS 校验 0、单位归一化 78,757/78,757 全对。**mint 必须用 conversion-v3**（reused flow 用 canonical 分类不受此限）。
 - **tidas-tools（已澄清，非 bug）**：flowType 映射**忠实无误判**。`_flow_type`（`tidas_json.py:1398`）直接读 openLCA 显式 `flowType` 字段，**不用 input/outputGroup**；盘上 6,624 flow 源 flowType→TIDAS typeOfDataSet **0 错配**。"按 input/outputGroup 把 technosphere 误判为 elementary"是 **ecoSpold1 特有担忧，对 openLCA/USLCI 不成立**，无需改动。
 - **tidas-tools（已闭环，作为不变量）**：单位归一化（a3e1aa9）。override **不放松** `canonical_support_amount_scaling_required`——若 USLCI 重新转换（新 tidas-tools/源，**含上面的 conversion-v3**），必须重跑 `$RUN/unit-normalization-verify/verify.py` 全过才恢复 commit。
