@@ -181,9 +181,9 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 ## 6. 当前状态快照（每会话结束前更新）
 
-- **阶段**：Phase 0/1/2/identity 完成；CAP-20260623-001（隔间 bug）已修 → conversion-v3 就绪；**Phase 3A classification 链已 pilot 验证端到端打通**（6 scope 仅凭分类即 ready）。下一步 = Phase 3A 全量放大（无需授权）+ Phase 3-PRE（My Data override，待 D4-elementary 批准）。
+- **阶段**：Phase 0/1/2/identity 完成；CAP-001（隔间）+ CAP-002（无损保真）已修 → **conversion-v4 = commit-canonical**；**Phase 3A classification 链已 pilot 验证端到端打通**（6 scope 仅凭分类即 ready）。下一步 = Phase 3A 全量放大（无需授权）+ Phase 3-PRE（My Data override，待 D4-elementary 批准）。**待用户定夺：分配 A2（§7.1，D3 数据质量）**。
 - **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci，active/Doing；`$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT）。
-- **live canonical 链**（盘上已核验）：`conversion-v2`（单位归一化，独立校验器 78,757/78,757 全对）+ `library-index-v2` + `decisions-v3`（identity 2,988 + canonical-support 20）+ `library-resolution-v4` + `identity-from-preflight-v3`。v1/v2-support/resolution-v1~v3 仅留 forensic。
+- **转换链**：**conversion-v4 = commit-canonical**（v3 隔间修复 + v4 无损保真：5,129+522 不确定性参数 + 1,652 pedigree DQI 落字段；0 错误、单位 78,757/78,757、隔间 0 错配）。decisions/resolution 链仍基于 v2/v3（identity 键不变，mint/commit 前切 v4 重建下游）：`library-index-v2` + `decisions-v3`（identity 2,988 + canonical-support 20）+ `library-resolution-v4` + `identity-from-preflight-v3`。
 - **universe**：1,358（`$RUN/universe-v1/`；排除 754 个未引用 library 过程）。
 - **identity ✅ 主体完成**（foundry 9136031）：reuse 2,988/3,919，0 假阳性。残余 931 = no_candidate 698 / multiple_plausible 220 / create_new_forbidden 12 / score_too_low 1 → Phase 3B remap-first/mint-last。
 - **resolution-v4 缺口**：process_classification 2,112 + flow_classification 1,638（→ 杠杆 1 Phase 3A）；elementary 931 deps/986 scopes（→ 杠杆 2 Phase 3B）；FP 7 + UG 4 / 139 scopes（→ 杠杆 2 Phase 3C）。blocked-ledger 22,652 行，已生成 54,788 条 exchange 引用重写。ready 仍 0（classification 卡全部）。
