@@ -32,6 +32,7 @@ cd /Users/davidli/projects/workspace/tiangong-lca-data-foundry
    - 编排走 generic 命令链（§4），决策机制完全复用 BAFU 打磨出的 sha256 绑定 task bundle + deterministic apply 体系。
 3. **导入过程中持续迭代完善本项目**。
    - 每轮批次暴露的通用缺陷按归属修复：Foundry 编排层 → 本仓库 generic 层（带测试）；转换/校验 → tidas-tools（capability-development-request 任务，模板在 `tasks/templates/`）；CLI 包装 → tiangong-lca-cli。
+   - **确认即修，不绕过**：导入中确认的转换器/校验缺陷（如已确认的单位归一化 a3e1aa9、elementary 隔间硬编码 CAP-20260623-001）在 owning 项目同步修复并带独立验证，**绝不在 foundry 打补丁掩盖**。已确认缺陷与已澄清非缺陷见 §9。
    - pilot 之后预期的两个 Foundry 演进项（届时按 P1 提）：把 `dataset-bafu-batch-import-run` 参数化为 profile 驱动的通用批量 runner；把 `dataset-bafu-universe-coverage-report` 推广为 profile 无关的 coverage 报告。
    - 每个会话结束前：回写 §6 快照 + `$RUN/phase-journal.md`；修复以主题 commit 落 foundry main。
 
@@ -137,6 +138,7 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 1. **先 re-judge（remap-first）**：220 multiple_plausible 多是同一 canonical flow 的子隔间重复（AI/确定性挑对子隔间 → reuse）；698 里大量是同 CAS/同名仅因 `category_or_compartment_conflict` 被拒（隔间感知 re-judge 可救回为 reuse）。对标 BAFU `fullpool-rejudge.py`（全候选池 ~80，要求同隔间 sourceClassification + 名称等价 + 维度匹配）。设 `BAFU_IDENTITY_PREFLIGHT_RESULT_CACHE` 加速 3,919 条重判。**隔间权威源永远是 `sourceTrace.payload` 的 openLCA 路径，绝不用转换器写死的 elementaryFlowCategorization**（§7-3）。
 2. 救回的写成 reuse_existing_reference（需 canonical ref_object_id/version）入 decisions-v4；re-apply 重测残余。
 3. **mint-last**：真正零候选残余（12 个 create_new_forbidden：Coal bituminous/sub-bituminous、Oil shale、Shale gas、Phosphate ore、Ulexite、Lutetium ore、Gangue、Saponifiable oils/fats、Total oil and grease less TPH、Unused primary solar、PM>10um + re-judge 后仍无物理等价的）→ 在 `--profile uslci`（override 已开）下写 **create_new** identity 决策（无需 canonical 目标，需 status=completed + basis + 结构化 evidence FEDEFL UUID/CAS/隔间 + used_context_kinds）。commit 时经 elementary save-draft 路径建为 My Data（state_code=0，保留源单位）。
+   - ⚠️ **mint 前置硬条件（§7-6 / §9 / CAP-20260623-001）**：minted flow 写库用的是转换器输出的隔间分类，而 conversion-v2 对所有 elementary 硬编码 "air, unspecified"。**必须先在 tidas-tools 修 `_flow_classification` 并重转换 conversion-v3**（重跑单位校验器全过），否则会把 water/soil/resource flow 以"空气排放"分类写进库。reused flow 不受此限（采用 canonical 分类）。
 4. re-apply → resolution-v5：确认 `elementary_flow_requires_existing_database_match` 归 0。
 
 - **决策合同没有新值**：identity 仍只接受 `reuse_existing_reference | create_new | block_unresolved`；override 只是不再 block elementary 的 create_new。
@@ -195,9 +197,10 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 | 3b | **My Data override 未在 uslci profile 启用** | 931 elementary + 7 FP + 4 UG 仍 blocked | Phase 3-PRE 加 `allow_account_local_support_and_elementary` block（待 D4-elementary 用户授权）；纯 profile 数据，零 gate 代码改动 |
 | 4 | dq_systems / pedigree 只进 sourceTrace（881 个 process 的 dqEntry + per-exchange pedigree 不映射 TIDAS 数据质量字段） | 数据质量信息暂 trace-only | Phase 3 决策：tidas-tools 增强 或 接受 trace-only（capability-development-request） |
 | 5 | bin/ 8 个 source 附件（PDF/JPG）转换时丢弃 | 来源证据不全 | D2 一并定（附件→TIDAS digital file 或 trace 记录） |
-| 6 | 25 个 LCI_RESULT、61 个 allocationFactors、1,425 条 amountFormula 仅存 trace | QA 定性未定 | pilot 时定 warning vs blocker（D3） |
-| 7 | 纯英文源 vs TIDAS zh/en 双语治理 | curation gate 可能 block | Phase 3-5 定 transcreation 批量路径 |
-| 8 | 12 个 currency、399 个 location 实体、categories.json 不转换为 TIDAS 实体 | 无（currency 零引用；location 仅供代码解析；类目以各实体 `category` 字段为准） | 已定性，无需处理 |
+| 6 | **转换器对所有 elementary flow 硬编码隔间 `Emissions to air, unspecified`（真 tidas-tools bug，§9 已确认）**：water/soil/resource 全被写成"空气排放"（连 resource 的类目大类都错） | reused flow 不受影响（采用 canonical 分类）；**minted（My Data）flow 受影响**——会把错误隔间写进库 | **Phase 3B mint 前置硬条件**：先在 tidas-tools 修 `_flow_classification` 把真实 FEDEFL 隔间映射进 TIDAS 类目（CAP-20260623-001），重转换 conversion-v3 后再 mint |
+| 7 | 61 个 allocationFactors、1,425 条 amountFormula 仅存 trace（**注**：25 个 LCI_RESULT 是带 `typeOfDataSet="LCI result"` 的正常 TIDAS **process**，非 trace-only，见 §8） | QA 定性未定 | pilot 时定 warning vs blocker（D3） |
+| 8 | 纯英文源 vs TIDAS zh/en 双语治理 | curation gate 可能 block | Phase 3-5 定 transcreation 批量路径 |
+| 9 | 12 个 currency、399 个 location 实体、categories.json 不转换为 TIDAS 实体 | 无（currency 零引用；location 仅供代码解析；类目以各实体 `category` 字段为准） | 已定性，无需处理 |
 
 ## 8. 与 BAFU 的差异速查
 
@@ -212,11 +215,25 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 | 批量 runner | dataset-bafu-batch-import-run（bafu 硬编码） | **generic `dataset-process-scope-run`**（threads profileFor，accepts --dry-run/--commit） |
 | My Data override | enabled:true（2026-06-15） | 待 Phase 3-PRE 启用（D4-elementary 用户授权） |
 | coverage/trace 生成器 | `build-bafu-trace-xlsx.py`（路径硬编码） | fork 到 `reports/uslci-import/`（非 drop-in） |
+| 导入单位 | process（unit process） | **同样是 process**（不是 LCA model，见下方说明） |
+| LCI_RESULT/聚合结果 | 几乎无 | 257 个 LCI_RESULT（USLCI 主包 25 + electricity library 232）→ TIDAS process `typeOfDataSet="LCI result"`；D3 定是否导入/标注 |
 | 收尾态 | verified(reuse+MyData) + 7 残留 = 99.94% | 目标同口径：verified + 少量 registered-non-importable = 1,358 |
+
+### 8.1 导入单位澄清：USLCI 全部导入为 process，不是 LCA model（已核验）
+
+> 常见误解：USLCI 是连通数据库，是否会有大量数据导入为 LCA models / lifecyclemodels？**不会。**
+
+- **两种 openLCA processType 都映射成 TIDAS process**（`tidas_json.py:_process_type` 985-993）：`UNIT_PROCESS → typeOfDataSet "Unit process, single operation"`；`LCI_RESULT → "LCI result"`。`typeOfDataSet` 是 ILCD/TIDAS **process 数据集内部**的枚举字段——这四种全是 process，**没有一个变成 lifecyclemodel**。实测 LCI_RESULT（如 "Steel; hot rolled coil"）转出确为 `processDataSet` 带 `typeOfDataSet=LCI result`。
+- **conversion-v2 产出 = 2,112 process + 1 lifecyclemodel**。那 1 个 lifecyclemodel 是转换器从全包 defaultProvider 图**派生的候选产物**，不是导入单位。
+- **导入 scope universe 是纯 process**：`scope-projection.jsonl` = `{process: 2112}`，0 个 lifecyclemodel scope。本 goal 的 1,358 in-scope 全是 process。
+- **链接性的去向**：4,474 条带 defaultProvider 的 exchange 形成的产品系统图，作为 trace/链接保留在各 process 内 + 1 个候选 lifecyclemodel，**不会**展开成 2,112 个 lifecyclemodel。若未来要"产品系统/生命周期模型"视图，是导入后基于已入库 process 另建的下游工作，不在本 process 导入 goal 内。
 
 ## 9. 需路由的缺陷 / 能力缺口（按归属）
 
-- **foundry-generic（可能需要，带测试 + dataset-agnostic）**：FEDEFL trace 形状的全候选池确定性 re-judge（对标 BAFU `fullpool-rejudge.py`）。先查 USLCI 实际 `sourceTrace.payload.sourceClassification` 结构，确认 `library-scope-workflow.mjs` 的 traceCompartment 是否已覆盖（openLcaCompartmentClassification 已加），还是需配置/代码改动。
-- **foundry-generic（新 line-item）**：无 profile 中立的 coverage/trace 生成器与 batch runner。`dataset-bafu-batch-import-run` / `dataset-bafu-universe-coverage-report` / `build-bafu-trace-xlsx.py` 均 bafu 硬编码。Phase 5 fork trace 生成器；若 Phase 5 吞吐不足再把 batch runner 参数化为 profile 驱动（P1，连带把 mega-scope 基础设施作为 dataset-agnostic infra 一并通用化）。
-- **tidas-tools（forensic 后定）**：`_flow_classification()`（tidas_json.py:~1568）对 elementary 硬编码 air-unspecified，且可能按 input/outputGroup 把 technosphere flow 误判为 elementary。查 USLCI 的 elementary flow 是否有误判 technosphere；若有，修在 tidas-tools（会独立于 override 缩小 elementary 负担），不在 foundry 打补丁。
-- **tidas-tools（已闭环，作为不变量）**：单位归一化（a3e1aa9）。override **不放松** `canonical_support_amount_scaling_required`——若 USLCI 重新转换（新 tidas-tools/源），必须重跑单位校验器全过才恢复 commit。
+> **原则（写入 §1-3 的延伸）**：导入过程中确认的转换/校验缺陷，按归属在 owning 项目同步修复（converter/校验 → tidas-tools；CLI 包装 → tiangong-lca-cli），**绝不在 foundry 打补丁绕过**。确认即开 capability-development-request 任务（模板 `tasks/templates/`），带独立验证 + 全测试，对标已闭环的单位归一化（a3e1aa9）与本会话的 CAP-20260623-001。
+
+- **tidas-tools（已确认 BUG，CAP-20260623-001，Phase 3B mint 前置）**：`_flow_classification()`（`tidas_json.py:1568`）对**所有** elementary flow 硬编码 `Emissions > Emissions to air > Emissions to air, unspecified`，无视真实隔间。盘上实测：water 1,966 / air 1,808 / ground 703 / **resource 360** / other 35 全写成"空气排放"（resource 连类目大类都错）。真实隔间只在 trace（`sourceCategoryPath`/`category` 的 FEDEFL 路径）。**影响**：reused flow 不受影响（采用 canonical 分类）；**minted My Data flow 受影响**——写库用的就是这个错误分类。**修法**：在 `_flow_classification` 把 FEDEFL 路径映射进 TIDAS `common:elementaryFlowCategorization`（schema `tidas_flows_elementary_category.json` 是固定枚举 catId 树，映射有界明确；foundry 已有 `openLcaCompartmentClassification` 可参照），dataset-agnostic（ecoSpold/BAFU 无 FEDEFL 路径时回退现行默认，不回归）+ 测试。修后重转换 conversion-v3 再 mint。
+- **tidas-tools（已澄清，非 bug）**：flowType 映射**忠实无误判**。`_flow_type`（`tidas_json.py:1398`）直接读 openLCA 显式 `flowType` 字段，**不用 input/outputGroup**；盘上 6,624 flow 源 flowType→TIDAS typeOfDataSet **0 错配**。"按 input/outputGroup 把 technosphere 误判为 elementary"是 **ecoSpold1 特有担忧，对 openLCA/USLCI 不成立**，无需改动。
+- **tidas-tools（已闭环，作为不变量）**：单位归一化（a3e1aa9）。override **不放松** `canonical_support_amount_scaling_required`——若 USLCI 重新转换（新 tidas-tools/源，**含上面的 conversion-v3**），必须重跑 `$RUN/unit-normalization-verify/verify.py` 全过才恢复 commit。
+- **foundry-generic（可能需要，带测试 + dataset-agnostic）**：FEDEFL trace 形状的全候选池确定性 re-judge（对标 BAFU `fullpool-rejudge.py`）。`openLcaCompartmentClassification`（9136031）已覆盖隔间恢复；先查 USLCI 实际 `sourceTrace.payload` 结构确认是配置-only 还是需代码改动。
+- **foundry-generic（新 line-item）**：无 profile 中立的 coverage/trace 生成器与 batch runner。`dataset-bafu-batch-import-run` / `dataset-bafu-universe-coverage-report` / `build-bafu-trace-xlsx.py` 均 bafu 硬编码。Phase 5 fork trace 生成器；若吞吐不足再把 batch runner 参数化为 profile 驱动（P1，连带 mega-scope 基础设施一并通用化）。
