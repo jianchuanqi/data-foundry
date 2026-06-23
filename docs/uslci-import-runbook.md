@@ -202,25 +202,31 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 | 2 | ~~转换器不做单位换算，数值错最高 1000×~~ **已解决**：tidas-tools a3e1aa9（2026-06-12）在 openlca adapter 加归一化 pass；conversion-v2 修正 9,478 条（unresolved 0），独立校验器 78,757/78,757 全对 | 无（历史） | 留意：474 条 amountFormula 公式本身未重缩放（仅存 trace，QA 在 pilot 定性）；84 条 ref_unit_name_mismatch 为源数据 refUnit 文本怪癖，数值已验证正确 |
 | 3 | ~~FEDEFL elementary 匹配率未知~~ **已量化**：reuse 2,988/3,919（76%）。残余 931 不再是死路——override 下可 remap-first/mint-last（Phase 3B） | 不再是永久尾巴 | ⚠️ **隔间权威源 = `sourceTrace.payload` 的 openLCA 路径，绝不用转换器写死的 elementaryFlowCategorization**；re-judge 需适配 FEDEFL trace 形状（generic + 测试），否则隔间污染产生错误决策 |
 | 3b | **My Data override 未在 uslci profile 启用** | 931 elementary + 7 FP + 4 UG 仍 blocked | Phase 3-PRE 加 `allow_account_local_support_and_elementary` block（待 D4-elementary 用户授权）；纯 profile 数据，零 gate 代码改动 |
-| 4 | **数据保真缺口（lossless 要求）**：pedigree DQ / 不确定性分布参数 / 分配因子 只进 sourceTrace，未落 TIDAS 字段 | 富数据丢失，违反 §0 无损要求；**commit 前置** | CAP-20260623-002（tidas-tools 转换器增强）→ conversion-v4；详见 §7.1 |
+| 4 | ~~数据保真缺口~~ **已落地**（CAP-20260623-002，tidas-tools 0730b70 → conversion-v4）：不确定性参数 5,129+522、process pedigree 1,652 全落 TIDAS 字段；reviews 保留 | 无（历史） | 残留：分配 causal 矩阵（A2，需用户 D3 定夺）、逐 exchange pedigree（D1）等留 trace，详见 §7.1 |
 | 5 | bin/ 8 个 source 附件（PDF/JPG）转换时丢弃 | 来源证据不全 | D2 一并定（附件→TIDAS digital file 或 trace 记录） |
 | 6 | ~~转换器对所有 elementary flow 硬编码隔间 `Emissions to air, unspecified`~~ **已修复**：tidas-tools `cc3aaaf` 加 `_elementary_categorization` 映射真实 FEDEFL 隔间；**conversion-v3** 实测 4,872 个 elementary **0 隔间错配**、TIDAS 校验 0、单位归一化仍 78,757/78,757 全对（CAP-20260623-001 → Done） | 无（历史） | mint 用 **conversion-v3**（非 v2）；35 个 economic/non-FEDEFL 回退默认（可接受残留） |
 | 7 | 1,425 条 amountFormula 公式仅存 trace（**注**：25 个 LCI_RESULT 是带 `typeOfDataSet="LCI result"` 的正常 TIDAS **process**，非 trace-only，见 §8） | QA 定性未定 | pilot 时定 warning vs blocker（D3） |
 | 8 | 纯英文源 vs TIDAS zh/en 双语治理 | curation gate 可能 block | Phase 3-5 定 transcreation 批量路径 |
 | 9 | 12 个 currency、399 个 location 实体、categories.json 不转换为 TIDAS 实体 | 无（currency 零引用；location 仅供代码解析；类目以各实体 `category` 字段为准） | 已定性，无需处理 |
 
-### 7.1 数据保真 / lossless fidelity（§0 无损要求的逐项账，commit 前置）
+### 7.1 数据保真 / lossless fidelity（§0 无损要求的逐项账）✅ 已落地（conversion-v4）
 
-源数据丰富，必须落进 TIDAS 字段而非仅 sourceTrace。盘上对 conversion-v3 逐项核验：
+CAP-20260623-002（tidas-tools commit `0730b70`）已把可无损映射的富字段落进 TIDAS 字段。**conversion-v4** 实测（conversion-report `rich_field_fidelity_summary`）：
 
-| 富字段 | 量 | conversion-v3 现状 | TIDAS 目标字段（schema 已支持） | 工作 |
-| --- | --- | --- | --- | --- |
-| 评审记录 reviews | 852 process | ✅ **已保留**（`modellingAndValidation.validation.review`：类型/范围/详情/评审人 ref） | — | 保持（回归守护） |
-| 不确定性分布 | 5,651 exchange | ⚠️ **类型保留、参数丢失**（log-normal 的 geomMean/geomSd 未映射，min/max=None） | `relativeStandardDeviation95In`（geomSd/sd）、`minimumAmount`/`maximumAmount`（uniform/triangular） | CAP-20260623-002 |
-| pedigree 数据质量 | 881 process + 逐 exchange | ❌ **仅 trace**（process.dqEntry `(2;1)` + dqSystem ref + exchange `(3;1;1;1;1)`，writer 不落 TIDAS DQ 字段） | `dataQualityIndicators`（process）+ exchange `dataDerivationTypeStatus`/DQ | CAP-20260623-002 |
-| 分配因子 allocationFactors | 61 process | ❌ **仅方法名 + trace**（per-product 因子未落；如 a591c53f 有 7,291 因子） | exchange `allocations` | CAP-20260623-002 |
+| 富字段 | 量 | conversion-v4 结果 | TIDAS 目标字段 |
+| --- | --- | --- | --- |
+| 评审记录 reviews | 852 process（v4 有 687 带真实评审类型） | ✅ **保留**（回归守护通过） | `validation.review` |
+| 不确定性分布 | 5,651 exchange | ✅ **全部落字段**：5,129 log-normal geomSd→`relativeStandardDeviation95In`（=GSD²，0 个 >100 残留）+ 522 triangle/uniform min/max | `relativeStandardDeviation95In`、`min/maxAmount` |
+| pedigree 数据质量（process 级） | 1,652 process | ✅ **全部落字段**：dqEntry + dqSystem 指标名→ILCD `dataQualityIndicators`（1=best→Very good…5→Very poor） | `validation.review.common:dataQualityIndicators` |
+| 分配因子 allocationFactors | 61 process | ⚠️ **见下方残留 A2**：方法在 `LCIMethodApproaches`，完整因子矩阵无损存 trace；ILCD per-exchange 单分配 slot 装不下 causal 多-co-product 矩阵 | exchange `allocations`（不可用） |
 
-**口径**：CAP-20260623-002 完成后重转换 **conversion-v4**（commit-canonical），确定性保真扫描确认上述落入 TIDAS 字段；TIDAS 校验 0、单位归一化全过、隔间正确性（CAP-001）保持。真正无 TIDAS 落点的字段逐项列原因，作为 §0 无损要求的"已知有据残留"交用户做数据质量定夺（D3）。classification（基于 conversion-v3）不触及这些字段，可并行；但**最终 commit 用 conversion-v4**。
+**已知有据残留**（无 TIDAS 忠实落点，完整数据留 sourceTrace，已在 fidelity summary 计数）：
+
+- **A2 分配（需用户数据质量定夺 D3）**：61 个分配过程**全是多-co-product causal 矩阵**（每 exchange 分到 2-13 个 co-product），ILCD `allocations` 只有"每 exchange 单分配分数"slot，结构上装不下。强行写部分数据会**误导**，故不写——方法保留在 LCIMethodApproaches、完整 60,484 causal+267 physical+267 economic 因子无损在 trace。**这是 ILCD 数据模型限制，非转换器缺陷**；是否接受 trace 保留交用户定。
+- **D1 逐-exchange flow pedigree**（28,572）：ILCD 无 per-exchange DQ slot → trace。
+- **U1 三角分布 mode** / **U2 GSD²>100**（USLCI 实际 0 个）/ **D2 dqSystem 身份** / **D3 exchange 派生类型**（openLCA 无原生值，默认 Unknown derivation）：均 trace/默认。
+
+**口径**：**最终 commit 用 conversion-v4**（=v3 隔间修复 + 本保真增强）。classification（基于 conversion-v3）不触及这些字段，已 pilot 验证可并行；mint/commit 前切 conversion-v4 重建下游链（identity 决策键不变可沿用）。TIDAS 校验 0、单位归一化 78,757/78,757、隔间 0 错配——v4 全部保持。
 
 ## 8. 与 BAFU 的差异速查
 
