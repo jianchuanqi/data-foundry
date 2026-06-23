@@ -100,10 +100,6 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 3. `dataset-library-index-build` 指向 `$RUN/conversion-v1/process-bundles` 建库存索引。
 4. **范围决策 D1（默认推荐已给）**：universe = 1,341 USLCI + 17 provider 过程 = 1,358；其余 754 个 library 过程不在本 goal 范围（未来可另立 goal）。在 phase-journal 记录 universe 清单文件。
 
-### Phase 2 — 转换器缺陷修复（与 Phase 3 并行推进，但卡死 commit）
-
-- **单位归一化**（§7-2，本 goal 最大数值风险，目前唯一的 commit 硬门禁）：在 tidas-tools 转换层实现 exchange 单位 → flow 参考单位换算（同属性 7,905 条走 unit group 因子；跨属性如 m³→kg 1,009 条走 flow 级 flowProperties 因子，合并包内全部可得、0 缺失）。按 capability-development-request 流程提给 tidas-tools，验收：重转换 conversion-v2 后，确定性扫描「exchange 源单位 ≠ flow 参考单位的 9,489 条」全部 meanAmount 已正确换算（写一个独立校验脚本，模式参照 BAFU 的 tmp/validate-\*.py）。
-
 ### Phase 2 / identity ✅（2026-06-12/13 完成）
 
 单位归一化（tidas-tools a3e1aa9）+ identity evaluator openLCA-compartment 修复（foundry 9136031）已闭环：conversion-v2 9,478 处换算、独立校验器 78,757/78,757 全对；elementary identity reuse 2,988/3,919（0 假阳性）。详见 §6 与 phase-journal。
