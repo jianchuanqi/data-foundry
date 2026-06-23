@@ -73,6 +73,18 @@
       ],
       "waived_qa_codes_by_type": {},
       "waiver_reasons": {},
+      "allow_account_local_support_and_elementary": {
+        "enabled": true,
+        "authorized_by": "user override 2026-06-23 (D4-elementary): build all buildable USLCI data as account-local My Data (state_code=0) — the 1,056 lever-2 scopes whose FEDEFL elementary flows / 7 local flow-properties / 4 unit-groups have no public canonical equivalent are minted as My Data rather than left non-importable. Explicit, reversible override of the reference-only support and elementary-flow-reuse governance for the USLCI account, mirroring the BAFU 2026-06-15 override.",
+        "scope": [
+          "elementary_flow_write",
+          "elementary_flow_create_new",
+          "flowproperty_write",
+          "unitgroup_write",
+          "canonical_support_local_mint"
+        ],
+        "note": "Set enabled=false to restore reference-only governance. Does NOT relax the unit-scale safety blocker (canonical_support_amount_scaling_required) or schema/curation/full-context proof gates — only the reference-only and elementary-create_new policy walls. Account-local rows are written at state_code=0 (My Data) and keep their source units so amounts stay self-consistent."
+      },
       "full_context_ai_completion": {
         "required": false,
         "dataset_types": [],

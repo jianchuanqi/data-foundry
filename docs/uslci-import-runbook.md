@@ -181,18 +181,16 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 ## 6. 当前状态快照（每会话结束前更新）
 
-- **阶段**：Phase 0/1/2/identity + CAP-001/002 + **Phase 3A classification 全量完成**（2026-06-23）。下一步 = **Phase 3-PRE/3B/3C 杠杆 2（My Data override，待 D4-elementary 批准）** → 解锁 1,056 → ~全 1,358 ready → Phase 4 pilot commit。**待用户定夺：分配 A2（§7.1，D3 数据质量）**。
+- **阶段**：Phase 0/1/2/identity + CAP-001/002（含 D3 分配无损）+ **classification 全量 + D4-elementary override 已授权并验证**（2026-06-23）。**全部 1,358 in-universe scope 已 resolution-ready**。下一步 = **Phase 4 pilot commit**（dry-run → 远端写需 D2/D3-QA/D4 账号写入政策批准；`allow_remote_commit` 仍 false）。
 - **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci，active/Doing；`$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT）。
-- **canonical 链（盘上）**：`conversion-v4`（commit-canonical：隔间修复 + 无损保真）+ `library-index-v4` + `decisions-v4`（identity 2,988 + canonical-support 20 + **classification 2,990**）+ `library-resolution-v5`。
+- **canonical 链（盘上）**：**`conversion-v5` = commit-canonical**（隔间修复 + 无损保真：不确定性/pedigree/**分配** 全落字段）；`library-index-v4` + `decisions-v4`（identity 2,988 + support 20 + classification 2,990）+ **`library-resolution-v6-override`（override ON → ready 1,358）**。注意：v4/v5 仅 classification 不触及的字段变化，dataset_id 键不变；commit 前用 conversion-v5 重建 library-index（mint 写库用 v5 的字段）。
 - **universe**：1,358（`$RUN/universe-v1/`；排除 754 个 out-of-scope library 过程）。
-- **Phase 3A classification ✅ 全量完成**：35 shard 并行授权 2,990 决策（process ISIC4 + flow-product CPC4-5，0 非法 code）→ project/apply 35/35 完成 → resolution-v5。**302 scope ready + 1,056 scope 只剩杠杆 2 = 1,358 全 universe**（classification 对 in-universe 100% 解决；6 flow + 754 process 残余阻塞全是 out-of-universe library 过程，不导入）。
-- **identity ✅ 主体完成**（foundry 9136031）：reuse 2,988/3,919；残余 931 → Phase 3B remap-first/mint-last（杠杆 2）。
-- **resolution-v5 缺口（全是杠杆 2）**：elementary 931 deps + FP 7 + UG 4，合计 **1,056 个 in-universe scope** 只差 My Data override；blocked-ledger 12,813。
-- **新能力到位**：account-local My Data override（commit 8f28e91，**uslci 未开** → Phase 3-PRE 加配置）；mega-scope 基础设施已在 shared lib。
-- **远端缺陷已闭环**：flow_hybrid_search pgroonga 500 已修复，7 个失败 flow 重跑成功。
-- **BAFU 参照**：GOAL COMPLETE 11,740/11,747 verified（99.94%，7 残留），靠 My Data 创建 + 上游补充收尾；最终交付物 `reports/bafu-import/build-bafu-trace-xlsx.py`（7-sheet 工作簿）是 USLCI 收尾模板。
-- **canonical ledger sources**：无（首个在 Phase 4 产生）。`allow_remote_commit:false`（D4 用户批准前不写远端）。
-- **测试基线**：foundry `npm test` **206/206** + doctor 绿；tidas-tools 89/89（2026-06-23 核验）。
+- **classification ✅ 全量 + D4 override ✅ 已授权**：35 shard 授权 2,990（0 非法 code）→ project/apply 35/35。`--profile uslci` 的 override ON 后 **resolution-v6 = 1,358/1,358 in-universe ready**（elementary 无匹配 + 7 FP + 4 UG 将在 commit 时 mint 为 My Data）；剩 754 全是 out-of-universe library 过程不导入。
+- **D3 分配无损 ✅**（走 A）：TIDAS schema 放宽为分配列表 + 转换器写列表 → conversion-v5 56 process 落字段；详见 §7.1。
+- **新能力**：account-local My Data override **uslci 已开 enabled:true**（specs/import-profiles.json，user 2026-06-23 D4-elementary 授权，可逆）；constraints.md 已记授权与保留门禁。
+- **BAFU 参照**：GOAL COMPLETE 11,740/11,747 verified（99.94%）；最终交付物 `reports/bafu-import/build-bafu-trace-xlsx.py`（7-sheet 工作簿）是 USLCI 收尾模板。
+- **canonical ledger sources**：无（首个在 Phase 4 产生）。**`allow_remote_commit:false`（D4 账号/写入政策批准前不写远端）**。
+- **测试基线**：foundry `npm test` **206/206** + doctor 绿；tidas-tools **95 passed**（2026-06-23）。
 
 ## 7. 已知问题与 blocker 分诊
 
@@ -202,7 +200,7 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 | 2 | ~~转换器不做单位换算，数值错最高 1000×~~ **已解决**：tidas-tools a3e1aa9（2026-06-12）在 openlca adapter 加归一化 pass；conversion-v2 修正 9,478 条（unresolved 0），独立校验器 78,757/78,757 全对 | 无（历史） | 留意：474 条 amountFormula 公式本身未重缩放（仅存 trace，QA 在 pilot 定性）；84 条 ref_unit_name_mismatch 为源数据 refUnit 文本怪癖，数值已验证正确 |
 | 3 | ~~FEDEFL elementary 匹配率未知~~ **已量化**：reuse 2,988/3,919（76%）。残余 931 不再是死路——override 下可 remap-first/mint-last（Phase 3B） | 不再是永久尾巴 | ⚠️ **隔间权威源 = `sourceTrace.payload` 的 openLCA 路径，绝不用转换器写死的 elementaryFlowCategorization**；re-judge 需适配 FEDEFL trace 形状（generic + 测试），否则隔间污染产生错误决策 |
 | 3b | **My Data override 未在 uslci profile 启用** | 931 elementary + 7 FP + 4 UG 仍 blocked | Phase 3-PRE 加 `allow_account_local_support_and_elementary` block（待 D4-elementary 用户授权）；纯 profile 数据，零 gate 代码改动 |
-| 4 | ~~数据保真缺口~~ **已落地**（CAP-20260623-002，tidas-tools 0730b70 → conversion-v4）：不确定性参数 5,129+522、process pedigree 1,652 全落 TIDAS 字段；reviews 保留 | 无（历史） | 残留：分配 causal 矩阵（A2，需用户 D3 定夺）、逐 exchange pedigree（D1）等留 trace，详见 §7.1 |
+| 4 | ~~数据保真缺口~~ **已全部落地**（CAP-20260623-002 → conversion-v5）：不确定性 5,129+522、process pedigree 1,652、**分配 56 process（D3 走 A：schema 放宽为列表 + 转换器）** 全落 TIDAS 字段；reviews 保留 | 无（历史） | 残留仅逐 exchange pedigree（D1）等无 ILCD slot 项，详见 §7.1 |
 | 5 | bin/ 8 个 source 附件（PDF/JPG）转换时丢弃 | 来源证据不全 | D2 一并定（附件→TIDAS digital file 或 trace 记录） |
 | 6 | ~~转换器对所有 elementary flow 硬编码隔间 `Emissions to air, unspecified`~~ **已修复**：tidas-tools `cc3aaaf` 加 `_elementary_categorization` 映射真实 FEDEFL 隔间；**conversion-v3** 实测 4,872 个 elementary **0 隔间错配**、TIDAS 校验 0、单位归一化仍 78,757/78,757 全对（CAP-20260623-001 → Done） | 无（历史） | mint 用 **conversion-v3**（非 v2）；35 个 economic/non-FEDEFL 回退默认（可接受残留） |
 | 7 | 1,425 条 amountFormula 公式仅存 trace（**注**：25 个 LCI_RESULT 是带 `typeOfDataSet="LCI result"` 的正常 TIDAS **process**，非 trace-only，见 §8） | QA 定性未定 | pilot 时定 warning vs blocker（D3） |
@@ -218,11 +216,12 @@ CAP-20260623-002（tidas-tools commit `0730b70`）已把可无损映射的富字
 | 评审记录 reviews | 852 process（v4 有 687 带真实评审类型） | ✅ **保留**（回归守护通过） | `validation.review` |
 | 不确定性分布 | 5,651 exchange | ✅ **全部落字段**：5,129 log-normal geomSd→`relativeStandardDeviation95In`（=GSD²，0 个 >100 残留）+ 522 triangle/uniform min/max | `relativeStandardDeviation95In`、`min/maxAmount` |
 | pedigree 数据质量（process 级） | 1,652 process | ✅ **全部落字段**：dqEntry + dqSystem 指标名→ILCD `dataQualityIndicators`（1=best→Very good…5→Very poor） | `validation.review.common:dataQualityIndicators` |
-| 分配因子 allocationFactors | 61 process | ⚠️ **见下方残留 A2**：方法在 `LCIMethodApproaches`，完整因子矩阵无损存 trace；ILCD per-exchange 单分配 slot 装不下 causal 多-co-product 矩阵 | exchange `allocations`（不可用） |
+| 分配因子 allocationFactors | 61 process | ✅ **已无损落字段**（D3 走 A）：56 个多功能过程的 per-exchange allocation **列表**（每 exchange 多 co-product，分数和=100%）；方法另在 `LCIMethodApproaches` | exchange `allocations`（列表） |
 
-**已知有据残留**（无 TIDAS 忠实落点，完整数据留 sourceTrace，已在 fidelity summary 计数）：
+**D3 分配解法（已落地，2026-06-23）**：原以为是 ILCD 模型限制，实为 **TIDAS JSON schema 把 eILCD 的分配列表收窄成了单对象**。eILCD `ILCD_ProcessDataSet.xsd` 明确 `allocation maxOccurs="unbounded"`。修法 = **放宽 TIDAS process schema `allocations.allocation` 为 anyOf [object, array]**（source-of-truth = `tidas-tools/src/tidas_tools/tidas/schemas/tidas_processes.json` + schemas_zh + lock；**push 后经 GitHub `dispatch-tidas-sdk-sync.yml` 自动同步 tidas-sdk**，勿手改其副本；CLI assets 手动镜像已同步）+ 转换器 `_apply_exchange_allocations` 写列表（稀疏 0 项省略，非零和=100%）。**lifecyclemodel(models) 模型不适用**（零 allocation 字段，仅表达系统链接）。conversion-v5：56 process 写入、a591c53f 722 exchange 分数全和=100%、TIDAS 校验 0、单位 78,757/78,757、隔间 0 错配。
 
-- **A2 分配（需用户数据质量定夺 D3）**：61 个分配过程**全是多-co-product causal 矩阵**（每 exchange 分到 2-13 个 co-product），ILCD `allocations` 只有"每 exchange 单分配分数"slot，结构上装不下。强行写部分数据会**误导**，故不写——方法保留在 LCIMethodApproaches、完整 60,484 causal+267 physical+267 economic 因子无损在 trace。**这是 ILCD 数据模型限制，非转换器缺陷**；是否接受 trace 保留交用户定。
+**已知有据残留**（无 TIDAS 忠实落点，完整数据留 sourceTrace，fidelity summary 计数）：
+
 - **D1 逐-exchange flow pedigree**（28,572）：ILCD 无 per-exchange DQ slot → trace。
 - **U1 三角分布 mode** / **U2 GSD²>100**（USLCI 实际 0 个）/ **D2 dqSystem 身份** / **D3 exchange 派生类型**（openLCA 无原生值，默认 Unknown derivation）：均 trace/默认。
 
