@@ -181,14 +181,14 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 ## 6. 当前状态快照（每会话结束前更新）
 
-- **阶段**：Phase 0/1/2/identity 完成；CAP-001（隔间）+ CAP-002（无损保真）已修 → **conversion-v4 = commit-canonical**；**Phase 3A classification 链已 pilot 验证端到端打通**（6 scope 仅凭分类即 ready）。下一步 = Phase 3A 全量放大（无需授权）+ Phase 3-PRE（My Data override，待 D4-elementary 批准）。**待用户定夺：分配 A2（§7.1，D3 数据质量）**。
+- **阶段**：Phase 0/1/2/identity + CAP-001/002 + **Phase 3A classification 全量完成**（2026-06-23）。下一步 = **Phase 3-PRE/3B/3C 杠杆 2（My Data override，待 D4-elementary 批准）** → 解锁 1,056 → ~全 1,358 ready → Phase 4 pilot commit。**待用户定夺：分配 A2（§7.1，D3 数据质量）**。
 - **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci，active/Doing；`$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT）。
-- **转换链**：**conversion-v4 = commit-canonical**（v3 隔间修复 + v4 无损保真：5,129+522 不确定性参数 + 1,652 pedigree DQI 落字段；0 错误、单位 78,757/78,757、隔间 0 错配）。decisions/resolution 链仍基于 v2/v3（identity 键不变，mint/commit 前切 v4 重建下游）：`library-index-v2` + `decisions-v3`（identity 2,988 + canonical-support 20）+ `library-resolution-v4` + `identity-from-preflight-v3`。
-- **universe**：1,358（`$RUN/universe-v1/`；排除 754 个未引用 library 过程）。
-- **identity ✅ 主体完成**（foundry 9136031）：reuse 2,988/3,919，0 假阳性。残余 931 = no_candidate 698 / multiple_plausible 220 / create_new_forbidden 12 / score_too_low 1 → Phase 3B remap-first/mint-last。
-- **resolution-v4 缺口**：process_classification 2,112 + flow_classification 1,638（→ 杠杆 1 Phase 3A）；elementary 931 deps/986 scopes（→ 杠杆 2 Phase 3B）；FP 7 + UG 4 / 139 scopes（→ 杠杆 2 Phase 3C）。blocked-ledger 22,652 行，已生成 54,788 条 exchange 引用重写。ready 仍 0（classification 卡全部）。
-- **新能力到位**：account-local My Data 创建 override 是 profile 数据驱动通用能力（commit 8f28e91，bafu 已开 enabled:true，**uslci 未开** → Phase 3-PRE 加配置即可）；mega-scope 基础设施（identity-preflight RESULT cache、512MB maxBuffer、streaming JSONL writers）已在 shared lib，USLCI 免费受益。
-- **conversion-v3 已就绪**（2026-06-23）：隔间硬编码 bug 修复（tidas-tools cc3aaaf，CAP-20260623-001 Done）后重转换，4,872 elementary 隔间 0 错配、单位 78,757/78,757 全对。mint 路径用 v3；reused 不受影响。下游链（library-index/decisions/resolution）仍基于 v2，mint 前切 v3 重建（decisions-v3 identity 键不变可沿用）。
+- **canonical 链（盘上）**：`conversion-v4`（commit-canonical：隔间修复 + 无损保真）+ `library-index-v4` + `decisions-v4`（identity 2,988 + canonical-support 20 + **classification 2,990**）+ `library-resolution-v5`。
+- **universe**：1,358（`$RUN/universe-v1/`；排除 754 个 out-of-scope library 过程）。
+- **Phase 3A classification ✅ 全量完成**：35 shard 并行授权 2,990 决策（process ISIC4 + flow-product CPC4-5，0 非法 code）→ project/apply 35/35 完成 → resolution-v5。**302 scope ready + 1,056 scope 只剩杠杆 2 = 1,358 全 universe**（classification 对 in-universe 100% 解决；6 flow + 754 process 残余阻塞全是 out-of-universe library 过程，不导入）。
+- **identity ✅ 主体完成**（foundry 9136031）：reuse 2,988/3,919；残余 931 → Phase 3B remap-first/mint-last（杠杆 2）。
+- **resolution-v5 缺口（全是杠杆 2）**：elementary 931 deps + FP 7 + UG 4，合计 **1,056 个 in-universe scope** 只差 My Data override；blocked-ledger 12,813。
+- **新能力到位**：account-local My Data override（commit 8f28e91，**uslci 未开** → Phase 3-PRE 加配置）；mega-scope 基础设施已在 shared lib。
 - **远端缺陷已闭环**：flow_hybrid_search pgroonga 500 已修复，7 个失败 flow 重跑成功。
 - **BAFU 参照**：GOAL COMPLETE 11,740/11,747 verified（99.94%，7 残留），靠 My Data 创建 + 上游补充收尾；最终交付物 `reports/bafu-import/build-bafu-trace-xlsx.py`（7-sheet 工作簿）是 USLCI 收尾模板。
 - **canonical ledger sources**：无（首个在 Phase 4 产生）。`allow_remote_commit:false`（D4 用户批准前不写远端）。
