@@ -1,12 +1,12 @@
 # USLCI 导入运行手册（goal 入口文档）
 
-> 目标读者：接手 USLCI 持续导入的任何一个 agent 会话或人工操作者。读完本文应能：知道当前阶段在哪、用哪条命令继续、遇到 blocker 怎么分诊，而不需要重新逆向工程。最后更新：2026-06-12（**Phase 1+2 完成**：正式转换链建立 + 单位归一化硬门禁关闭 + FP/UG 决策回合落地；详见 §6）。更新本文时同步更新「§6 当前状态快照」。
+> 目标读者：接手 USLCI 持续导入的任何一个 agent 会话或人工操作者。读完本文应能：知道当前阶段在哪、用哪条命令继续、遇到 blocker 怎么分诊，而不需要重新逆向工程。最后更新：2026-06-23（**方案按 foundry main 新能力重制为「双杠杆」**：classification 授权 + account-local My Data override；原"931+139 永久非可导入尾巴"框架作废。Phase 0/1/2/identity 已完成）。更新本文时同步更新「§6 当前状态快照」。
 
 ---
 
 ## 0. 三十秒定位
 
-- **Goal**：把 `inputs/National_Renewable_Energy_Laboratory-USLCI_Database_Public` 的 **1,358** 个 process（1,341 USLCI + 17 个被传递引用的 library 电网过程）导入远端 TIDAS 库，每个 process 最终为 _verified_ 或 _明确 non-importable_，gap 0（口径与 BAFU coverage 闭环一致）。
+- **Goal**：把 `inputs/National_Renewable_Energy_Laboratory-USLCI_Database_Public` 的 **1,358** 个 process（1,341 USLCI + 17 个被传递引用的 library 电网过程）导入远端 TIDAS 库，gap 0。**收尾口径（对标 BAFU 99.94% close-out）**：每个 process 最终为 _verified_（reuse 既有 canonical **或** created-account-local My Data，readback-verified）或带逐项证据的 _registered-non-importable_。account-local My Data 创建能力使绝大多数原"无 canonical 匹配"项可建可导，非可导入应是极小残留。
 - **Profile**：`uslci`（`specs/import-profiles.json`；约束见 `docs/import-profiles/uslci/`）。Lane：`external-dataset-curated-import`，**禁止新增 USLCI 专用 Foundry 代码路径，直到 pilot 证明必要**。
 - **任务文件**：`tasks/active/external-import-20260612-uslci.md`（已 claim，state Doing；队列内容是本地运行态，不入 git）。
 - **源包事实与 sha256**：`inputs/source-packages/uslci-database-public.md`（这是 source manifest，所有计数和复现命令在那里，本文不重复）。
@@ -104,42 +104,90 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 - **单位归一化**（§7-2，本 goal 最大数值风险，目前唯一的 commit 硬门禁）：在 tidas-tools 转换层实现 exchange 单位 → flow 参考单位换算（同属性 7,905 条走 unit group 因子；跨属性如 m³→kg 1,009 条走 flow 级 flowProperties 因子，合并包内全部可得、0 缺失）。按 capability-development-request 流程提给 tidas-tools，验收：重转换 conversion-v2 后，确定性扫描「exchange 源单位 ≠ flow 参考单位的 9,489 条」全部 meanAmount 已正确换算（写一个独立校验脚本，模式参照 BAFU 的 tmp/validate-\*.py）。
 
-### Phase 3 — 决策回合（机制同 BAFU runbook §4）
+### Phase 2 / identity ✅（2026-06-12/13 完成）
 
-1. **identity preflight**（elementary flows，最大未知数）：`dataset-identity-preflight-requests-build → -run → dataset-library-identity-decisions-from-preflight`。USLCI 是 FEDEFL UUID/隔间体系，与 TianGong canonical 的匹配率未知，首轮 preflight 的产出就是这个数。注意 openlca-jsonld 转换的 sourceTrace 形状与 BAFU（ecoSpold）不同——evaluator 的 trace 隔间恢复逻辑（`scripts/commands/library-scope-workflow.mjs`）若需适配，按 generic 改法加测试。FEDEFL 隔间路径 → ILCD 隔间映射表作为决策证据沉淀在 decisions 目录。政策红线：elementary flow 只许 reuse_existing_reference，绝不 create_new。
-2. **classification**：NAICS 类目路径 → TianGong 分类决策（`dataset-classification-decision-task-build` + sha 绑定 bundle + `dataset-classification-decisions-apply`）。
-3. **canonical FP/UG 映射**：`dataset-support-cache-refresh` + `dataset-canonical-support-mappings-autofill`。15 个标准 ILCD-UUID FP 预期可直接映射；6 个本地特殊 FP（Taxes/Jobs/Wages/Producer price 等）+ Currencies UG 大概率无 canonical 对应 → 提 non-importable 政策决议（D3 的一部分）。
-4. **location**：`dataset-location-decisions-suggest/-apply`（399 个 location 实体只用于代码解析；重点核对 US 州级代码在 TIDAS location schema 下合法）。
-5. **双语治理**：USLCI 是纯英文源；TIDAS 语言治理（本仓库 commit 62b7630）要求 zh/en。决定 zh transcreation 的批量路径（`tiangong-lca-skills/tidas-bilingual-transcreation`）与 gate 时点，记入 profile.md。
-6. `dataset-library-decisions-apply` → resolution-v1：ready / blocked 第一次分票，blocked ledger 驱动下一轮决策（回合制同 BAFU）。
+单位归一化（tidas-tools a3e1aa9）+ identity evaluator openLCA-compartment 修复（foundry 9136031）已闭环：conversion-v2 9,478 处换算、独立校验器 78,757/78,757 全对；elementary identity reuse 2,988/3,919（0 假阳性）。详见 §6 与 phase-journal。
 
-### Phase 4 — Pilot 批次（首个 commit 前的人工门禁集中点）
+> **战略升级（2026-06-23，基于 foundry main 新能力重制）**：BAFU 已 **GOAL COMPLETE（11,740/11,747 verified = 99.94%，仅 7 个 mega-scope 残留）**。它不是靠"大量 non-importable"收尾，而是用 **account-local "My Data" 创建**把原本无 canonical 匹配的 elementary/FP/UG **建成自有数据（state_code=0）**后导入。这条路径现在是 **profile 数据驱动的通用能力**（commit 8f28e91），USLCI 加一段 profile 配置即可启用，**无需任何 foundry 代码改动**。因此原 §6 把"931 manual + 139 FP/UG"当永久非可导入尾巴的框架作废，改为下面的**双杠杆**。
 
-1. 选 20-50 个「干净」process（无 allocation、无 amountFormula、无单位不一致、不依赖 17 个 library provider），走完整 generic 链到 dry-run + queue verify。
-2. 凭 pilot 证据集中关闭 profile open decisions：**D2** source 引用政策（NREL 署名 contact/database 级 fallback source；bin/ 8 个附件的取舍）；**D3** QA warning-vs-blocker 清单（LCI_RESULT 25 个、allocationFactors 61 个、amountFormula 1,425 条、无 canonical 对应的 FP 等）；**D4** 账号/state-code/写入政策（**需用户批准**，之后才翻 `allow_remote_commit: true`）。
-3. 决议落地：更新 `docs/import-profiles/uslci/profile.md`、`constraints.md`、`specs/import-profiles.json`（waivers / full_context_ai_completion 按证据填）。
-4. 首批 commit + readback verify + closeout，建立第一个 canonical ledger source，登记到 §6。
+**双杠杆解锁模型**（合在一起 → 2,112 个 scope 全部 ready）：
 
-### Phase 5 — 批量推进与闭环
+- **杠杆 1 = classification 授权**（Phase 3A，唯一硬必须的 AI 工作；override 不触及它）：3,750 条 leaf 分类决策。
+- **杠杆 2 = account-local My Data override**（Phase 3-PRE，一次性 profile 配置 + 人工授权）：自动清除 elementary identity（931）+ FP/UG（7+4）三类 blocker，把残余建为 My Data。
 
-- 回合制推进：缺口分析 → 决策回合 vN → resolution vN → 批次 vN（独立 out-dir，显式 ledger sources）→ `dataset-import-ledger-report` → 回写 §6。
-- 批量执行用 `dataset-process-scope-run`；若吞吐不足，按 §1-3 的演进项把 BAFU runner 参数化（届时是 generic 改造 + 全测试，不是 USLCI 专用路径）。
-- 收尾口径：verified + 明确 non-importable（带逐项证据的 registration 文件，参照 BAFU `non-importable-scopes-v1.jsonl` 模式）= 1,358，gap 0；coverage 终版快照写进本文件，goal 关闭，`npm run task:complete` 归档任务。
+### Phase 3-PRE — 状态同步 + 授权 override（profile 数据改动 + 人工门禁）
+
+1. **同步 §6**（已在本文件完成）：live 链 = conversion-v2 + library-index-v2 + decisions-v3（identity 2,988 + canonical-support 20）+ library-resolution-v4 + identity-from-preflight-v3；测试基线 `npm test` **206/206** + doctor 绿。
+2. **人工门禁 D4-elementary（阻塞本 Phase）**：override 反转了"reference-only / elementary 只许 reuse"的既定治理，**必须用户显式授权**才能开。逐字记录 `authorized_by`（对标 BAFU 2026-06-15 override）。可逆：`enabled=false` 即还原。
+3. 在 `specs/import-profiles.json` 的 **uslci** 条目加 `allow_account_local_support_and_elementary` block（照抄 bafu 形状：`enabled:true` + `authorized_by` + `scope:[elementary_flow_write, elementary_flow_create_new, flowproperty_write, unitgroup_write, canonical_support_local_mint]` + note）。**纯数据改动，零 gate 代码改动**。跑 `npm test`/doctor 必须保持绿（建议加一条 uslci-on 的 dataset-agnostic 断言到 `bafu-mydata-override.test.mjs`）。
+4. 写 `docs/import-profiles/uslci/constraints.md`（当前 constraints 是"无 waiver"占位）+ 更新 profile.md，**显式授权** override 并带审计字段（否则治理文档与 JSON 冲突）。topic commit 落 foundry main。
+5. **不变量**：override **不放松** 单位尺度门禁 `canonical_support_amount_scaling_required`；conversion-v2 的单位归一化（§7-2）是安全网，My Data 行保留源单位故自洽。
+
+### Phase 3A — classification 授权（process 2,112 + flow-product 1,638 = 3,750，杠杆 1）
+
+走**完全 generic、profile 中立**的链（`classification-decisions.mjs` 零 bafu 引用）：
+
+1. 产出分类 authoring 队列（`authoring-plan-v1/chunks/` 是模板不是队列）：`dataset-bundle-sample-rows --profile uslci …` 或从 resolution-v4 blocked ledger 生成；拆 process（2,112）/ flow-product（1,638）。
+2. 分片绑定单一 sha：`dataset-classification-decision-task-build --profile uslci --category-type <process|flow-product> --offset N --limit M --chunk-label … --shared-context-cache-dir <一个目录> --out-dir $RUN/decisions-v4-classification/tasks/<shard>`。
+3. **AI 授权合同（按语义分类）**：process → ISIC 4 位 leaf（`tidas_processes_category.json`）；flow-product → CPC level-4 leaf（`tidas_flows_product_category.json`）。**NAICS 派生的 converted_classification 只是弱提示**（已知错配，如 "Transport … chemical products" 误指 "membership organizations"）。每行需 `decision_status:completed` + leaf code + `authoring_context.context_bundle_sha256`（匹配任务 hash）+ evidence + used_context_kinds。**绝不无 sha-bundle 证据授权**（BAFU appended-rows 事故教训）。
+4. 投影 `dataset-library-classification-decisions-project --profile uslci …`（强制 leaf-only）→ 投影前跑确定性校验（errors 0 / missing 0）→ `dataset-classification-decisions-apply --profile uslci …` 合入 decisions-v4。预期 ~1,056 个 scope 仅凭 classification 即 ready。
+
+- **不要**用 `dataset-bafu-leaf-classification-*`（ecoinvent 名称→code 硬编码，不吃 USLCI NAICS 名）。
+
+### Phase 3B — elementary：remap-first, mint-last（931 deps / 986 scopes，杠杆 2 之一）
+
+931 manual **主要是匹配问题不是创建负担**：reason 分布 no_candidate 698 / multiple_plausible 220 / create_new_forbidden 12 / score_too_low 1。
+
+1. **先 re-judge（remap-first）**：220 multiple_plausible 多是同一 canonical flow 的子隔间重复（AI/确定性挑对子隔间 → reuse）；698 里大量是同 CAS/同名仅因 `category_or_compartment_conflict` 被拒（隔间感知 re-judge 可救回为 reuse）。对标 BAFU `fullpool-rejudge.py`（全候选池 ~80，要求同隔间 sourceClassification + 名称等价 + 维度匹配）。设 `BAFU_IDENTITY_PREFLIGHT_RESULT_CACHE` 加速 3,919 条重判。**隔间权威源永远是 `sourceTrace.payload` 的 openLCA 路径，绝不用转换器写死的 elementaryFlowCategorization**（§7-3）。
+2. 救回的写成 reuse_existing_reference（需 canonical ref_object_id/version）入 decisions-v4；re-apply 重测残余。
+3. **mint-last**：真正零候选残余（12 个 create_new_forbidden：Coal bituminous/sub-bituminous、Oil shale、Shale gas、Phosphate ore、Ulexite、Lutetium ore、Gangue、Saponifiable oils/fats、Total oil and grease less TPH、Unused primary solar、PM>10um + re-judge 后仍无物理等价的）→ 在 `--profile uslci`（override 已开）下写 **create_new** identity 决策（无需 canonical 目标，需 status=completed + basis + 结构化 evidence FEDEFL UUID/CAS/隔间 + used_context_kinds）。commit 时经 elementary save-draft 路径建为 My Data（state_code=0，保留源单位）。
+4. re-apply → resolution-v5：确认 `elementary_flow_requires_existing_database_match` 归 0。
+
+- **决策合同没有新值**：identity 仍只接受 `reuse_existing_reference | create_new | block_unresolved`；override 只是不再 block elementary 的 create_new。
+
+### Phase 3C — FP/UG：mint-or-non-importable（7 FP + 4 UG / 139 scopes，杠杆 2 之二）
+
+7 个本地特殊 FP（Taxes/Jobs/Wages/Producer price/Market value/Duration/Person transport）+ 4 UG（Currencies×2/time/person\*length）确认无 canonical 等价 → override 下其 blocker（`canonical_flow_property/unit_group_reference_unresolved`）**自动清除**，源 FP/UG ref 保留源单位建为 My Data。
+
+- **污染陷阱（BAFU 26912eb 教训）**：**绝不**把这些 account-local My Data UUID 写进共享的 `specs/canonical-support/flow-properties-unit-groups.json` 的 `flow_property_mappings`（会污染其他账户的全局 canonical-support 解析，有 support-cache 测试守着）。共享映射留 pending，仅按 scope 就地 mint。
+- commit 经 `dataset save-draft --type flowproperty|unitgroup --allow-account-local-support --commit`（commit-handoff 路径）。`dataset-support-cache-refresh` 后核对 BAFU 既有映射未被删改（原则 1）。
+
+### Phase 4 — Pilot 批次 + 关闭 D2/D3/D4 人工门禁（首个 commit）
+
+1. 从 resolution-v5 ready-scopes 选 20-50 个干净 scope（无 allocation/amountFormula/单位不一致，不依赖 17 library provider）。
+2. **generic runner**（**不用** `dataset-bafu-batch-import-run`，它 ledger-source-dir 硬编码 bafu）：
+   ```bash
+   npm install --no-save @tiangong-lca/cli@latest
+   export TIANGONG_LCA_CLI_BIN=$PWD/node_modules/.bin/tiangong-lca   # 否则 npx@latest 卡死
+   node scripts/foundry.mjs dataset-process-scope-run \
+     --process-bundles-dir "$RUN/conversion-v2/process-bundles" \
+     --library-resolution "$RUN/library-resolution-v5/library-resolution.json" \
+     --scope-file <ready-scopes.jsonl> --profile uslci --parallel 5 --dry-run
+   ```
+   走完整 generic 链：curation-gate → curation-cleanup → post-authoring-finalize → mutation-manifest → commit-handoff-plan → （dry-run）。
+3. 凭 pilot 证据关闭：**D2** source 署名（NREL contact/database fallback + bin/ 8 附件取舍）；**D3** QA warning-vs-blocker（25 LCI_RESULT / 61 allocationFactors / 1,425 amountFormula / 本地 FP-UG）；**D4** 账号/state-code/写入（**用户批准后**才翻 `allow_remote_commit:true`）。落地到 profile.md/constraints.md/import-profiles.json waivers。
+4. 首批 `--commit` + readback verify + `dataset-post-write-closeout`；建立第一个 canonical ledger source 登记 §6。
+
+### Phase 5 — 批量推进 + coverage 闭环（gap 0）
+
+- 回合：缺口分析 → decisions-vN（全量超集）→ resolution-vN → 批次 vN（独立 out-dir）→ `dataset-import-ledger-report` / `dataset-import-completion-report` → 重测。My Data 行 readback-verified 后**计入 verified**（BAFU 第三态）。每轮 mint 后预期**复合解锁**（多依赖，少量 mint 解锁大量下游）。
+- 非可导入登记文件（逐项 reason+evidence+disposition，对标 BAFU `non-importable-scopes-v2.jsonl`）。override 下 USLCI 预期 **gap 0 无需上游补充**（不同于 BAFU 的 TiO₂/Ulexite 需建 468 上游 flow）。
+- **收尾口径（对标 BAFU close-out）**：verified（reuse + created-account-local，readback-verified）+ registered-non-importable = 1,358，gap 0；blocked/failed_retryable/human_review/retry/pending 全 0；npm test + doctor 绿。
+- **最终交付物 = USLCI trace/进展工作簿**：fork `reports/bafu-import/build-bafu-trace-xlsx.py`（BAFU 路径硬编码，非 drop-in）到 `reports/uslci-import/`，改 USLCI 路径/标签，或从 ledger/completion report 构建。7 sheet：说明 / 导入进展 Summary / 待人工校验 / Process Trace / Flow Trace / 转换映射 / Support Identities。goal 关闭，`npm run task:complete` 归档。
 
 ## 6. 当前状态快照（每会话结束前更新）
 
-- **阶段**：Phase 1+2 完成；Phase 3 决策回合推进中——identity 主体完成、FP/UG 完成，**classification 是下一大回合**（2026-06-13）。
-- **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci 已 claim；阶段日志 `$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT 一节）。
-- **canonical 转换链**：`conversion-v2`（tidas-tools a3e1aa9 含单位归一化；9,478 处修正 / unresolved 0 / 校验 0 错误）+ `library-index-v2` + `library-resolution-v3`。独立校验器 78,757/78,757 全对（`$RUN/unit-normalization-verify/verify-report.json`）。v1 工件仅留 forensic。
-- **universe**：1,358 已确认（`$RUN/universe-v1/`；排除 754 个未被引用的 library 过程）。
-- **canonical 决策链**：`conversion-v2` + `library-index-v2` + `decisions-v3`（超集：canonical-support 20 + identity 2,988）+ `library-resolution-v4` + `identity-from-preflight-v3`。
-- **identity ✅ 主体完成**（evaluator openLCA-compartment 修复，foundry commit 9136031）：reuse **2,988 / 3,919**，独立交叉验证 0 隔间错配、0 错物质（唯一 CAS"冲突"是 Krypton 源校验位打错）。剩 931 进 manual authoring 尾巴（no_candidate 698 多为真实非可导入/近缘物，multiple_plausible 220 可 AI 授权）。
-- **FP/UG**：decisions-v2-support；7 FP + 4 UG 无 canonical（139 scopes，D3 证据）。
-- **resolution-v4 缺口（按体量）**：process_classification 2,112 + flow_classification 1,638（**现在是 THE blocker，下一大回合**，先研究 task-build sha-bundle 合同）；elementary identity 残余 931 deps / 986 scopes；FP/UG 139 scopes。blocked-ledger 行 73,127→22,652，已生成 54,788 条 exchange 引用重写。ready 仍 0（classification 卡全部）。
-- **远端缺陷已闭环**：flow_hybrid_search pgroonga 特殊字符 500 由用户修复发布，7 个失败 flow 已重跑成功。
-- **canonical ledger sources**：无（首个在 Phase 4 产生）。
-- **已知阻塞**：无技术硬门禁；剩决策回合体量 + Phase 4 的 D2-D4 人工批准。
-- **测试基线**：foundry `npm test` 186/186 + doctor 通过；tidas-tools 89/89（2026-06-12）。
+- **阶段**：Phase 0/1/2/identity 完成；**方案已按 foundry main 新能力重制为双杠杆（2026-06-23）**。下一步 = Phase 3-PRE（授权 My Data override，待用户批准 D4-elementary）+ Phase 3A（classification）。
+- **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci，active/Doing；`$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT）。
+- **live canonical 链**（盘上已核验）：`conversion-v2`（单位归一化，独立校验器 78,757/78,757 全对）+ `library-index-v2` + `decisions-v3`（identity 2,988 + canonical-support 20）+ `library-resolution-v4` + `identity-from-preflight-v3`。v1/v2-support/resolution-v1~v3 仅留 forensic。
+- **universe**：1,358（`$RUN/universe-v1/`；排除 754 个未引用 library 过程）。
+- **identity ✅ 主体完成**（foundry 9136031）：reuse 2,988/3,919，0 假阳性。残余 931 = no_candidate 698 / multiple_plausible 220 / create_new_forbidden 12 / score_too_low 1 → Phase 3B remap-first/mint-last。
+- **resolution-v4 缺口**：process_classification 2,112 + flow_classification 1,638（→ 杠杆 1 Phase 3A）；elementary 931 deps/986 scopes（→ 杠杆 2 Phase 3B）；FP 7 + UG 4 / 139 scopes（→ 杠杆 2 Phase 3C）。blocked-ledger 22,652 行，已生成 54,788 条 exchange 引用重写。ready 仍 0（classification 卡全部）。
+- **新能力到位**：account-local My Data 创建 override 是 profile 数据驱动通用能力（commit 8f28e91，bafu 已开 enabled:true，**uslci 未开** → Phase 3-PRE 加配置即可）；mega-scope 基础设施（identity-preflight RESULT cache、512MB maxBuffer、streaming JSONL writers）已在 shared lib，USLCI 免费受益。
+- **远端缺陷已闭环**：flow_hybrid_search pgroonga 500 已修复，7 个失败 flow 重跑成功。
+- **BAFU 参照**：GOAL COMPLETE 11,740/11,747 verified（99.94%，7 残留），靠 My Data 创建 + 上游补充收尾；最终交付物 `reports/bafu-import/build-bafu-trace-xlsx.py`（7-sheet 工作簿）是 USLCI 收尾模板。
+- **canonical ledger sources**：无（首个在 Phase 4 产生）。`allow_remote_commit:false`（D4 用户批准前不写远端）。
+- **测试基线**：foundry `npm test` **206/206** + doctor 绿；tidas-tools 89/89（2026-06-23 核验）。
 
 ## 7. 已知问题与 blocker 分诊
 
@@ -147,7 +195,8 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 | --- | --- | --- | --- |
 | 1 | ~~tiangong-lca-cli ≤0.0.14 向 tidas-tools ≥0.0.28 传已移除的 `--process-bundles` flag，文档入口直接失败~~ **已解决**：cli 0.0.16（commit 98104c9，2026-06-11）已适配，2026-06-12 端到端验证通过 | 无（历史） | 留意两点：包装默认裸调 `python3`，要传 `--python <venv解释器>`；`npm install --no-save @tiangong-lca/cli@latest` 保持 ≥0.0.16 |
 | 2 | ~~转换器不做单位换算，数值错最高 1000×~~ **已解决**：tidas-tools a3e1aa9（2026-06-12）在 openlca adapter 加归一化 pass；conversion-v2 修正 9,478 条（unresolved 0），独立校验器 78,757/78,757 全对 | 无（历史） | 留意：474 条 amountFormula 公式本身未重缩放（仅存 trace，QA 在 pilot 定性）；84 条 ref_unit_name_mismatch 为源数据 refUnit 文本怪癖，数值已验证正确 |
-| 3 | FEDEFL elementary flow 对 TianGong canonical 匹配率未知 | 决定 blocked 规模（2,682 本地 + 2,190 library elementary；library flows 共 2,310） | Phase 3 首轮 preflight 量化；CAS/分子式在 library flow 里可用作匹配证据 |
+| 3 | ~~FEDEFL elementary 匹配率未知~~ **已量化**：reuse 2,988/3,919（76%）。残余 931 不再是死路——override 下可 remap-first/mint-last（Phase 3B） | 不再是永久尾巴 | ⚠️ **隔间权威源 = `sourceTrace.payload` 的 openLCA 路径，绝不用转换器写死的 elementaryFlowCategorization**；re-judge 需适配 FEDEFL trace 形状（generic + 测试），否则隔间污染产生错误决策 |
+| 3b | **My Data override 未在 uslci profile 启用** | 931 elementary + 7 FP + 4 UG 仍 blocked | Phase 3-PRE 加 `allow_account_local_support_and_elementary` block（待 D4-elementary 用户授权）；纯 profile 数据，零 gate 代码改动 |
 | 4 | dq_systems / pedigree 只进 sourceTrace（881 个 process 的 dqEntry + per-exchange pedigree 不映射 TIDAS 数据质量字段） | 数据质量信息暂 trace-only | Phase 3 决策：tidas-tools 增强 或 接受 trace-only（capability-development-request） |
 | 5 | bin/ 8 个 source 附件（PDF/JPG）转换时丢弃 | 来源证据不全 | D2 一并定（附件→TIDAS digital file 或 trace 记录） |
 | 6 | 25 个 LCI_RESULT、61 个 allocationFactors、1,425 条 amountFormula 仅存 trace | QA 定性未定 | pilot 时定 warning vs blocker（D3） |
@@ -163,5 +212,15 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 | 单位 | 天然同单位 | 12.2% exchange 需换算（§7-2） |
 | 名称形态 | 德文压缩名，需大量 name-split 规则 | 分号结构化英文名，预期无 name-split 回合 |
 | 支持数据 | 合成 contact/source 居多 | 70 真实 actor + 557 真实 source，质量更好 |
-| elementary 体系 | ecoinvent 隔间（trace 恢复） | FEDEFL UUID/隔间（映射表待建） |
-| 批量 runner | dataset-bafu-batch-import-run | generic 链 + dataset-process-scope-run（pilot 后再议通用化） |
+| elementary 体系 | ecoinvent 隔间（trace 恢复） | FEDEFL 隔间（openLcaCompartmentClassification 已适配，9136031） |
+| 批量 runner | dataset-bafu-batch-import-run（bafu 硬编码） | **generic `dataset-process-scope-run`**（threads profileFor，accepts --dry-run/--commit） |
+| My Data override | enabled:true（2026-06-15） | 待 Phase 3-PRE 启用（D4-elementary 用户授权） |
+| coverage/trace 生成器 | `build-bafu-trace-xlsx.py`（路径硬编码） | fork 到 `reports/uslci-import/`（非 drop-in） |
+| 收尾态 | verified(reuse+MyData) + 7 残留 = 99.94% | 目标同口径：verified + 少量 registered-non-importable = 1,358 |
+
+## 9. 需路由的缺陷 / 能力缺口（按归属）
+
+- **foundry-generic（可能需要，带测试 + dataset-agnostic）**：FEDEFL trace 形状的全候选池确定性 re-judge（对标 BAFU `fullpool-rejudge.py`）。先查 USLCI 实际 `sourceTrace.payload.sourceClassification` 结构，确认 `library-scope-workflow.mjs` 的 traceCompartment 是否已覆盖（openLcaCompartmentClassification 已加），还是需配置/代码改动。
+- **foundry-generic（新 line-item）**：无 profile 中立的 coverage/trace 生成器与 batch runner。`dataset-bafu-batch-import-run` / `dataset-bafu-universe-coverage-report` / `build-bafu-trace-xlsx.py` 均 bafu 硬编码。Phase 5 fork trace 生成器；若 Phase 5 吞吐不足再把 batch runner 参数化为 profile 驱动（P1，连带把 mega-scope 基础设施作为 dataset-agnostic infra 一并通用化）。
+- **tidas-tools（forensic 后定）**：`_flow_classification()`（tidas_json.py:~1568）对 elementary 硬编码 air-unspecified，且可能按 input/outputGroup 把 technosphere flow 误判为 elementary。查 USLCI 的 elementary flow 是否有误判 technosphere；若有，修在 tidas-tools（会独立于 override 缩小 elementary 负担），不在 foundry 打补丁。
+- **tidas-tools（已闭环，作为不变量）**：单位归一化（a3e1aa9）。override **不放松** `canonical_support_amount_scaling_required`——若 USLCI 重新转换（新 tidas-tools/源），必须重跑单位校验器全过才恢复 commit。
