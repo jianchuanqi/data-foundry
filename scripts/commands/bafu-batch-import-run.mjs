@@ -3579,6 +3579,70 @@ async function finalizeAndCommitDataset({
   };
 }
 
+// --- Post-commit disk reclamation -----------------------------------------
+// A committed scope's heavy per-scope scratch (flow-pre-finalize — which holds the
+// multi-GB mutation-manifest items file + curation-gate — plus flow-identity-task and
+// flow-authoring-tasks) is pure derived data once the scope verifies: the remote is the
+// source of truth, and import-ledger + scope-run-report.json carry the audit trail.
+// Without trimming, each committed mega-scope leaves ~15G behind, so the run directory
+// grows without bound. Delete every child of scopeDir except the two audit artifacts.
+// Best-effort (never fails the import), gated on a real commit; --keep-scratch (or
+// BAFU_KEEP_SCOPE_SCRATCH=1) opts out for debugging / re-verify sessions.
+const VERIFIED_SCOPE_KEEP = new Set(["import-ledger", "scope-run-report.json"]);
+function keepScratchRequested(options) {
+  return booleanOption(options?.keepScratch) || process.env.BAFU_KEEP_SCOPE_SCRATCH === "1";
+}
+function trimVerifiedScopeScratch(scopeDir, options) {
+  if (!booleanOption(options?.commit)) return;
+  if (keepScratchRequested(options)) return;
+  let entries;
+  try {
+    entries = fs.readdirSync(scopeDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (VERIFIED_SCOPE_KEEP.has(entry.name)) continue;
+    try {
+      fs.rmSync(path.join(scopeDir, entry.name), { recursive: true, force: true });
+    } catch {
+      // best-effort: a locked or partially-written dir must never fail the import
+    }
+  }
+}
+
+// The shared-context-cache (runDir/shared-context-cache) is a run-level, content-addressed
+// store of inlined authoring context with no eviction, so across thousands of scopes it grew
+// to ~118G. Cross-scope hits are rare (per-scope context differs); the real value is
+// intra-scope dedup. Bound it: once it exceeds a cap, clear it. Cheap (names only, no
+// per-file stat), robust to mid-run kills, correctness-safe (a miss just recomputes).
+const SHARED_CONTEXT_CACHE_MAX_ENTRIES = (() => {
+  const raw = Number(process.env.BAFU_CONTEXT_CACHE_MAX_ENTRIES);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 6000;
+})();
+function enforceSharedContextCacheCap(
+  runDir,
+  options,
+  maxEntries = SHARED_CONTEXT_CACHE_MAX_ENTRIES,
+) {
+  if (keepScratchRequested(options)) return;
+  const cacheDir = path.join(runDir, "shared-context-cache");
+  let names;
+  try {
+    names = fs.readdirSync(cacheDir);
+  } catch {
+    return;
+  }
+  if (names.length <= maxEntries) return;
+  for (const name of names) {
+    try {
+      fs.rmSync(path.join(cacheDir, name), { recursive: true, force: true });
+    } catch {
+      // best-effort
+    }
+  }
+}
+
 async function runOneScope({
   scope,
   familySignature,
@@ -4481,6 +4545,7 @@ async function runOneScope({
       process_closeout_report: repoRelative(processCloseoutReport),
     },
   });
+  trimVerifiedScopeScratch(scopeDir, options);
   return { status: "verified", stages };
 }
 
@@ -4879,6 +4944,7 @@ export function createBafuBatchImportRunCommands(deps) {
           status: result.status,
           ...bafuFamilyPlanFields(familySignature),
         });
+        enforceSharedContextCacheCap(paths.runDir, options);
         if (
           stopAfterBlocked != null &&
           results.filter((row) => row.status === "blocked").length >= stopAfterBlocked
@@ -4977,6 +5043,7 @@ export function createBafuBatchImportRunCommands(deps) {
 }
 
 export const bafuBatchImportRunTestHooks = {
+  enforceSharedContextCacheCap,
   flowRowsPendingVerification,
   identityUnresolvedReferenceBlocker,
   mergeCompletedReusableIdentityDecisions,
@@ -4985,5 +5052,6 @@ export const bafuBatchImportRunTestHooks = {
   requestedProcessIdValues,
   retryableStageFailure,
   sha256File,
+  trimVerifiedScopeScratch,
   writeScopeCarriedForwardVerifiedFlowRows,
 };
