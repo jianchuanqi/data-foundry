@@ -457,23 +457,40 @@ export function createBundleSampleUtils({
         options.name ||
         "Swiss Federal Administration - Federal Office for the Environment (FOEN)",
     );
-    const shortName = asText(options.shortName || "Federal Office for the Environment FOEN (BAFU)");
-    const website = asText(
-      options.website || options.url || "https://www.bafu.admin.ch/en/contact-en",
+    // `library*`-prefixed alternates let cross-process callers (the finalize CLI
+    // subprocess) pass library contact fields via collision-free flags
+    // (`--library-short-name`, `--library-website`, …) instead of generic option
+    // names. In-process callers (materialize) keep using the plain fields.
+    const shortName = asText(
+      options.libraryShortName ||
+        options.shortName ||
+        "Federal Office for the Environment FOEN (BAFU)",
     );
-    const email = asText(options.email || "info@bafu.admin.ch");
-    const telephone = asText(options.telephone || options.phone || "+41 58 462 93 11");
+    const website = asText(
+      options.libraryWebsite ||
+        options.website ||
+        options.url ||
+        "https://www.bafu.admin.ch/en/contact-en",
+    );
+    const email = asText(options.libraryEmail || options.email || "info@bafu.admin.ch");
+    const telephone = asText(
+      options.libraryTelephone || options.telephone || options.phone || "+41 58 462 93 11",
+    );
     const contactAddress = asText(
-      options.contactAddress ||
+      options.libraryContactAddress ||
+        options.contactAddress ||
         options.address ||
         "Federal Office for the Environment FOEN, 3003 Bern, Switzerland",
     );
     const centralContactPoint = asText(
-      options.centralContactPoint ||
+      options.libraryCentralContactPoint ||
+        options.centralContactPoint ||
         "Federal Office for the Environment FOEN, 3003 Bern, Switzerland; info@bafu.admin.ch; +41 58 462 93 11",
     );
     const description = asText(
-      options.description || "Library-level contact for the BAFU 2025 Version 2 LCA data package.",
+      options.libraryDescription ||
+        options.description ||
+        "Library-level contact for the BAFU 2025 Version 2 LCA data package.",
     );
     const profile = asText(options.profile || "bafu");
     const version = asText(options.contactVersion || options.version || "00.00.001");

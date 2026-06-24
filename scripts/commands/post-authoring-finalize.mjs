@@ -177,7 +177,12 @@ export function createPostAuthoringFinalizeCommands({
     const profile = String(options.profile || "generic")
       .trim()
       .toLowerCase();
-    const supportedForProfile = profile === "bafu";
+    // Libraries that use the one-shared-library-contact model: the deterministic
+    // source/contact rewrite folds every row's ownership + data-entry contact onto
+    // a single library contact and lifts referenced true sources into the support
+    // commit set. BAFU was first; USLCI (NREL) reuses the same machinery via its
+    // profile-driven library contact identity.
+    const supportedForProfile = profile === "bafu" || profile === "uslci";
     const outputRowsFile = path.join(
       outDir,
       `${datasetRowsFileStem(datasetType)}.source-contact-rewritten.jsonl`,

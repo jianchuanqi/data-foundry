@@ -102,13 +102,18 @@ const bafuBatchRuntimeKeys = [
 ];
 
 let bafuBatchRuntime = null;
+// Profile config lets the same engine drive other profiles (e.g. USLCI) without
+// changing BAFU behavior: every default below reproduces the BAFU runner exactly,
+// so an empty config == the historical BAFU runner.
+let bafuBatchConfig = {};
 
-function installBafuBatchRuntime(deps) {
+function installBafuBatchRuntime(deps, config = {}) {
   const missing = bafuBatchRuntimeKeys.filter((key) => typeof deps?.[key] !== "function");
   if (missing.length > 0) {
     throw new Error(`createBafuBatchImportRunCommands missing dependencies: ${missing.join(", ")}`);
   }
   bafuBatchRuntime = deps;
+  bafuBatchConfig = config || {};
 }
 
 function runtime() {
@@ -116,6 +121,32 @@ function runtime() {
     throw new Error("createBafuBatchImportRunCommands must install command dependencies.");
   }
   return bafuBatchRuntime;
+}
+
+// Profile-config accessors. Defaults == BAFU, so BAFU is byte-for-byte unchanged.
+function activeProfile() {
+  return bafuBatchConfig.profile || "bafu";
+}
+function activeCommandName() {
+  return bafuBatchConfig.commandName || commandName;
+}
+function bafuAutofillEnabled() {
+  return bafuBatchConfig.enableBafuAutofill !== false;
+}
+function familySignaturesEnabled() {
+  return bafuBatchConfig.enableFamilySignatures !== false;
+}
+function activeDefaults() {
+  return bafuBatchConfig.defaults || {};
+}
+// When true, the dependency-flow finalize commits its source/contact support
+// (the shared library contact) inline right after pre-finalize — mirroring the
+// process path — so the first scope of a never-before-imported library can prove
+// reference closure for its own flows. BAFU leaves this false: its FOEN library
+// contact already exists remotely, so flow pre-finalize is closure-clean and the
+// inline support commit would be redundant.
+function commitFlowSupportInline() {
+  return Boolean(bafuBatchConfig.commitFlowSupportInline);
 }
 
 function nowIso() {
@@ -2882,7 +2913,7 @@ function buildFinalizeArgs({
     "--type",
     type,
     "--profile",
-    "bafu",
+    activeProfile(),
     "--rows-file",
     repoRelative(rowsFile),
     "--out-dir",
@@ -2912,6 +2943,22 @@ function buildFinalizeArgs({
     "--run-identity-preflight",
     "--refresh-identity-preflight",
   );
+  // Thread the active profile's library contact identity into the finalize
+  // subprocess so its buildLibraryContactPayload mints the SAME shared library
+  // contact the materialize stage stamped (deterministic on profile+name+website).
+  // Without this the finalize would fall back to the default (BAFU FOEN) contact.
+  // Empty for BAFU (no libraryContact config) → BAFU finalize args unchanged.
+  const libraryContact = bafuBatchConfig.libraryContact;
+  if (libraryContact && typeof libraryContact === "object") {
+    appendOption(args, "--library-name", libraryContact.libraryName);
+    appendOption(args, "--library-short-name", libraryContact.shortName);
+    appendOption(args, "--library-website", libraryContact.website);
+    appendOption(args, "--library-email", libraryContact.email);
+    appendOption(args, "--library-telephone", libraryContact.telephone);
+    appendOption(args, "--library-contact-address", libraryContact.contactAddress);
+    appendOption(args, "--library-central-contact-point", libraryContact.centralContactPoint);
+    appendOption(args, "--library-description", libraryContact.description);
+  }
   if (patchCollectReport) args.push("--require-patch-collect-report");
   return args;
 }
@@ -3007,7 +3054,7 @@ async function runIdentityAndPatch({
   let identityApplyReport = null;
   let identityOutputRows = inputRowsFile;
   const identityDecisions = path.join(identityTaskDir, "identity-decisions.jsonl");
-  if (statusIs(identityTask.json, ["ready_for_ai_identity_decisions"])) {
+  if (bafuAutofillEnabled() && statusIs(identityTask.json, ["ready_for_ai_identity_decisions"])) {
     const identityAutofill = await runArgvStage({
       stage: `${stagePrefix}.identity_autofill`,
       argv: foundryCommand("dataset-bafu-identity-decisions-autofill", {
@@ -3054,7 +3101,7 @@ async function runIdentityAndPatch({
       stage: `${stagePrefix}.identity_apply`,
       argv: foundryCommand("dataset-identity-decisions-apply", {
         type,
-        profile: "bafu",
+        profile: activeProfile(),
         rowsFile: repoRelative(inputRowsFile),
         decisions: repoRelative(carryForward.outputFile),
         outDir: repoRelative(identityApplyDir),
@@ -3120,7 +3167,7 @@ async function runIdentityAndPatch({
         stage: `${stagePrefix}.identity_apply`,
         argv: foundryCommand("dataset-identity-decisions-apply", {
           type,
-          profile: "bafu",
+          profile: activeProfile(),
           rowsFile: repoRelative(inputRowsFile),
           decisions: repoRelative(carryForward.outputFile),
           outDir: repoRelative(identityApplyDir),
@@ -3211,6 +3258,18 @@ async function runIdentityAndPatch({
     };
   }
 
+  if (!bafuAutofillEnabled()) {
+    // Non-BAFU profiles (e.g. USLCI) must not run BAFU-shaped patch autofill;
+    // surface the un-authored action items instead of mis-authoring them.
+    return {
+      status: "blocked",
+      blocker: {
+        code: `${type}_authoring_action_items_require_authoring`,
+        message: `${type} scope has authoring action items but BAFU patch autofill is disabled for this profile; author the fields explicitly before commit.`,
+      },
+      report: reportFile(taskBuild.json, taskManifest),
+    };
+  }
   const patchAutofill = await runArgvStage({
     stage: `${stagePrefix}.patch_autofill`,
     argv: foundryCommand("dataset-bafu-authoring-patches-autofill", {
@@ -3769,7 +3828,11 @@ async function runOneScope({
       bundlesDir: repoRelative(paths.processBundlesDir),
       processId,
       outDir: repoRelative(materializedDir),
-      profile: "bafu",
+      profile: activeProfile(),
+      // Non-BAFU profiles must not inherit the BAFU FOEN library contact; the
+      // profile config supplies the dataset-appropriate library contact (e.g. NREL
+      // for USLCI). BAFU passes nothing here, keeping its FOEN default unchanged.
+      ...(bafuBatchConfig.libraryContact || {}),
     }),
     logDir,
     reportPath: path.join(materializedDir, "dataset-bundle-sample-rows-report.json"),
@@ -4211,6 +4274,25 @@ async function runOneScope({
         report: flowPreReportPath,
       });
     }
+    // For a never-before-imported library, the dependency-flow references the
+    // shared library contact (ownership/data-entry) which is not yet remote and
+    // is not in the flow's own write scope, so pre-finalize blocks on reference
+    // closure. Commit the flow's source/contact support inline here (mirroring the
+    // process path) so the library contact lands remotely and the re-finalized
+    // flow proves closure. Gated off for BAFU (its FOEN contact already exists).
+    if (commitFlowSupportInline()) {
+      flowPre.json = await maybeCommitSupportThenRerunFinalize({
+        type: "flow",
+        finalizeReport: flowPre.json,
+        finalizeReportPath: flowPreReportPath,
+        finalizeArgs: flowPreArgs,
+        ledgerDir,
+        scopeDir,
+        logDir,
+        stages,
+        supportIdentityCacheFile: paths.supportIdentityCache,
+      });
+    }
     let flowReadyRows = resolveRepoPath(flowPre.json?.files?.final_rows) || flowRowsForFinalize;
     let flowPatchCollectReport = null;
     let flowPatchApplyReport = null;
@@ -4549,14 +4631,18 @@ async function runOneScope({
   return { status: "verified", stages };
 }
 
-export function createBafuBatchImportRunCommands(deps) {
-  installBafuBatchRuntime(deps);
+export function createBafuBatchImportRunCommands(deps, config = {}) {
+  installBafuBatchRuntime(deps, config);
   async function runDatasetBafuBatchImportRun(options = {}) {
+    // Re-install this factory's profile config so a sibling factory (e.g. USLCI)
+    // constructed against the same module cannot leak its config into this run.
+    // Runs are sequential, so this is race-free.
+    installBafuBatchRuntime(deps, config);
     if (options.help || options.h) {
       return {
         schema_version: 1,
         status: "help",
-        command: commandName,
+        command: activeCommandName(),
         usage: [
           "node scripts/foundry.mjs dataset-bafu-batch-import-run --scope-file <ready-scopes.jsonl> --process-bundles-dir <.../process-bundles> --run-dir <run-dir> --out-dir <run-dir>/batch-import --parallel 5 --commit",
           "node scripts/foundry.mjs dataset-bafu-batch-import-run --scope-file <ready-scopes.jsonl> --out-dir <existing-batch-dir> --pending-only --selection-order estimated-weight-asc --limit 20 --pause-file <pause.flag> --commit",
@@ -4717,12 +4803,14 @@ export function createBafuBatchImportRunCommands(deps) {
       cacheFile: paths.supportIdentityCache,
       sourceLedgerDirs: ledgerSourceDirs,
     });
-    const familySignatureIndex = buildBafuFamilySignatureIndex({
-      scopes: allScopes,
-      processBundlesDir,
-      processesDir: directoryExists(processFilesDir) ? processFilesDir : null,
-      readJson,
-    });
+    const familySignatureIndex = familySignaturesEnabled()
+      ? buildBafuFamilySignatureIndex({
+          scopes: allScopes,
+          processBundlesDir,
+          processesDir: directoryExists(processFilesDir) ? processFilesDir : null,
+          readJson,
+        })
+      : { summary: {}, entries: [], byScopeKey: new Map() };
     const classificationDecisionIndex = loadClassificationDecisionIndex(
       paths.libraryClassificationDecisions,
     );
@@ -4745,7 +4833,7 @@ export function createBafuBatchImportRunCommands(deps) {
       schema_version: 1,
       generated_at_utc: nowIso(),
       status: "completed",
-      command: commandName,
+      command: activeCommandName(),
       scope_file: repoRelative(scopeFile),
       process_bundles_dir: repoRelative(processBundlesDir),
       processes_dir: repoRelative(processFilesDir),
@@ -4771,7 +4859,7 @@ export function createBafuBatchImportRunCommands(deps) {
     const manifest = {
       schema_version: 1,
       generated_at_utc: nowIso(),
-      command: commandName,
+      command: activeCommandName(),
       status: "running",
       mode: preflightOnly ? "preflight" : "commit",
       target_user_id: targetUserId,
@@ -4854,7 +4942,7 @@ export function createBafuBatchImportRunCommands(deps) {
       const report = {
         schema_version: 1,
         generated_at_utc: nowIso(),
-        command: commandName,
+        command: activeCommandName(),
         status: "preflight_completed",
         mode: "preflight",
         parallel,
@@ -4961,7 +5049,7 @@ export function createBafuBatchImportRunCommands(deps) {
     const report = {
       schema_version: 1,
       generated_at_utc: nowIso(),
-      command: commandName,
+      command: activeCommandName(),
       status: batchRunStatus(results, { paused: pauseObserved, stoppedAfterBlocked }),
       mode: "commit",
       parallel,
