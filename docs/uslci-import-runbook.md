@@ -181,9 +181,9 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 ## 6. 当前状态快照（每会话结束前更新）
 
-- **阶段**：Phase 0/1/2/identity + CAP-001/002（含 D3 分配无损）+ **classification 全量 + D4-elementary override 已授权并验证**（2026-06-23）。**全部 1,358 in-universe scope 已 resolution-ready**。下一步 = **Phase 4 pilot commit**（dry-run → 远端写需 D2/D3-QA/D4 账号写入政策批准；`allow_remote_commit` 仍 false）。
+- **阶段**：Phase 0/1/2/identity + CAP-001/002（含 D3 分配无损）+ **classification 全量 + D4-elementary override 已授权并验证**（2026-06-23）。**全部 1,358 in-universe scope 已 resolution-ready**。**Phase 4 pilot dry-run 完成（30/30 干净，证据 `$RUN/pilot-commit-v1/PILOT-EVIDENCE.md`）**。下一步 = 关 D2/D3-QA/D4 政策 → 首批真实 commit（远端写需用户批 D4 账号/写入政策；`allow_remote_commit` 仍 false）。
 - **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci，active/Doing；`$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT）。
-- **canonical 链（盘上）**：**`conversion-v5` = commit-canonical**（隔间修复 + 无损保真：不确定性/pedigree/**分配** 全落字段）；`library-index-v4` + `decisions-v4`（identity 2,988 + support 20 + classification 2,990）+ **`library-resolution-v6-override`（override ON → ready 1,358）**。注意：v4/v5 仅 classification 不触及的字段变化，dataset_id 键不变；commit 前用 conversion-v5 重建 library-index（mint 写库用 v5 的字段）。
+- **canonical 链（盘上）**：**`conversion-v6` = commit-canonical**（v5 + 稀疏过程修复：referenceYear creationDate 兜底、dataSources 块始终输出；tidas-tools 220d8fc。74 个 9999 referenceYear + 9 个缺 dataSources 在源头清零）（隔间修复 + 无损保真：不确定性/pedigree/**分配** 全落字段）；`library-index-v4` + `decisions-v4`（identity 2,988 + support 20 + classification 2,990）+ **`library-resolution-v6-override`（override ON → ready 1,358）**。注意：v4/v5 仅 classification 不触及的字段变化，dataset_id 键不变；commit 前用 conversion-v5 重建 library-index（mint 写库用 v5 的字段）。
 - **universe**：1,358（`$RUN/universe-v1/`；排除 754 个 out-of-scope library 过程）。
 - **classification ✅ 全量 + D4 override ✅ 已授权**：35 shard 授权 2,990（0 非法 code）→ project/apply 35/35。`--profile uslci` 的 override ON 后 **resolution-v6 = 1,358/1,358 in-universe ready**（elementary 无匹配 + 7 FP + 4 UG 将在 commit 时 mint 为 My Data）；剩 754 全是 out-of-universe library 过程不导入。
 - **D3 分配无损 ✅**（走 A）：TIDAS schema 放宽为分配列表 + 转换器写列表 → conversion-v5 56 process 落字段；详见 §7.1。
