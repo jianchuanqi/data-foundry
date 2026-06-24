@@ -877,7 +877,7 @@ export function createPostAuthoringFinalizeCommands({
     );
     const dryRunArgs = (() => {
       if (datasetType === "support" || supportTypes.includes(datasetType)) {
-        return [
+        const supportDryRunArgs = [
           "dataset",
           "save-draft",
           "--type",
@@ -889,6 +889,14 @@ export function createPostAuthoringFinalizeCommands({
           "--dry-run",
           "--json",
         ];
+        // Account-local FP/UG (P1a) in the support set are reference-only types
+        // and need the override to clear the save-draft governance gate. No-op for
+        // contact/source-only support sets (e.g. BAFU), so it is gated on the
+        // profile override rather than a USLCI-specific flag.
+        if (allowAccountLocalSupportAndElementary) {
+          supportDryRunArgs.push("--allow-account-local-support");
+        }
+        return supportDryRunArgs;
       }
       if (datasetType === "flow") {
         return [

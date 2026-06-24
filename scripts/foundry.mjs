@@ -771,6 +771,7 @@ const identityDecisionTaskCommands = createIdentityDecisionTaskCommands({
 const postAuthoringFinalizeCommands = createPostAuthoringFinalizeCommands({
   appendOption,
   applyCanonicalSupportRewrites,
+  loadCanonicalSupportCache,
   applyIdentityReferenceRewrites,
   asText,
   profileFor,
