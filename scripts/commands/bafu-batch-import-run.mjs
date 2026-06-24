@@ -148,6 +148,15 @@ function activeDefaults() {
 function commitFlowSupportInline() {
   return Boolean(bafuBatchConfig.commitFlowSupportInline);
 }
+// When true, the finalize lifts the scope's UNMATCHED (non-canonical) Unit Groups
+// and Flow Properties into the support commit set so they are minted as
+// account-local My Data once and committed before the flows that reference them
+// (P1a of the BAFU-cleanup backlog). USLCI-only: BAFU keeps FP/UG reference-only
+// and must not start minting them even though its profile also has the
+// account-local override enabled.
+function mintUnmatchedFpUgSupport() {
+  return Boolean(bafuBatchConfig.mintUnmatchedFpUgSupport);
+}
 
 function nowIso() {
   return runtime().nowIso();
@@ -2894,6 +2903,8 @@ function buildFinalizeArgs({
   ledgerDir,
   sourceSupportRowsFile,
   sourceRowsFile,
+  flowpropertyRowsFile,
+  unitgroupRowsFile,
   identityPreflightIndex,
   context,
   classificationQueue,
@@ -2958,6 +2969,14 @@ function buildFinalizeArgs({
     appendOption(args, "--library-contact-address", libraryContact.contactAddress);
     appendOption(args, "--library-central-contact-point", libraryContact.centralContactPoint);
     appendOption(args, "--library-description", libraryContact.description);
+  }
+  // P1a: USLCI-only — mint unmatched FP/UG as account-local support before the
+  // flows that reference them. Empty for BAFU (config flag off) so its finalize
+  // args and reference-only FP/UG policy are unchanged.
+  if (mintUnmatchedFpUgSupport()) {
+    args.push("--mint-unmatched-fp-ug-support");
+    appendPathOption(args, "--support-flowproperty-rows-file", flowpropertyRowsFile);
+    appendPathOption(args, "--support-unitgroup-rows-file", unitgroupRowsFile);
   }
   if (patchCollectReport) args.push("--require-patch-collect-report");
   return args;
@@ -3520,6 +3539,8 @@ async function finalizeAndCommitDataset({
       ledgerDir,
       sourceSupportRowsFile: materialized.supportRowsFile,
       sourceRowsFile: materialized.sourceRowsFile,
+      flowpropertyRowsFile: materialized.flowpropertyRowsFile,
+      unitgroupRowsFile: materialized.unitgroupRowsFile,
       identityPreflightIndex: materialized.identityPreflightIndex,
       context,
       classificationQueue: materialized.classificationQueue,
@@ -3860,6 +3881,8 @@ async function runOneScope({
     processRowsFile: resolveRepoPath(materializedReport.files?.rows?.process),
     sourceRowsFile: resolveRepoPath(materializedReport.files?.rows?.source),
     supportRowsFile: resolveRepoPath(materializedReport.files?.rows?.support),
+    flowpropertyRowsFile: resolveRepoPath(materializedReport.files?.rows?.flowproperty),
+    unitgroupRowsFile: resolveRepoPath(materializedReport.files?.rows?.unitgroup),
     classificationQueue: resolveRepoPath(materializedReport.files?.classification_authoring_queue),
     locationQueue: resolveRepoPath(materializedReport.files?.location_authoring_queue),
     identityPreflightIndex: resolveRepoPath(materializedReport.files?.identity_preflight_requests),
@@ -4246,6 +4269,8 @@ async function runOneScope({
       ledgerDir,
       sourceSupportRowsFile: materialized.supportRowsFile,
       sourceRowsFile: materialized.sourceRowsFile,
+      flowpropertyRowsFile: materialized.flowpropertyRowsFile,
+      unitgroupRowsFile: materialized.unitgroupRowsFile,
       identityPreflightIndex: materialized.identityPreflightIndex,
       context: defaultContext(paths.runDir, "flow"),
       classificationQueue: materialized.classificationQueue,
@@ -4431,6 +4456,8 @@ async function runOneScope({
     ledgerDir,
     sourceSupportRowsFile: materialized.supportRowsFile,
     sourceRowsFile: materialized.sourceRowsFile,
+    flowpropertyRowsFile: materialized.flowpropertyRowsFile,
+    unitgroupRowsFile: materialized.unitgroupRowsFile,
     identityPreflightIndex: materialized.identityPreflightIndex,
     context: defaultContext(paths.runDir, "process"),
     classificationQueue: materialized.classificationQueue,

@@ -92,6 +92,7 @@ export function createPostAuthoringFinalizeCommands({
   processSourceReferenceRows,
   profileFullContextRequirement,
   repoRelativeMaybe,
+  loadCanonicalSupportCache,
   repoRelativePath,
   repoRoot,
   reportFileFromCliStage,
@@ -171,6 +172,34 @@ export function createPostAuthoringFinalizeCommands({
     if (payload?.flowPropertyDataSet) return "flowproperty";
     if (payload?.unitGroupDataSet) return "unitgroup";
     return fallbackType;
+  }
+
+  // P1a (BAFU-cleanup backlog): under the USLCI-only --mint-unmatched-fp-ug-support
+  // flag, lift the scope's UNMATCHED Unit Groups + Flow Properties into the support
+  // commit set, so the existing source/contact "support" sub-finalize + handoff
+  // mints them ONCE as account-local My Data and commits them BEFORE the flows that
+  // reference them (deduped across scopes by the runner's verified-support cache).
+  // "Unmatched" = a materialized FP/UG whose UUID is not already a canonical-cache
+  // id; reusable canonical FP/UG (e.g. Mass 93a60a56) keep their public reference
+  // and are never minted. UGs precede FPs so a minted FP's reference unit group is
+  // in scope. Gated on the flag (USLCI only) — BAFU never passes it, so its support
+  // set is unchanged.
+  function collectAccountLocalFpUgSupportRows(options) {
+    if (!booleanOption(options.mintUnmatchedFpUgSupport)) return [];
+    const { index } = loadCanonicalSupportCache(options);
+    const ugFile = resolveRepoPath(options.supportUnitgroupRowsFile);
+    const fpFile = resolveRepoPath(options.supportFlowpropertyRowsFile);
+    const ugRows = ugFile && fileExists(ugFile) ? readRowsFile(ugFile) : [];
+    const fpRows = fpFile && fileExists(fpFile) ? readRowsFile(fpFile) : [];
+    const mintUnitGroups = ugRows.filter((row) => {
+      const id = datasetIdentity(row, "unitgroup").id;
+      return id && !index.unitGroupById.has(id);
+    });
+    const mintFlowProperties = fpRows.filter((row) => {
+      const id = datasetIdentity(row, "flowproperty").id;
+      return id && !index.flowPropertyById.has(id);
+    });
+    return [...mintUnitGroups, ...mintFlowProperties];
   }
 
   function applySourceContactRewrites({ datasetType, rowsFile, outDir, options }) {
@@ -350,7 +379,12 @@ export function createPostAuthoringFinalizeCommands({
     const sourceSupportRepairsPath = path.join(outDir, "source-support-repairs.jsonl");
     writeJsonLines(sourceSupportSemanticsPath, sourceSupportSemanticsRows);
     writeJsonLines(sourceSupportRepairsPath, sourceSupportRepairRows);
-    writeJsonLines(supportRowsPath, [libraryContact, ...referencedTrueSourceRows]);
+    const accountLocalFpUgSupportRows = collectAccountLocalFpUgSupportRows(options);
+    writeJsonLines(supportRowsPath, [
+      ...accountLocalFpUgSupportRows,
+      libraryContact,
+      ...referencedTrueSourceRows,
+    ]);
     const totalRewrites =
       Number(contactRewriteStats.rewritten ?? 0) + Number(stats.source_reference_rewrites ?? 0);
     const report = {
@@ -375,9 +409,15 @@ export function createPostAuthoringFinalizeCommands({
         output_rows: rewrittenRows.length,
         contact_reference_rewrites: contactRewriteStats.rewritten,
         source_reference_rewrites: sourceReferenceRewriteRows.length,
-        support_rows: 1 + referencedTrueSourceRows.length,
+        support_rows: 1 + referencedTrueSourceRows.length + accountLocalFpUgSupportRows.length,
         support_contact_rows: 1,
         support_source_rows: referencedTrueSourceRows.length,
+        support_account_local_fp_ug_rows: accountLocalFpUgSupportRows.length,
+        support_unitgroup_rows: accountLocalFpUgSupportRows.filter((row) => row?.unitGroupDataSet)
+          .length,
+        support_flowproperty_rows: accountLocalFpUgSupportRows.filter(
+          (row) => row?.flowPropertyDataSet,
+        ).length,
         source_support_candidate_rows: sourceSupportSemanticsRows.length,
         true_source_identity_repairs: stats.true_source_identity_repairs,
         true_source_description_repairs: stats.true_source_description_repairs,
@@ -538,8 +578,13 @@ export function createPostAuthoringFinalizeCommands({
           options.prepareSourceContactSupport ||
           options.autoFinalizeSourceContactSupport,
       );
+    // "support" is the mixed-type (auto per-row) finalize; "contact" assumes
+    // contact-only rows. Force "support" whenever true sources OR account-local
+    // FP/UG (P1a) are in the set so the unit-group/flow-property rows finalize and
+    // commit under their own types instead of being treated as contacts.
     const sourceContactSupportFinalizeType =
-      Number(sourceContactRewriteStage.counts?.support_source_rows ?? 0) > 0
+      Number(sourceContactRewriteStage.counts?.support_source_rows ?? 0) > 0 ||
+      Number(sourceContactRewriteStage.counts?.support_account_local_fp_ug_rows ?? 0) > 0
         ? "support"
         : "contact";
     const sourceContactSupportFinalize = sourceContactSupportFinalizeRequested
@@ -553,6 +598,10 @@ export function createPostAuthoringFinalizeCommands({
             finalizeSourceContactSupport: false,
             prepareSourceContactSupport: false,
             autoFinalizeSourceContactSupport: false,
+            // The FP/UG are already in this support rows file; don't re-collect
+            // them in the nested finalize (skipSourceContactRewrites already
+            // early-returns before the collector, but be explicit).
+            mintUnmatchedFpUgSupport: false,
             requireIdentityPreflight: false,
             runIdentityPreflight: false,
             identityPreflightIndex: null,

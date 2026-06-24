@@ -23,6 +23,14 @@ export function createUslciBatchImportRunCommands(deps) {
     // closure. Once committed, the support-identity cache + precommit remote verify
     // let every later scope reuse it. BAFU does not need this (FOEN already remote).
     commitFlowSupportInline: true,
+    // P1a (BAFU-cleanup backlog): mint the scope's unmatched (non-canonical)
+    // Unit Groups + Flow Properties as account-local My Data ONCE, committed as
+    // support before the flows that reference them. USLCI's unmatched FP/UG are
+    // standard openLCA reference FPs (e.g. mass*distance 838aaa20) that use US
+    // units absent from the public canonical mappings, so they are minted (not
+    // reused-with-scaling) per the user's 2026-06-24 P1c decision. BAFU keeps
+    // FP/UG reference-only (this flag stays off there).
+    mintUnmatchedFpUgSupport: true,
     // D2 source attribution: USLCI rows must NOT inherit the BAFU FOEN library
     // contact (nor any openLCA software identity). The materialize stage stamps
     // this NREL / U.S. Federal LCA Commons contact as the shared library contact.
