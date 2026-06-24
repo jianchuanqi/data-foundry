@@ -48,6 +48,7 @@ const {
   readProcessDryRunArtifacts,
   readRows,
   readRowsIfExists,
+  publicCanonicalSourceReferenceKeys,
   readSourceContactRewriteContext,
   readSourceReferenceRewriteContext,
   sourceReferenceRewriteProofKeys,
@@ -354,6 +355,13 @@ export function runDatasetMutationManifest({ repoRoot, options = {} } = {}) {
       provenReferenceKeys: new Set([
         ...identityReferenceRewriteProofKeys(identityReferenceRewriteContext),
         ...sourceReferenceRewriteProofKeys(sourceReferenceRewriteContext),
+        // Direct references to the well-known public canonical sources (ILCD
+        // format + compliance-system) are always reusable from remote, even when
+        // they were not produced by an in-scope rewrite mapping — e.g. minted
+        // account-local FP/UG (P1a) reference the canonical compliance source
+        // directly. Without this, their closure blocked on a source that is in
+        // fact a fixed public canonical dataset.
+        ...publicCanonicalSourceReferenceKeys,
         ...verifiedReferenceProof.keys,
       ]),
       unresolvedReferenceKeys: identityDecisionUnresolvedReferenceKeys(

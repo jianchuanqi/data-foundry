@@ -43,7 +43,7 @@ export function readSourceReferenceRewriteContext({ repoRoot, rowsFile, options,
   };
 }
 
-const publicCanonicalSourceReferenceKeys = new Set([
+export const publicCanonicalSourceReferenceKeys = new Set([
   referenceKey({
     table: "sources",
     id: "a97a0155-0234-4b87-b4ce-a45da52f2a40",

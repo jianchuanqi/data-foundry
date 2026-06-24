@@ -68,6 +68,7 @@ export {
   readUnresolvedExchangeExternalizationContext,
 } from "./workflow-row-transform-context.mjs";
 export {
+  publicCanonicalSourceReferenceKeys,
   readSourceReferenceRewriteContext,
   sourceReferenceRewriteProofKeys,
 } from "./workflow-source-reference-context.mjs";

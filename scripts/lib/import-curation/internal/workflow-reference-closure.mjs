@@ -814,7 +814,14 @@ export function buildWriteCandidateItem({
       });
       dryRunEvidence = { reasons: failureReasons(failure) };
     }
-  } else if (supportDatasetTypes.has(datasetType)) {
+  } else if (
+    supportDatasetTypes.has(datasetType) ||
+    referenceOnlySupportDatasetTypes.has(datasetType)
+  ) {
+    // unitgroup/flowproperty are reference-only by default but, under the
+    // account-local override (P1a), they are committed through the same
+    // dataset save-draft (--type auto) dry-run as contacts/sources, so their
+    // prepared/failure evidence lives in the datasetSaveDraft maps too.
     const prepared = dryRun.datasetSaveDraft?.prepared.get(key);
     const failure = dryRun.datasetSaveDraft?.failures.get(key);
     if (prepared) {
