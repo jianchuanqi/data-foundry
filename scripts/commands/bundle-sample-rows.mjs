@@ -954,8 +954,15 @@ export function createBundleSampleRowsCommands({
       (row) => row.relation === "process_data_source",
     );
     blockers.push(...sourceReferenceSemanticBlockers(allProcessSourceReferenceRows));
+    // A true source is "referenced" (and must stay in the materialized support set
+    // so it commits before the process) if ANY process field points at it — not
+    // only referenceToDataSource. USLCI processes cite a review-report source via
+    // validation/review/referenceToCompleteReviewReport; counting only
+    // process_data_source wrongly dropped it, blocking the process on reference
+    // closure. The data-source-only queue above is still used for the
+    // process_data_source semantic checks; this set governs support retention.
     const referencedProcessSourceKeys = new Set(
-      processSourceReferenceQueueRows
+      allProcessSourceReferenceRows
         .filter((row) => row.ref_object_id)
         .map((row) => `${row.ref_object_id}::${row.version || "00.00.001"}`),
     );

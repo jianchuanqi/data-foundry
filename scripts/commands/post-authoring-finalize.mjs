@@ -349,23 +349,28 @@ export function createPostAuthoringFinalizeCommands({
       }
       return payload;
     });
-    const processSourceReferenceRowsForScope =
+    const allProcessSourceReferenceRowsForScope =
       sourceLookup.size > 0
         ? rewrittenRows.flatMap((payload) => {
             const type = rowDatasetType(payload, datasetType);
             return type === "process"
-              ? processSourceReferenceRows(payload, sourceLookup, rowsFile).filter(
-                  (row) => row.relation === "process_data_source",
-                )
+              ? processSourceReferenceRows(payload, sourceLookup, rowsFile)
               : [];
           })
         : [];
+    // The process_data_source semantic check stays scoped to referenceToDataSource.
+    const processSourceReferenceRowsForScope = allProcessSourceReferenceRowsForScope.filter(
+      (row) => row.relation === "process_data_source",
+    );
     const sourceSemanticBlockers =
       typeof sourceReferenceSemanticBlockers === "function"
         ? sourceReferenceSemanticBlockers(processSourceReferenceRowsForScope)
         : [];
+    // But the support commit must carry EVERY referenced true source, regardless of
+    // which field points at it (e.g. validation/review/referenceToCompleteReviewReport),
+    // so the process passes reference closure when it commits.
     const referencedTrueSourceKeys = new Set(
-      processSourceReferenceRowsForScope
+      allProcessSourceReferenceRowsForScope
         .filter((row) => row.referenced_source_kind === "true_source" && row.ref_object_id)
         .map((row) => `${row.ref_object_id}::${row.version || "00.00.001"}`),
     );
