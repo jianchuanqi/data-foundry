@@ -1,6 +1,6 @@
 # USLCI 导入运行手册（goal 入口文档）
 
-> 目标读者：接手 USLCI 持续导入的任何一个 agent 会话或人工操作者。读完本文应能：知道当前阶段在哪、用哪条命令继续、遇到 blocker 怎么分诊，而不需要重新逆向工程。最后更新：2026-06-23（**方案按 foundry main 新能力重制为「双杠杆」**：classification 授权 + account-local My Data override；原"931+139 永久非可导入尾巴"框架作废。Phase 0/1/2/identity 已完成）。更新本文时同步更新「§6 当前状态快照」。
+> 目标读者：接手 USLCI 持续导入的任何一个 agent 会话或人工操作者。读完本文应能：知道当前阶段在哪、用哪条命令继续、遇到 blocker 怎么分诊，而不需要重新逆向工程。最后更新：2026-06-25（**§R 为当前权威计划**：2026-06 ILCD-alignment 发布 tidas-tools 0.0.34 / sdk 0.1.45·0.2.14 / cli 0.0.19 已修 42-bug 审计并收紧 schema → 计划改为 conversion-v7 重转换，手工补丁链 v2..v6 作废）。更新本文时同步更新「§6 当前状态快照」。
 
 ---
 
@@ -18,6 +18,41 @@
 cd /Users/davidli/projects/workspace/tiangong-lca-data-foundry
 # Phase 1 起：export RUN=.foundry/workspaces/uslci-full-import-<ts>
 ```
+
+---
+
+## R. 2026-06 ILCD-alignment 发布已落地 → 重转换计划（当前权威计划，取代手工补丁）
+
+> 2026-06-25。四个项目发布了 2026-06 ILCD-alignment 修复——**tidas-tools 0.0.34 / tidas-sdk 0.1.45(npm)·0.2.14(PyPI) / @tiangong-lca/cli 0.0.19**——把 42-bug 审计（`_docs/tidas-ilcd-schema-correspondence-audit-2026-06-24.md`）里的转换器伪造 + schema 松弛 + bundle drift 都修了，并收紧 schema 使 `valid-tidas ⟹ valid-ILCD`。**§5 原 Phase 计划中"逐版 conversion-vN 手工补丁"的部分作废**——绝大多数手工修复现已在上游 0.0.34 原生修好。迁移指南：`_docs/tidas-schema-data-migration-2026-06.md`。
+
+### R.1 发布修了什么（与 USLCI 直接相关，取代我方手工链 v2..v6）
+
+- ✅ **转换器伪造修复**：elementary 隔间真值（cc3aaaf，取代 CAP-001/v3）；product/process classification 不再硬编码 CPC-94900/ISIC-9499 且**写 @name + 多体系**（09d293e）；referenceYear 源真值兜底、不写 9999（220d8fc，取代 v6 手工）；location 保留 **RoW** 不塌成 GLO、占位可区分（9593505）；contact/source/unitgroup classId 4/5/6 常量改为派生；timestamp 确定性。
+- ✅ **无损富字段**：allocation 列表（d35b654）；uncertainty 分布参数 + pedigree DQ（0730b70）；**Perc 放宽到 eILCD（≤5 位、≤3 小数、允许 >100/负，adcc49b）** → `relativeStandardDeviation95In` >100 现可保留（**我之前把 GSD² 量化到 ≤100 丢弃 >100 的做法已过时，新转换原生保留，是无损提升**）。
+- ✅ **schema 收紧**：GlobalReferenceType @type 8 值枚举、@version/dataSetVersion `NN.NN(.NNN)`、Real 加 `^` 锚、HK/MO/TW/AN/CS location、多体系 classification `anyOf[object,array]`+@name/@classes、subReference、referenceToDigitalFile 数组、lifecyclemodel @version、LCIA review 枚举等（c7dc15f / 0.0.31-0.0.33）。bundle⇄canonical schema 已统一 + zh-lock。
+
+### R.2 发布**没有**覆盖的（仍需我方，全部保留）
+
+- ⚠️ **UnitGroup `referenceToReferenceUnit` 选错**（我的 **P1b 新发现，不在 42-bug 审计、不在 0.0.34**）：`_unit_group_dataset` 仍硬编码 `"1"`（首单位），USLCI "Units of mass*length" 首单位 lb*mi、真参考 t\*km(cf 1.0) → 参考指针与 meanValue 不一致。修复在 tidas-tools 分支 `fix/unitgroup-reference-unit-selection`(ec95d8a，+2 测试/suite 98)。**行动：PR 上游 → 0.0.35；conversion-v7 必须用含此修复的 tidas-tools 构建**。
+- ⚠️ **foundry runner 改动（编排层，与发布无关，0.0.34 不含，全部保留）**：USLCI runner `dataset-uslci-batch-import-run`、库-contact bootstrap、**P1a 未匹配 FP/UG 作为 account-local support 在依赖 flow 前 mint（已实现+验证：mint scope 0001b273 的 FP/UG 提交 + 6 flows verified）**、P3 不铸孤立、P4 批内去重。foundry 分支 `feat/uslci-runner-and-library-contact-bootstrap`（commits a51ef80/3bf2ed3/a4d672c + 早先）。
+
+### R.3 重转换计划（conversion-v7 = 新 commit-canonical）
+
+1. **采用发布基座**：foundry `npm i @tiangong-lca/cli@0.0.19`（当前 0.0.18）；转换引擎 = tidas-tools 0.0.34（submodule 已在 6761cf0）**+ 合并 P1b(ec95d8a)**（或本地装该分支）；**从 0.0.34 重新同步 foundry 的 tidas-schema 镜像**（我之前手工放宽 allocation 的那份已被上游取代，勿保留手工版）。
+2. **重转换全部 2,113 process → conversion-v7**：原生得到正确隔间 / classification(@name+多体系) / referenceYear / location(RoW) / timestamp / allocation / uncertainty(Perc>100 保留) / ILCD-conforming @type·version·Real。**取代 conversion-v2..v6 整条手工链。**
+3. **用新 schema 重校验 v7**（tidas-tools 0.0.34 / sdk 0.2.14 validator）：目标 0 error（同源转换器应通过）；存档 baseline 证无新失败。
+4. **从 v7 重建 canonical 链**：library-index-v7 → decisions-v5（identity key 应稳定；**classification 2,990 决策需复核+重投影/重应用**——新转换写 @name/可能多体系，leaf code 不变但队列键/契约要对齐）→ library-resolution-v9（override ON → 1,358 ready）。
+5. **重验证导入链**：USLCI runner 在 v7 上重跑 mint scope(0001b273) + reuse scope(e93ae1c1)，确认 P1a FP/UG mint + flows + process verify。**先清理 v6 测试写入**（e93ae1c1 + v7-mint 的 flows/FP/UG，account-local linanenv 账号）或 version-bump，避免旧-schema 残留。
+6. **scale 到 1,358（v7）**，coverage 闭环 gap 0。
+
+### R.4 重转换后复核的残留 blocker
+
+- **process 评审报告悬空 source（task #8 / 75ac425f）**：转换器对 review 写 `referenceToCompleteReviewReport → source` 但不建该 source → 闭包失败。0.0.34 的占位/源真值修复**可能改变 review-source 发射**——conversion-v7 后**先复核是否仍在**；若在，按 task #8 处理（转换器建 review-report source，或 curation externalize 悬空引用）。
+- **P2 elementary 复用**：0.0.34 隔间真值映射可能提升复用、降假 mint；v7 后用新隔间复核 reuse-vs-mint，再定 CAS/同义阈值（数据质量，需用户定阈）。
+
+### R.5 注意：已入远端的 BAFU 数据需独立迁移（不属本 plan）
+
+BAFU 11,740 行用旧 schema 写入，新 schema 收紧后**可能校验失败**，需按迁移指南 §3/§4 走 walker/SQL（@type 枚举、version 规范、HK/MO/TW、lciamethods bool/枚举/键名、lifecyclemodel @version 等）。这是与 USLCI **并行的独立任务**；USLCI 用 v7（新 schema）直接写，**无需迁移**。
 
 ---
 
@@ -181,10 +216,13 @@ inputs(合并源包) → tidas-tools 转换（CLI 包装入口，见 §5 Phase 1
 
 ## 6. 当前状态快照（每会话结束前更新）
 
-- **阶段**：Phase 4 进行中 — **首个真实远端 commit 已成功并全链验证**（2026-06-24）。USLCI runner（`dataset-uslci-batch-import-run`，复用 BAFU 引擎 + uslci 配置）已落地，BAFU 零回归（npm test 206/206）。
+- **🔑 当前权威计划 = §R（2026-06 ILCD-alignment 重转换）**。2026-06-25：发布 tidas-tools 0.0.34 / sdk 0.1.45·0.2.14 / cli 0.0.19 把 42-bug 审计的转换器伪造 + schema 松弛全修了并收紧 schema。**下一步 = 按 §R.3 做 conversion-v7**（采用 0.0.34 基座 + 合并 P1b ec95d8a + cli 0.0.19 → 重转换 2,113 process → 新 schema 重校验 → 从 v7 重建 canonical 链 → 重验证导入链 → scale）。conversion-v2..v6 的手工补丁链作废（已被上游原生取代）。
+- **已验证但基于旧 schema（v6）的成果，重转换后复用/复核**：
+- **阶段**：Phase 4 进行中 — **首个真实远端 commit 已成功并全链验证**（2026-06-24，旧 schema v6 数据；v7 重转换后需复核/清理这些测试写入）。USLCI runner（`dataset-uslci-batch-import-run`，复用 BAFU 引擎 + uslci 配置）已落地，BAFU 零回归（npm test 206/206）。
   - ✅ **reuse-only scope `e93ae1c1` 已真实写入远端**（`process get` 实测：state_code=0 My Data、version 00.01.004、modified 2026-06-24T03:55:33；账号 linanenv@126.com → user_id 5c784552…）。全链 stage 全 exit 0：flow.support.commit → post_write_verify → closeout → finalize_after_support → flow.commit → post_write_verify；process 同。**D2 实测干净**：committed 报告 NREL×22 / FOEN×0 / openLCA×0 / GreenDelta×0。证据 `$RUN/batch-import-v2/scopes/e93ae1c1…/scope-run-report.json`。
   - ✅ **根因修复（已落 foundry，gated 不碰 BAFU）**：库 contact 从未 bootstrap 到远端 → flow pre-finalize 的 reference-closure 卡死。修法见 §9 路由表「库 contact + FP/UG/elementary My Data support 提交」一行。
-  - ⚠️ **mint-needing scope 新 gap（5-scope 验证暴露）**：引用未匹配 FP/UG/elementary 的 flow 仍 block 在 `reference_closure_unproven`（table=flowproperties，path=`…/flowProperty/referenceToFlowPropertyDataSet`）。override 让这些 FP「可 mint」（state_code=0），但 **minted FP/UG/elementary 作为 account-local support 在依赖 flow 前提交** 这一步尚未接入 runner（与已修的 contact gap 同构，但更复杂：逐 scope 未匹配数据集，非单一共享库 contact）。3/5 验证 scope 因此 block，1/5 verified（reuse-only），1/5 仍在跑。**这是 Phase 4 scale 前的下一道必修门。**
+  - ✅ **P1a 已实现+验证（2026-06-24）**：未匹配 FP/UG 作为 account-local support 在依赖 flow 前 mint。mint scope 0001b273 实测：UG 838aaa21 + FP 838aaa20 + contact 提交（verified_support_identities 3）、6 dependency flows verified。过滤器实测正确（838aaa20 US-单位 mass×distance → mint；93a60a56 Mass canonical UUID → reuse）。foundry commits a51ef80/3bf2ed3/a4d672c。**该 scope 的 process 仍 block 于独立的评审报告悬空 source（task #8 / 75ac425f），与 P1a 无关**。
+  - **⚠️ 上述均基于旧 schema(conversion-v6)**。按 §R：v7 重转换后这些验证需在新 schema 上重跑；旧 schema 测试写入需清理或 version-bump。P1b（UnitGroup 参考单位）仍需合并上游再进 v7。
 - **$RUN**：`.foundry/workspaces/uslci-full-import-20260612T093202Z`（task：external-import-20260612-uslci，active/Doing；`$RUN/phase-journal.md` 有 NEXT SESSION ENTRY POINT）。
 - **canonical 链（盘上）**：**`conversion-v6` = commit-canonical**（v5 + 稀疏过程修复：referenceYear creationDate 兜底、dataSources 块始终输出；tidas-tools 220d8fc。74 个 9999 referenceYear + 9 个缺 dataSources 在源头清零）（隔间修复 + 无损保真：不确定性/pedigree/**分配** 全落字段）；`library-index-v4` + `decisions-v4`（identity 2,988 + support 20 + classification 2,990）+ **`library-resolution-v6-override`（override ON → ready 1,358）**。注意：v4/v5 仅 classification 不触及的字段变化，dataset_id 键不变；commit 前用 conversion-v5 重建 library-index（mint 写库用 v5 的字段）。
 - **universe**：1,358（`$RUN/universe-v1/`；排除 754 个 out-of-scope library 过程）。
