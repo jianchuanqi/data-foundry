@@ -184,13 +184,75 @@ export function createPostAuthoringFinalizeCommands({
   // and are never minted. UGs precede FPs so a minted FP's reference unit group is
   // in scope. Gated on the flag (USLCI only) — BAFU never passes it, so its support
   // set is unchanged.
+  // Read a Flow Property row's referenceToReferenceUnitGroup id + version.
+  function flowPropertyReferenceUnitGroup(fpRow) {
+    const referenceUnitGroup =
+      fpRow?.flowPropertyDataSet?.flowPropertiesInformation?.quantitativeReference
+        ?.referenceToReferenceUnitGroup;
+    if (!referenceUnitGroup) return { reference: null, id: "", version: "" };
+    return {
+      reference: referenceUnitGroup,
+      id: asText(
+        referenceUnitGroup["@refObjectId"] ??
+          referenceUnitGroup.refObjectId ??
+          referenceUnitGroup.ref_object_id,
+      ),
+      version: asText(referenceUnitGroup["@version"]),
+    };
+  }
+
+  // Coherent model — REUSED (canonical) dependency proof. Given a set of support rows
+  // (the exact rows a SUPPORT scope writes), derive the canonical Unit Group
+  // id@published-version proof keys for every minted Flow Property whose reference Unit
+  // Group is a public canonical dataset (present in the canonical-support cache) and is
+  // therefore NOT written as account-local My Data. The SUPPORT sub-finalize writes the
+  // minted FP but must prove the reused canonical UG as a remote reference in its OWN
+  // mutation manifest — otherwise closure (verify-remote OFF) cannot prove the FP->UG
+  // edge. Only UGs present in the canonical cache are surfaced; account-local UGs in the
+  // same support set are written and proven via plannedRootKeys, never here. Empty unless
+  // the account-local override is active (USLCI), so BAFU is unchanged.
+  function deriveCanonicalUnitGroupProofKeysFromSupportRows(supportRows, options) {
+    const { index } = loadCanonicalSupportCache(options);
+    const writtenUnitGroupIds = new Set(
+      supportRows
+        .filter((row) => row?.unitGroupDataSet)
+        .map((row) => datasetIdentity(row, "unitgroup").id)
+        .filter(Boolean),
+    );
+    const proofKeys = [];
+    const seen = new Set();
+    for (const row of supportRows) {
+      if (!row?.flowPropertyDataSet) continue;
+      const { id: ugId } = flowPropertyReferenceUnitGroup(row);
+      if (!ugId) continue;
+      // A UG actually written in this support set is a planned root, not a reused remote
+      // reference; never prove it here.
+      if (writtenUnitGroupIds.has(ugId)) continue;
+      const canonicalUnitGroup = index.unitGroupById.get(ugId);
+      if (!canonicalUnitGroup) continue;
+      const canonicalVersion = asText(canonicalUnitGroup.version);
+      if (!canonicalVersion) continue;
+      const proofKey = `unitgroups:${ugId}@${canonicalVersion}`;
+      if (seen.has(proofKey)) continue;
+      seen.add(proofKey);
+      proofKeys.push({ id: ugId, version: canonicalVersion });
+    }
+    return proofKeys;
+  }
+
   function collectAccountLocalFpUgSupportRows(options) {
-    if (!booleanOption(options.mintUnmatchedFpUgSupport)) return [];
+    if (!booleanOption(options.mintUnmatchedFpUgSupport))
+      return { rows: [], canonicalUnitGroupProofKeys: [] };
     const { index } = loadCanonicalSupportCache(options);
     const ugFile = resolveRepoPath(options.supportUnitgroupRowsFile);
     const fpFile = resolveRepoPath(options.supportFlowpropertyRowsFile);
     const ugRows = ugFile && fileExists(ugFile) ? readRowsFile(ugFile) : [];
     const fpRows = fpFile && fileExists(fpFile) ? readRowsFile(fpFile) : [];
+    // Only genuinely account-local UGs/FPs are minted. A UG/FP whose UUID is already a
+    // canonical-cache id (e.g. Units of energy 93a60a57@03.00.003) is a public dataset
+    // and must NOT be written as account-local My Data @00.00.001 — doing so triggers a
+    // remote `version_outdated` blocker (root role) because the database already
+    // publishes it at a higher version.
     const mintUnitGroups = ugRows.filter((row) => {
       const id = datasetIdentity(row, "unitgroup").id;
       return id && !index.unitGroupById.has(id);
@@ -199,7 +261,49 @@ export function createPostAuthoringFinalizeCommands({
       const id = datasetIdentity(row, "flowproperty").id;
       return id && !index.flowPropertyById.has(id);
     });
-    return [...mintUnitGroups, ...mintFlowProperties];
+    // FIX C/D (corrected): a minted (account-local) Flow Property references its reference
+    // Unit Group. That UG is one of two cases:
+    //   1. Account-local/minted (NOT in the canonical cache): it is already in
+    //      mintUnitGroups above and written as support, so the FP->UG edge is in scope.
+    //   2. Canonical (IN the canonical cache, published e.g. @03.00.003): it must NOT be
+    //      written. Instead the minted FP's referenceToReferenceUnitGroup must be
+    //      rewritten to the canonical PUBLISHED version (the converter materialized it at
+    //      @00.00.001), and the canonical UG id@published-version proven as a reusable
+    //      remote reference (provenReferenceKeys) so closure passes without writing it.
+    // Without (2) the FP keeps referencing the canonical UG @00.00.001, which the remote
+    // verify reports as `version_outdated` (reference role); the earlier FIX D instead
+    // force-wrote the canonical UG @00.00.001 and added a `version_outdated` (root role).
+    // Entirely within the mintUnmatchedFpUgSupport branch, so BAFU (flag off) is unchanged.
+    const canonicalUnitGroupProofKeys = [];
+    const seenCanonicalProofKeys = new Set();
+    const rewrittenFlowProperties = mintFlowProperties.map((fpRow) => {
+      const {
+        reference: referenceUnitGroup,
+        id: ugId,
+        version: currentVersion,
+      } = flowPropertyReferenceUnitGroup(fpRow);
+      const canonicalUnitGroup = ugId ? index.unitGroupById.get(ugId) : null;
+      if (!canonicalUnitGroup) return fpRow;
+      const canonicalVersion = asText(canonicalUnitGroup.version);
+      if (!canonicalVersion) return fpRow;
+      const proofKey = `unitgroups:${ugId}@${canonicalVersion}`;
+      if (!seenCanonicalProofKeys.has(proofKey)) {
+        seenCanonicalProofKeys.add(proofKey);
+        canonicalUnitGroupProofKeys.push({ id: ugId, version: canonicalVersion });
+      }
+      if (currentVersion === canonicalVersion) return fpRow;
+      // Bump the minted FP's reference to the canonical published version so the remote
+      // verify resolves it against the existing public UG instead of a stale @00.00.001.
+      const next = cloneJson(fpRow);
+      next.flowPropertyDataSet.flowPropertiesInformation.quantitativeReference.referenceToReferenceUnitGroup[
+        "@version"
+      ] = canonicalVersion;
+      return next;
+    });
+    return {
+      rows: [...mintUnitGroups, ...rewrittenFlowProperties],
+      canonicalUnitGroupProofKeys,
+    };
   }
 
   function applySourceContactRewrites({ datasetType, rowsFile, outDir, options }) {
@@ -212,6 +316,13 @@ export function createPostAuthoringFinalizeCommands({
     // commit set. BAFU was first; USLCI (NREL) reuses the same machinery via its
     // profile-driven library contact identity.
     const supportedForProfile = profile === "bafu" || profile === "uslci";
+    // Gate for every new mixed reuse+mint support-closure behavior in this stage. Only the
+    // USLCI profile sets allowAccountLocalSupportAndElementary; BAFU never does, so all
+    // gated paths below are no-ops for BAFU and its rewrite output stays byte-identical.
+    const allowAccountLocalSupportAndElementary =
+      typeof profileFor === "function"
+        ? Boolean(profileFor(repoRoot, profile, options)?.allowAccountLocalSupportAndElementary)
+        : false;
     const outputRowsFile = path.join(
       outDir,
       `${datasetRowsFileStem(datasetType)}.source-contact-rewritten.jsonl`,
@@ -221,6 +332,21 @@ export function createPostAuthoringFinalizeCommands({
     const supportRowsPath = path.join(outDir, "support.jsonl");
     fs.mkdirSync(outDir, { recursive: true });
     if (!supportedForProfile || booleanOption(options.skipSourceContactRewrites)) {
+      // Coherent model — REUSED (canonical) dependency proof for the SUPPORT sub-finalize.
+      // The SUPPORT sub-finalize runs with --skip-source-contact-rewrites, so the parent's
+      // source/contact rewrite (which computed canonical_support) does not re-run here. But
+      // the minted Flow Properties this scope WRITES still reference public canonical Unit
+      // Groups that this scope does NOT write; closure (verify-remote OFF) cannot prove the
+      // FP->canonical-UG edge unless the canonical UG id@published-version is in THIS
+      // sub-finalize's own mutation-manifest provenReferenceKeys. Re-derive the
+      // canonical_support block from the exact support rows being finalized so the support
+      // sub-finalize proves its own reused canonical UGs through the same channel the
+      // dependent finalize uses. Gated on the account-local override (USLCI profile),
+      // which BAFU never sets, so BAFU's skipped report is byte-identical.
+      const skippedCanonicalUnitGroupProofKeys =
+        allowAccountLocalSupportAndElementary && fileExists(rowsFile)
+          ? deriveCanonicalUnitGroupProofKeysFromSupportRows(readRowsFile(rowsFile), options)
+          : [];
       const report = {
         schema_version: 1,
         status: "skipped",
@@ -235,6 +361,11 @@ export function createPostAuthoringFinalizeCommands({
           contact_reference_rewrites: 0,
           source_reference_rewrites: 0,
           support_rows: 0,
+        },
+        // Empty for BAFU (override off); populated only for the USLCI support sub-finalize
+        // so its mutation manifest can prove the FP->canonical-UG edge it writes.
+        canonical_support: {
+          canonical_unit_group_reference_keys: skippedCanonicalUnitGroupProofKeys,
         },
         files: {},
       };
@@ -337,6 +468,15 @@ export function createPostAuthoringFinalizeCommands({
         stats,
         rewriteRows: sourceReferenceRewriteRows,
         datasetIdentityCache: datasetIdentity(payload, type),
+        // CLASS 2 fix (gated, USLCI only): also rewrite a format/compliance support source
+        // referenced OUTSIDE its format/compliance slot (e.g. a process
+        // modellingAndValidation/validation/review/common:referenceToCompleteReviewReport
+        // pointing at an "ILCD format" source) to the public canonical source, using the
+        // referenced source's semantic kind. Without the lookup the rewrite only fires on
+        // path-relations, leaving the review-report ref stale and unprovable. Passing the
+        // lookup only under the override keeps BAFU's rewrite output byte-identical.
+        sourceLookup:
+          allowAccountLocalSupportAndElementary && sourceLookup.size > 0 ? sourceLookup : null,
       });
       if (type === "process" && sourceLookup.size > 0) {
         rewriteTrueSourceReferenceDescriptions(payload.processDataSet, {
@@ -374,6 +514,34 @@ export function createPostAuthoringFinalizeCommands({
         .filter((row) => row.referenced_source_kind === "true_source" && row.ref_object_id)
         .map((row) => `${row.ref_object_id}::${row.version || "00.00.001"}`),
     );
+    // FIX C (corrected): a review-report source (modellingAndValidation/validation/review
+    // -> common:referenceToCompleteReviewReport) can exist in the materialized source
+    // support bundle yet not be classified as kind="true_source" by the process-level
+    // referenced_source_kind (e.g. missing/weak citation). Defensively harvest such
+    // validation/review refs into the support commit, BUT ONLY when the resolved support
+    // payload is itself a true source (materializable). A format/compliance/placeholder
+    // support source (e.g. an "ILCD format" / "Data set formats" source landing in a
+    // referenceToCompleteReviewReport slot) is NOT a writable BAFU-owned source — its
+    // reference is rewritten to the public canonical source elsewhere and it must never
+    // be committed, otherwise the support sub-finalize blocks on
+    // source_identity_not_true_source / source_classification_not_true_source
+    // (mutation_manifest_not_ready -> handoff_plan_not_ready). Restricting the harvest to
+    // true-source kinds keeps closure correct while never minting a non-true source.
+    const trueSourceSupportIds = new Set(
+      sourceSupportSemanticsRows
+        .filter((summary) => summary?.kind === "true_source")
+        .map((summary) => summary?.dataset_id)
+        .filter(Boolean),
+    );
+    for (const row of allProcessSourceReferenceRowsForScope) {
+      if (!row.ref_object_id) continue;
+      const pathText = String(row.path || "");
+      const isReviewReportRef = pathText.includes("validation") && pathText.includes("review");
+      if (!isReviewReportRef) continue;
+      if (!trueSourceSupportIds.has(row.ref_object_id)) continue;
+      const key = `${row.ref_object_id}::${row.version || "00.00.001"}`;
+      if (sourceSupportPayloads.has(key)) referencedTrueSourceKeys.add(key);
+    }
     const referencedTrueSourceRows = [...referencedTrueSourceKeys]
       .map((key) => sourceSupportPayloads.get(key))
       .filter(Boolean);
@@ -384,7 +552,8 @@ export function createPostAuthoringFinalizeCommands({
     const sourceSupportRepairsPath = path.join(outDir, "source-support-repairs.jsonl");
     writeJsonLines(sourceSupportSemanticsPath, sourceSupportSemanticsRows);
     writeJsonLines(sourceSupportRepairsPath, sourceSupportRepairRows);
-    const accountLocalFpUgSupportRows = collectAccountLocalFpUgSupportRows(options);
+    const { rows: accountLocalFpUgSupportRows, canonicalUnitGroupProofKeys } =
+      collectAccountLocalFpUgSupportRows(options);
     writeJsonLines(supportRowsPath, [
       ...accountLocalFpUgSupportRows,
       libraryContact,
@@ -443,6 +612,22 @@ export function createPostAuthoringFinalizeCommands({
         referenced_true_source_ids: referencedTrueSourceRows.map(
           (payload) => datasetIdentity(payload, "source").id,
         ),
+        // FIX C: id+version keys for every committed true source (including
+        // defensively-harvested review-report sources), so the process.finalize
+        // reference-closure proof can include them by exact reference key.
+        referenced_true_source_keys: referencedTrueSourceRows.map((payload) => {
+          const identity = datasetIdentity(payload, "source");
+          return { id: identity.id, version: identity.version || "00.00.001" };
+        }),
+      },
+      // CLASS 1 fix: minted (account-local) Flow Properties whose reference Unit Group is
+      // a public canonical UG are NOT written; the FP's referenceToReferenceUnitGroup is
+      // rewritten to the canonical published version and the canonical UG id@version is
+      // surfaced here so the mutation-manifest reference-closure proof can mark it as a
+      // reusable remote reference (proven, not written). Empty unless
+      // --mint-unmatched-fp-ug-support is set (USLCI only), so BAFU is unchanged.
+      canonical_support: {
+        canonical_unit_group_reference_keys: canonicalUnitGroupProofKeys,
       },
       files: {
         output_rows: repoRelativePath(outputRowsFile),

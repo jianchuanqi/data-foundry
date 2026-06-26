@@ -29,12 +29,23 @@ function textValue(value) {
   return "";
 }
 
+// ILCD root/information keys are irregular for unit groups and flow properties
+// (unitGroupDataSet/unitGroupInformation, flowPropertyDataSet/flowPropertiesInformation),
+// so the plain `${type}DataSet`/`${type}Information` template does not reach them.
+const DATASET_ROOT_KEYS = {
+  contact: ["contactDataSet", "contactInformation"],
+  source: ["sourceDataSet", "sourceInformation"],
+  flow: ["flowDataSet", "flowInformation"],
+  process: ["processDataSet", "processInformation"],
+  unitgroup: ["unitGroupDataSet", "unitGroupInformation"],
+  flowproperty: ["flowPropertyDataSet", "flowPropertiesInformation"],
+};
+
 function datasetIdentity(row, type) {
-  const root = row?.[`${type}DataSet`] ?? {};
+  const [rootKey, infoKey] = DATASET_ROOT_KEYS[type] ?? [`${type}DataSet`, `${type}Information`];
+  const root = row?.[rootKey] ?? {};
   const information =
-    root?.[`${type}Information`]?.dataSetInformation ??
-    root?.[`${type}Information`]?.["common:dataSetInformation"] ??
-    {};
+    root?.[infoKey]?.dataSetInformation ?? root?.[infoKey]?.["common:dataSetInformation"] ?? {};
   const publication =
     root?.administrativeInformation?.publicationAndOwnership ??
     root?.administrativeInformation?.["common:publicationAndOwnership"] ??
@@ -1860,6 +1871,102 @@ test("trimVerifiedScopeScratch never throws on a missing scope dir", () => {
       { commit: true },
     ),
   );
+});
+
+test("support identity types stay contact|source for BAFU and add FP/UG only under the mint flag", () => {
+  const { setBafuBatchConfigForTest, supportIdentityTypes, splitSupportIdentityKey } =
+    bafuBatchImportRunTestHooks;
+  try {
+    // BAFU (and every non-USLCI profile): support identities are exactly contact|source,
+    // so the reuse-skip / cache / cross-scope discovery behavior is unchanged.
+    setBafuBatchConfigForTest({});
+    assert.deepEqual(supportIdentityTypes(), ["contact", "source"]);
+    assert.equal(splitSupportIdentityKey("contact:c1@00.00.001")?.dataset_type, "contact");
+    assert.equal(splitSupportIdentityKey("source:s1@00.00.001")?.dataset_type, "source");
+    // The wider parser accepts FP/UG keys, but BAFU never produces them.
+    assert.equal(
+      splitSupportIdentityKey("flowproperty:fp1@00.00.001")?.dataset_type,
+      "flowproperty",
+    );
+    assert.equal(splitSupportIdentityKey("unitgroup:ug1@00.00.001")?.dataset_type, "unitgroup");
+    assert.equal(splitSupportIdentityKey("flow:f1@00.00.001"), null);
+
+    // USLCI (--mint-unmatched-fp-ug-support): minted FP/UG are account-local support, so
+    // they must be tracked as support identities — otherwise a contact already verified
+    // would let the reuse-skip short-circuit an un-committed minted FP/UG and the
+    // dependent flow/process never proves reference closure.
+    setBafuBatchConfigForTest({ mintUnmatchedFpUgSupport: true });
+    assert.deepEqual(supportIdentityTypes(), ["contact", "source", "unitgroup", "flowproperty"]);
+  } finally {
+    setBafuBatchConfigForTest({});
+  }
+});
+
+test("supportIdentityKeysFromHandoffPlan extracts minted FP/UG keys only under the mint flag", () => {
+  const { setBafuBatchConfigForTest, supportIdentityKeysFromHandoffPlan } =
+    bafuBatchImportRunTestHooks;
+  const supportDir = path.join(fixtureRoot, "support-identity-keys");
+  fs.mkdirSync(supportDir, { recursive: true });
+  const supportRowsFile = path.join(supportDir, "support.cleaned.jsonl");
+  const ml = (text) => ({ "@xml:lang": "en", "#text": text });
+  const contactId = "00000000-0000-4000-8000-00000000000c";
+  const fpId = "00000000-0000-4000-8000-00000000000f";
+  const ugId = "00000000-0000-4000-8000-00000000000a";
+  writeJsonLines(supportRowsFile, [
+    {
+      unitGroupDataSet: {
+        unitGroupInformation: {
+          dataSetInformation: { "common:UUID": ugId, "common:name": ml("UG") },
+        },
+        administrativeInformation: {
+          publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+        },
+      },
+    },
+    {
+      flowPropertyDataSet: {
+        flowPropertiesInformation: {
+          dataSetInformation: { "common:UUID": fpId, "common:name": ml("FP") },
+        },
+        administrativeInformation: {
+          publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+        },
+      },
+    },
+    {
+      contactDataSet: {
+        contactInformation: {
+          dataSetInformation: { "common:UUID": contactId, "common:name": ml("C") },
+        },
+        administrativeInformation: {
+          publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+        },
+      },
+    },
+  ]);
+  const handoffPlan = {
+    commands: {
+      commit: `tiangong-lca dataset save-draft --type auto --input ${supportRowsFile} --commit`,
+    },
+  };
+  try {
+    // BAFU: only the contact is tracked — the FP/UG are NOT support identities.
+    setBafuBatchConfigForTest({});
+    assert.deepEqual(supportIdentityKeysFromHandoffPlan(handoffPlan), [
+      `contact:${contactId}@00.00.001`,
+    ]);
+
+    // USLCI: the minted FP and its reference UG are tracked alongside the contact, so the
+    // support commit is not falsely skipped and the committed FP/UG are reusable.
+    setBafuBatchConfigForTest({ mintUnmatchedFpUgSupport: true });
+    assert.deepEqual(supportIdentityKeysFromHandoffPlan(handoffPlan).sort(), [
+      `contact:${contactId}@00.00.001`,
+      `flowproperty:${fpId}@00.00.001`,
+      `unitgroup:${ugId}@00.00.001`,
+    ]);
+  } finally {
+    setBafuBatchConfigForTest({});
+  }
 });
 
 test("enforceSharedContextCacheCap clears the cache only when over the cap", () => {

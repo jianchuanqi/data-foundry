@@ -70,5 +70,7 @@ export {
 export {
   publicCanonicalSourceReferenceKeys,
   readSourceReferenceRewriteContext,
+  sourceContactSupportCanonicalUnitGroupProofKeys,
+  sourceContactSupportTrueSourceProofKeys,
   sourceReferenceRewriteProofKeys,
 } from "./workflow-source-reference-context.mjs";

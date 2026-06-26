@@ -982,9 +982,35 @@ export function createBundleSampleRowsCommands({
       row.omitted_reason = "unreferenced_by_selected_process_scope";
       sanitizeStats.omitted_unreferenced_true_source_rows += 1;
     }
-    const omittedSourceSemanticsRows = sourceSemanticsRows.filter(
-      (row) => row.kind !== "true_source",
-    );
+    // FIX C (support closure): a non-true_source (e.g. a "Data set formats" review
+    // report cited via validation/review/referenceToCompleteReviewReport) is normally
+    // dropped from the materialized source/support set, because for BAFU such format/
+    // compliance references are rewritten to canonical public rows and the process no
+    // longer points at the original. USLCI cites a review-report source that has NO
+    // canonical mapping, so the process keeps a hard reference to it; dropping it left
+    // a dangling dependency and blocked process.finalize on reference_closure_unproven.
+    // Under the account-local override (USLCI; BAFU has it false → unchanged), retain
+    // any source still referenced by a process in this scope so it is committed as
+    // account-local support BEFORE the process finalize. This can only KEEP a source
+    // the scope already collected and the process already references, so it never
+    // loosens closure for an unreferenced source.
+    const omittedSourceSemanticsRows = sourceSemanticsRows.filter((row) => {
+      if (row.kind === "true_source") return false;
+      if (
+        allowAccountLocalSupportAndElementary &&
+        row.dataset_id &&
+        referencedProcessSourceKeys.has(`${row.dataset_id}::${row.dataset_version || "00.00.001"}`)
+      ) {
+        // Retain (do NOT add to the omitted set): the process keeps a hard reference to
+        // this source, so it must travel as account-local support and commit first.
+        row.materialized_as_source_row = true;
+        row.retained_reason = "referenced_account_local_support_source";
+        sanitizeStats.retained_referenced_account_local_support_source_rows =
+          Number(sanitizeStats.retained_referenced_account_local_support_source_rows ?? 0) + 1;
+        return false;
+      }
+      return true;
+    });
     for (const row of omittedSourceSemanticsRows) {
       if (!row.dataset_id) continue;
       rowsByType.source.delete(`${row.dataset_id}::${row.dataset_version || ""}`);

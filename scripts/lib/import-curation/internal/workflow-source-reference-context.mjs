@@ -56,6 +56,56 @@ export const publicCanonicalSourceReferenceKeys = new Set([
   }),
 ]);
 
+// FIX C: the source/contact-rewrite stage commits every referenced true source into
+// the scope's support set (including review-report sources defensively harvested even
+// when their kind did not classify as true_source). Surface those committed sources'
+// reference keys so the FIRST process.finalize reference-closure proof passes for them
+// once they are in the support commit. This can ONLY prove sources the stage actually
+// committed into the support set, so it cannot loosen closure for any other source.
+export function sourceContactSupportTrueSourceProofKeys(context) {
+  const sourceSupport = context?.artifact?.value?.source_support;
+  const keys = new Set();
+  if (!sourceSupport) return keys;
+  const entries = Array.isArray(sourceSupport.referenced_true_source_keys)
+    ? sourceSupport.referenced_true_source_keys
+    : [];
+  for (const entry of entries) {
+    const id = asText(entry?.id);
+    if (!id) continue;
+    keys.add(
+      referenceKey({
+        table: "sources",
+        id,
+        version: asText(entry?.version) || "00.00.001",
+      }),
+    );
+  }
+  return keys;
+}
+
+// CLASS 1 fix: the source/contact-rewrite stage rewrites a minted (account-local) Flow
+// Property's referenceToReferenceUnitGroup to the canonical PUBLISHED version when that
+// Unit Group is a public canonical dataset, and never writes the canonical UG. Surface
+// that canonical UG id@published-version as a reusable remote reference key so the first
+// finalize reference-closure proof passes for the FP->canonical-UG edge without writing
+// the UG. The keys come only from UGs the stage proved against the canonical support
+// cache, so this cannot prove a UG that is not a published canonical dataset.
+export function sourceContactSupportCanonicalUnitGroupProofKeys(context) {
+  const canonicalSupport = context?.artifact?.value?.canonical_support;
+  const keys = new Set();
+  if (!canonicalSupport) return keys;
+  const entries = Array.isArray(canonicalSupport.canonical_unit_group_reference_keys)
+    ? canonicalSupport.canonical_unit_group_reference_keys
+    : [];
+  for (const entry of entries) {
+    const id = asText(entry?.id);
+    const version = asText(entry?.version);
+    if (!id || !version) continue;
+    keys.add(referenceKey({ table: "unitgroups", id, version }));
+  }
+  return keys;
+}
+
 export function sourceReferenceRewriteProofKeys(context) {
   const scopedCanonicalKeys = new Set(
     (context?.scopedRows ?? [])

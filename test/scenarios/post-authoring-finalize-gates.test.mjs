@@ -480,6 +480,328 @@ test("post-authoring finalize includes referenced true sources in source/contact
   }
 });
 
+// CLASS 1 + CLASS 2 (USLCI account-local support closure). Under
+// --mint-unmatched-fp-ug-support the source/contact stage:
+//   (1) mints genuinely account-local UGs/FPs as support;
+//   (2) does NOT write a public canonical UG, instead bumping a minted FP's
+//       referenceToReferenceUnitGroup to the canonical published version and proving the
+//       canonical UG id@version (avoids remote version_outdated, root + reference roles);
+//   (3) never harvests a non-true (format/compliance) support source into the commit set
+//       even when it is referenced via validation/review (avoids
+//       source_*_not_true_source -> mutation_manifest_not_ready -> handoff_plan_not_ready).
+test("post-authoring finalize proves canonical UG for minted FP and excludes format support source", () => {
+  const root = path.join(finalizeAutoQueueFixtureRoot, "account-local-support-closure");
+  fs.rmSync(root, { recursive: true, force: true });
+  const processId = "c1c1c1c1-2222-4333-8444-555555555555";
+  const trueSourceId = "d1d1d1d1-2222-4333-8444-555555555555";
+  const formatSourceId = "16938856-0a35-5654-8aff-56c17e61da4d";
+  const canonicalUnitGroupId = "93a60a57-a3c8-11da-a746-0800200c9a66";
+  const canonicalUnitGroupVersion = "03.00.003";
+  const mintedFlowPropertyId = "f6811440-ee37-11de-8a39-0800200c9a66";
+  const mintedUnitGroupId = "11d161f0-37e3-4d49-bf7a-ff4f31a9e5c7";
+
+  const rowsFile = path.join(root, "rows", "processes.jsonl");
+  const sourceSupportRowsFile = path.join(root, "rows", "sources.jsonl");
+  const fpRowsFile = path.join(root, "rows", "flowproperties.jsonl");
+  const ugRowsFile = path.join(root, "rows", "unitgroups.jsonl");
+  const cacheFile = path.join(root, "cache", "flow-properties-unit-groups.json");
+
+  const processRow = processRowWithDefaultClassification(processId);
+  processRow.processDataSet.modellingAndValidation = {
+    dataSourcesTreatmentAndRepresentativeness: {
+      referenceToDataSource: {
+        "@type": "source data set",
+        "@refObjectId": trueSourceId,
+        "@version": "00.00.001",
+        "common:shortDescription": { "@xml:lang": "en", "#text": "Converted short name" },
+      },
+    },
+    validation: {
+      review: {
+        "common:referenceToCompleteReviewReport": {
+          "@type": "source data set",
+          "@refObjectId": formatSourceId,
+          "@version": "00.00.001",
+          "common:shortDescription": { "@xml:lang": "en", "#text": "ILCD format" },
+        },
+      },
+    },
+  };
+  writeJsonLines(rowsFile, [processRow]);
+
+  const trueSource = sourceRow(trueSourceId);
+  trueSource.sourceDataSet.sourceInformation.dataSetInformation.sourceCitation =
+    "Fixture report, 2026";
+  const formatSource = sourceRow(formatSourceId);
+  formatSource.sourceDataSet.sourceInformation.dataSetInformation["common:shortName"] = {
+    "@xml:lang": "en",
+    "#text": "ILCD format",
+  };
+  delete formatSource.sourceDataSet.sourceInformation.sourceCitation;
+  formatSource.sourceDataSet.sourceInformation.dataSetInformation.classificationInformation = {
+    "common:classification": {
+      "common:class": { "@level": "0", "@classId": "1", "#text": "Data set formats" },
+    },
+  };
+  writeJsonLines(sourceSupportRowsFile, [trueSource, formatSource]);
+
+  // Minted FP referencing a PUBLIC CANONICAL UG at the converter's @00.00.001.
+  const mintedFlowProperty = {
+    flowPropertyDataSet: {
+      flowPropertiesInformation: {
+        dataSetInformation: { "common:UUID": mintedFlowPropertyId },
+        quantitativeReference: {
+          referenceToReferenceUnitGroup: {
+            "@type": "unit group data set",
+            "@refObjectId": canonicalUnitGroupId,
+            "@version": "00.00.001",
+            "@uri": `../unitgroups/${canonicalUnitGroupId}.json`,
+            "common:shortDescription": { "@xml:lang": "en", "#text": "Units of energy" },
+          },
+        },
+      },
+      administrativeInformation: {
+        publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+      },
+    },
+  };
+  writeJsonLines(fpRowsFile, [mintedFlowProperty]);
+
+  // Support UG rows: one genuinely account-local (minted) UG, plus the canonical UG. The
+  // canonical UG must NOT be written; the account-local one must be.
+  const mintedUnitGroup = {
+    unitGroupDataSet: {
+      unitGroupInformation: { dataSetInformation: { "common:UUID": mintedUnitGroupId } },
+      administrativeInformation: {
+        publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+      },
+    },
+  };
+  const canonicalUnitGroup = {
+    unitGroupDataSet: {
+      unitGroupInformation: { dataSetInformation: { "common:UUID": canonicalUnitGroupId } },
+      administrativeInformation: {
+        publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+      },
+    },
+  };
+  writeJsonLines(ugRowsFile, [mintedUnitGroup, canonicalUnitGroup]);
+
+  fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+  fs.writeFileSync(
+    cacheFile,
+    JSON.stringify({
+      unit_groups: [
+        { id: canonicalUnitGroupId, version: canonicalUnitGroupVersion, state_code: 100 },
+      ],
+      flow_properties: [],
+      flow_property_mappings: [],
+    }) + "\n",
+  );
+
+  try {
+    const finalize = runFoundry([
+      "dataset-post-authoring-finalize",
+      "--type",
+      "process",
+      "--profile",
+      "uslci",
+      "--rows-file",
+      rel(rowsFile),
+      "--source-support-rows-file",
+      rel(sourceSupportRowsFile),
+      "--support-flowproperty-rows-file",
+      rel(fpRowsFile),
+      "--support-unitgroup-rows-file",
+      rel(ugRowsFile),
+      "--canonical-support-cache",
+      rel(cacheFile),
+      "--mint-unmatched-fp-ug-support",
+      "--out-dir",
+      rel(path.join(root, "finalize")),
+    ]);
+
+    const supportRows = readJsonLines(
+      path.join(repoRoot, finalize.json.files.source_contact_support_rows),
+    );
+    const supportSourceIds = supportRows
+      .filter((row) => row.sourceDataSet)
+      .map((row) => row.sourceDataSet.sourceInformation.dataSetInformation["common:UUID"]);
+    const supportUnitGroupIds = supportRows
+      .filter((row) => row.unitGroupDataSet)
+      .map((row) => row.unitGroupDataSet.unitGroupInformation.dataSetInformation["common:UUID"]);
+
+    // CLASS 2: the format support source is never committed.
+    assert.equal(supportSourceIds.includes(formatSourceId), false);
+    // The true source referenced via referenceToDataSource is still committed.
+    assert.equal(supportSourceIds.includes(trueSourceId), true);
+
+    // CLASS 2 (review-report path): the format support source referenced via
+    // modellingAndValidation/validation/review/common:referenceToCompleteReviewReport is
+    // rewritten to the public canonical ILCD format source on the finalized process rows,
+    // so reference closure proves it via publicCanonicalSourceReferenceKeys instead of
+    // leaving a stale, unprovable support-source reference.
+    const finalProcessRows = readJsonLines(path.join(repoRoot, finalize.json.files.final_rows));
+    const reviewReportRef =
+      finalProcessRows[0].processDataSet.modellingAndValidation.validation.review[
+        "common:referenceToCompleteReviewReport"
+      ];
+    assert.equal(reviewReportRef["@refObjectId"], "a97a0155-0234-4b87-b4ce-a45da52f2a40");
+    assert.equal(reviewReportRef["@version"], "03.00.003");
+    // Closure no longer reports the format source as unproven on the process finalize.
+    const processClosureBlockers = (finalize.json.blockers ?? []).filter(
+      (blocker) => blocker?.reference_id === formatSourceId,
+    );
+    assert.equal(processClosureBlockers.length, 0);
+
+    // CLASS 1: the account-local UG is written; the canonical UG is NOT written.
+    assert.equal(supportUnitGroupIds.includes(mintedUnitGroupId), true);
+    assert.equal(supportUnitGroupIds.includes(canonicalUnitGroupId), false);
+
+    // CLASS 1: the minted FP's reference unit group version is bumped to canonical.
+    const mintedFpRow = supportRows.find(
+      (row) =>
+        row.flowPropertyDataSet?.flowPropertiesInformation?.dataSetInformation?.["common:UUID"] ===
+        mintedFlowPropertyId,
+    );
+    assert.ok(mintedFpRow, "minted FP is committed as account-local support");
+    assert.equal(
+      mintedFpRow.flowPropertyDataSet.flowPropertiesInformation.quantitativeReference
+        .referenceToReferenceUnitGroup["@version"],
+      canonicalUnitGroupVersion,
+    );
+
+    // CLASS 1: the canonical UG id@published-version is surfaced as a closure proof key.
+    const rewriteReport = readJson(
+      path.join(repoRoot, finalize.json.files.source_contact_rewrite_report),
+    );
+    const proofKeys = rewriteReport.canonical_support.canonical_unit_group_reference_keys;
+    assert.deepEqual(proofKeys, [{ id: canonicalUnitGroupId, version: canonicalUnitGroupVersion }]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Part A (deep redesign): the SUPPORT sub-finalize runs with --skip-source-contact-rewrites
+// (verify-remote OFF). It WRITES minted Flow Properties that reference a PUBLIC CANONICAL
+// Unit Group it does NOT write. The support sub-finalize must prove that reused canonical UG
+// in its OWN mutation manifest, otherwise reference closure blocks
+// (reference_closure_remote_verify_required -> mutation_manifest_not_ready ->
+// handoff_plan_not_ready). This drives the exact skipped-rewrites support finalize and
+// asserts (1) the skipped source/contact report re-derives the canonical_support proof block
+// from the support rows, and (2) the support mutation manifest proves the canonical UG so no
+// reference-closure blocker remains for it.
+test("support finalize with skipped rewrites proves its own reused canonical unit group", () => {
+  const root = path.join(finalizeAutoQueueFixtureRoot, "support-skip-rewrites-canonical-ug");
+  fs.rmSync(root, { recursive: true, force: true });
+  const canonicalUnitGroupId = "93a60a57-a3c8-11da-a746-0800200c9a66";
+  const canonicalUnitGroupVersion = "03.00.003";
+  const mintedFlowPropertyId = "f6811440-ee37-11de-8a39-0800200c9a66";
+  const mintedUnitGroupId = "11d161f0-37e3-4d49-bf7a-ff4f31a9e5c7";
+
+  const supportRowsFile = path.join(root, "rows", "support.jsonl");
+  const cacheFile = path.join(root, "cache", "flow-properties-unit-groups.json");
+
+  // Exactly the support set the parent hands to the support sub-finalize: a contact, one
+  // genuinely account-local (minted) UG, and a minted FP whose reference UG is the public
+  // canonical UG (already bumped to the canonical published version by the parent collector).
+  const libraryContact = {
+    contactDataSet: {
+      contactInformation: {
+        dataSetInformation: {
+          "common:UUID": "aaaaaaaa-1111-4222-8333-444444444444",
+          "common:shortName": { "@xml:lang": "en", "#text": "NREL USLCI" },
+        },
+      },
+      administrativeInformation: {
+        publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+      },
+    },
+  };
+  const mintedUnitGroup = {
+    unitGroupDataSet: {
+      unitGroupInformation: { dataSetInformation: { "common:UUID": mintedUnitGroupId } },
+      administrativeInformation: {
+        publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+      },
+    },
+  };
+  const mintedFlowProperty = {
+    flowPropertyDataSet: {
+      flowPropertiesInformation: {
+        dataSetInformation: { "common:UUID": mintedFlowPropertyId },
+        quantitativeReference: {
+          referenceToReferenceUnitGroup: {
+            "@type": "unit group data set",
+            "@refObjectId": canonicalUnitGroupId,
+            "@version": canonicalUnitGroupVersion,
+            "@uri": `../unitgroups/${canonicalUnitGroupId}.json`,
+            "common:shortDescription": { "@xml:lang": "en", "#text": "Units of energy" },
+          },
+        },
+      },
+      administrativeInformation: {
+        publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+      },
+    },
+  };
+  writeJsonLines(supportRowsFile, [mintedUnitGroup, mintedFlowProperty, libraryContact]);
+
+  fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+  fs.writeFileSync(
+    cacheFile,
+    JSON.stringify({
+      unit_groups: [
+        { id: canonicalUnitGroupId, version: canonicalUnitGroupVersion, state_code: 100 },
+      ],
+      flow_properties: [],
+      flow_property_mappings: [],
+    }) + "\n",
+  );
+
+  try {
+    const finalize = runFoundry([
+      "dataset-post-authoring-finalize",
+      "--type",
+      "support",
+      "--profile",
+      "uslci",
+      "--rows-file",
+      rel(supportRowsFile),
+      "--canonical-support-cache",
+      rel(cacheFile),
+      // The parent always hands the support sub-finalize --skip-source-contact-rewrites.
+      "--skip-source-contact-rewrites",
+      "--target-user-id",
+      targetUserId,
+      "--out-dir",
+      rel(path.join(root, "finalize")),
+    ]);
+
+    // (1) The skipped source/contact report re-derives the canonical_support proof block
+    // from the support rows even though the deterministic rewrite did not run.
+    const skippedReport = readJson(
+      path.join(repoRoot, finalize.json.files.source_contact_rewrite_report),
+    );
+    assert.equal(skippedReport.status, "skipped");
+    assert.deepEqual(skippedReport.canonical_support.canonical_unit_group_reference_keys, [
+      { id: canonicalUnitGroupId, version: canonicalUnitGroupVersion },
+    ]);
+
+    // (2) The support mutation manifest proves the canonical UG, so no reference-closure
+    // blocker remains for it (the minted FP -> canonical UG edge closes). Any residual
+    // blockers in this minimal fixture are schema/dry-run evidence, never closure.
+    const closureBlockers = (finalize.json.blockers ?? []).filter(
+      (blocker) =>
+        String(blocker?.code ?? "").startsWith("reference_closure") &&
+        blocker?.reference_id === canonicalUnitGroupId,
+    );
+    assert.equal(closureBlockers.length, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("post-authoring finalize declares external process flow refs for remote proof", () => {
   const root = path.join(finalizeAutoQueueFixtureRoot, "missing-local-flow");
   fs.rmSync(root, { recursive: true, force: true });

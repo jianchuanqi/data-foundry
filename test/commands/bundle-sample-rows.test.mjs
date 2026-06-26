@@ -1486,6 +1486,110 @@ test("dataset-bundle-sample-rows omits format and compliance placeholder sources
   );
 });
 
+// FIX C (support closure): under the account-local override (USLCI), a non-true_source
+// referenced by the process via a path with no canonical mapping
+// (validation/review/referenceToCompleteReviewReport) must be RETAINED in the
+// materialized support set so it commits as account-local support before the process
+// finalize, instead of being dropped and leaving a dangling reference that blocks
+// process.finalize on reference_closure_unproven. BAFU (override off) is exercised by
+// the "omits format and compliance placeholder sources" test above and stays unchanged.
+test("dataset-bundle-sample-rows retains a referenced review-report support source under the account-local override", () => {
+  createBundleFixture();
+  const outDir = path.join(fixtureRoot, "out-review-report-retention");
+  const bundleDir = path.join(fixtureRoot, "process-bundles", processId);
+
+  // A "Data set formats" source cited by the process as its complete review report.
+  // referenceToCompleteReviewReport is NOT one of the canonical-rewritten relations,
+  // so the reference survives and the source must be committed account-local.
+  const reviewReportSourcePath = path.join(bundleDir, "tidas", "sources", `${formatSourceId}.json`);
+  writeJson(reviewReportSourcePath, {
+    sourceDataSet: {
+      sourceInformation: {
+        dataSetInformation: {
+          "common:UUID": formatSourceId,
+          "common:shortName": ml("External LCA source metadata"),
+          classificationInformation: {
+            "common:classification": {
+              "common:class": {
+                "@level": "0",
+                "@classId": "1",
+                "#text": "Data set formats",
+              },
+            },
+          },
+        },
+      },
+      administrativeInformation: {
+        publicationAndOwnership: {
+          "common:dataSetVersion": "00.00.001",
+        },
+      },
+    },
+  });
+
+  const processPath = path.join(bundleDir, "tidas", "processes", `${processId}.json`);
+  const processPayload = JSON.parse(fs.readFileSync(processPath, "utf8"));
+  processPayload.processDataSet.modellingAndValidation.validation = {
+    review: {
+      "@type": "Independent internal review",
+      "common:referenceToCompleteReviewReport": sourceRef(
+        formatSourceId,
+        "External LCA source metadata",
+      ),
+    },
+  };
+  writeJson(processPath, processPayload);
+
+  const manifestPath = path.join(bundleDir, "manifest.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  manifest.files.sources.push(`tidas/sources/${formatSourceId}.json`);
+  writeJson(manifestPath, manifest);
+
+  const report = runFoundry([
+    "dataset-bundle-sample-rows",
+    "--bundles-dir",
+    path.join(fixtureRoot, "process-bundles"),
+    "--process-id",
+    processId,
+    "--out-dir",
+    outDir,
+    "--contact-id",
+    newContactId,
+    "--profile",
+    "uslci",
+  ]);
+
+  assert.equal(report.status, "ready");
+  // The fixture true source (referenceToDataSource) plus the retained review-report
+  // format source both materialize as source rows.
+  assert.equal(report.counts.retained_referenced_account_local_support_source_rows, 1);
+
+  const sources = readJsonLines(path.join(repoRoot, report.files.rows.source));
+  const sourceIds = sources.map(
+    (row) => row.sourceDataSet.sourceInformation.dataSetInformation["common:UUID"],
+  );
+  assert.ok(
+    sourceIds.includes(formatSourceId),
+    "review-report format source must be retained in the materialized source/support set",
+  );
+  assert.ok(sourceIds.includes(sourceId), "the true data source must still materialize");
+
+  // The process keeps its hard reference to the retained review-report source — it is
+  // NOT rewritten to a canonical id, so it must travel as account-local support.
+  const processes = readJsonLines(path.join(repoRoot, report.files.rows.process));
+  assert.equal(
+    processes[0].processDataSet.modellingAndValidation.validation.review[
+      "common:referenceToCompleteReviewReport"
+    ]["@refObjectId"],
+    formatSourceId,
+  );
+
+  const sourceSemantics = readJsonLines(path.join(repoRoot, report.files.source_semantics));
+  const reviewSemantics = sourceSemantics.find((row) => row.dataset_id === formatSourceId);
+  assert.equal(reviewSemantics.materialized_as_source_row, true);
+  assert.equal(reviewSemantics.retained_reason, "referenced_account_local_support_source");
+});
+
 test("dataset-bundle-sample-rows rewrites placeholder process data sources to the unique true source", () => {
   createBundleFixture();
   const outDir = path.join(fixtureRoot, "out-process-source-placeholder");

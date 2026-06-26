@@ -31,6 +31,12 @@ export function createUslciBatchImportRunCommands(deps) {
     // reused-with-scaling) per the user's 2026-06-24 P1c decision. BAFU keeps
     // FP/UG reference-only (this flag stays off there).
     mintUnmatchedFpUgSupport: true,
+    // FIX A: apply the authoritative library-resolution exchange-reference-rewrites
+    // deterministically at the flow-identity step. Every flow the offline resolution
+    // proved reusable becomes a canonical reference; only flows with no rewrite mint.
+    // Requires --library-resolution <dir> at runtime to point at the resolution that
+    // holds exchange-reference-rewrites.jsonl. BAFU never sets this flag.
+    applyResolutionRewrites: true,
     // D2 source attribution: USLCI rows must NOT inherit the BAFU FOEN library
     // contact (nor any openLCA software identity). The materialize stage stamps
     // this NREL / U.S. Federal LCA Commons contact as the shared library contact.

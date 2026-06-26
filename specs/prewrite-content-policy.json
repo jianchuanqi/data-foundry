@@ -77,7 +77,7 @@
       },
       {
         "id": "curation-state",
-        "pattern": "\\bcuration\\b",
+        "pattern": "\\bcuration[-_\\s](?:gate|gates|state|states|status|queue|round|rounds|checkpoint|backlog|deferral|deferred|workflow|pass)\\b",
         "flags": "iu"
       },
       {

@@ -502,6 +502,22 @@ export function createSourceSemanticUtils({
     return reference ? cloneJson(reference) : null;
   }
 
+  // A format/compliance support source is the same public canonical dataset no matter
+  // which slot references it. The path-relation maps a format/compliance slot to its
+  // canonical; this maps the source's own semantic KIND to the same canonical, so a
+  // format/compliance source landing in a non-format/compliance slot (e.g.
+  // modellingAndValidation/validation/review/common:referenceToCompleteReviewReport)
+  // is rewritten to the same public canonical source it would get on its format slot.
+  const canonicalSourceReferenceByKind = {
+    format_support_source: "dataset_format_source",
+    compliance_support_source: "compliance_system_source",
+  };
+
+  function canonicalSourceReferenceForSourceKind(kind) {
+    const relation = canonicalSourceReferenceByKind[asText(kind)];
+    return relation ? canonicalSourceReferenceForRelation(relation) : null;
+  }
+
   function sourceReferenceSnapshot(reference) {
     return {
       ref_object_id: asText(reference?.["@refObjectId"]) || null,
@@ -513,7 +529,15 @@ export function createSourceSemanticUtils({
 
   function rewriteCanonicalSourceReferences(
     value,
-    { datasetType, sourceFile, stats, rewriteRows, pathSegments = [], datasetIdentityCache = null },
+    {
+      datasetType,
+      sourceFile,
+      stats,
+      rewriteRows,
+      pathSegments = [],
+      datasetIdentityCache = null,
+      sourceLookup = null,
+    },
   ) {
     if (!value || typeof value !== "object") return;
     if (Array.isArray(value)) {
@@ -525,15 +549,36 @@ export function createSourceSemanticUtils({
           rewriteRows,
           pathSegments: [...pathSegments, index],
           datasetIdentityCache,
+          sourceLookup,
         }),
       );
       return;
     }
 
     const relation = sourceReferenceKind(pathSegments);
-    const canonical = canonicalSourceReferenceForRelation(relation);
     const refType = asText(value["@type"]).toLowerCase();
     const refObjectId = asText(value["@refObjectId"]);
+    // The canonical target is fixed first by the reference path-relation (format /
+    // compliance slots), then — for any other slot, e.g. referenceToCompleteReviewReport
+    // — by the referenced source's own semantic KIND when a sourceLookup is supplied. A
+    // format/compliance support source ("ILCD format"/"Data set formats",
+    // "...compliance systems") is the same public canonical dataset wherever it is
+    // referenced, so it must be rewritten on every path; a true source has no kind-based
+    // canonical and is never touched here.
+    let canonical = canonicalSourceReferenceForRelation(relation);
+    // effectiveRelation records WHY the rewrite happened: a path-relation rewrite keeps
+    // its slot relation; a kind-based rewrite on an otherwise-unmapped slot records the
+    // referenced source's support kind so the rewrite row is traceable.
+    let effectiveRelation = relation;
+    let kindBasedRewrite = false;
+    if (!canonical && sourceLookup && refObjectId && refType.includes("source")) {
+      const referencedKind = sourceLookup.get(refObjectId)?.kind;
+      canonical = canonicalSourceReferenceForSourceKind(referencedKind);
+      if (canonical) {
+        effectiveRelation = asText(referencedKind) || relation;
+        kindBasedRewrite = true;
+      }
+    }
     if (canonical && refObjectId && refType.includes("source")) {
       const before = sourceReferenceSnapshot(value);
       const after = sourceReferenceSnapshot(canonical);
@@ -553,11 +598,12 @@ export function createSourceSemanticUtils({
           dataset_version: identity.version,
           source_file: repoRelativeMaybe(sourceFile),
           path: pathExpression(pathSegments),
-          relation,
+          relation: effectiveRelation,
           original: before,
           canonical: after,
-          reason:
-            relation === "dataset_format_source"
+          reason: kindBasedRewrite
+            ? "A format/compliance support source referenced outside its format/compliance slot (e.g. a review report reference) is rewritten to the same public canonical source it uses on its format/compliance slot, so reference closure proves it as a reusable public dataset."
+            : relation === "dataset_format_source"
               ? "Data set format uses the public canonical ILCD format source instead of a converted package-local support source."
               : "Compliance declaration uses the public canonical ILCD Data Network Entry-level source instead of a converted placeholder support source.",
         });
@@ -576,6 +622,7 @@ export function createSourceSemanticUtils({
         rewriteRows,
         pathSegments: [...pathSegments, key],
         datasetIdentityCache,
+        sourceLookup,
       });
     }
   }
