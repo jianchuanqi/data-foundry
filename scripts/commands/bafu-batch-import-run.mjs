@@ -3334,9 +3334,14 @@ async function runIdentityAndPatch({
           table: "flows",
           ref_object_id: asText(rewrite?.canonical_flow_id),
           version: asText(rewrite?.canonical_flow_version) || "00.00.001",
+          // Carry the canonical flow's display name so dataset-identity-decisions-apply
+          // sets referenceToFlowDataSet common:shortDescription to the real name instead
+          // of falling back to the UUID (identity-decisions.mjs: short_description ?? id).
+          short_description: asText(rewrite?.canonical_short_description) || undefined,
         },
         canonical_flow_id: asText(rewrite?.canonical_flow_id),
         canonical_flow_version: asText(rewrite?.canonical_flow_version) || "00.00.001",
+        canonical_short_description: asText(rewrite?.canonical_short_description) || undefined,
         basis:
           "Applied from library-resolution exchange-reference-rewrites (deterministic physical-equivalence reuse).",
         evidence: {
