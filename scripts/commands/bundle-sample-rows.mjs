@@ -66,6 +66,7 @@ export function createBundleSampleRowsCommands({
   profileFor,
   repoRoot,
   buildBafuFallbackSourcePayload,
+  buildDatabaseFallbackSourcePayload,
   buildBafuProcessContextSourcePayload,
   buildIdentityPreflightArtifacts,
   buildLibraryContactPayload,
@@ -917,17 +918,19 @@ export function createBundleSampleRowsCommands({
     );
     let fallbackSourceSummary = null;
     if (!processSourceReplacement && needsFallbackSource) {
-      const fallbackSource = buildBafuFallbackSourcePayload({
+      const fallbackSource = buildDatabaseFallbackSourcePayload({
+        profile: asText(options.profile) || "bafu",
         contactReference: libraryContactRef,
         language: asText(options.language || options.lang || "en") || "en",
         timestamp: nowIso(),
       });
       const fallbackIdentity = datasetIdentity(fallbackSource, "source");
       const fallbackKey = `${fallbackIdentity.id}::${fallbackIdentity.version}`;
+      const fallbackProvenance = `foundry:${asText(options.profile) || "bafu"}-database-fallback-source`;
       rowsByType.source.set(fallbackKey, fallbackSource);
-      sourceByType.source.set(fallbackKey, "foundry:bafu-database-fallback-source");
+      sourceByType.source.set(fallbackKey, fallbackProvenance);
       fallbackSourceSummary = {
-        ...sourceSemanticSummary(fallbackSource, "foundry:bafu-database-fallback-source"),
+        ...sourceSemanticSummary(fallbackSource, fallbackProvenance),
         fallback_database_source: true,
       };
       sourceSemanticsRows = [...sourceSemanticsRows, fallbackSourceSummary];

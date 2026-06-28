@@ -49,3 +49,29 @@ test("BAFU fallback source payload keeps the format reference without a timestam
   assert.ok(dataEntryBy["common:referenceToDataSetFormat"]);
   assert.equal(dataEntryBy["common:timeStamp"], undefined);
 });
+
+test("buildBafuFallbackSourcePayload equals the profile-aware builder with profile=bafu", () => {
+  const u = utils();
+  const viaAlias = u.buildBafuFallbackSourcePayload({ timestamp: "2025-01-01T00:00:00.000Z" });
+  const viaBuilder = u.buildDatabaseFallbackSourcePayload({
+    profile: "bafu",
+    timestamp: "2025-01-01T00:00:00.000Z",
+  });
+  assert.deepEqual(viaBuilder, viaAlias, "bafu profile must be byte-identical to the legacy alias");
+});
+
+test("USLCI database fallback source cites the USLCI database, never BAFU", () => {
+  const payload = utils().buildDatabaseFallbackSourcePayload({ profile: "uslci" });
+  const di = payload.sourceDataSet.sourceInformation.dataSetInformation;
+  assert.equal(di["common:shortName"]["#text"], "U.S. Life Cycle Inventory Database (USLCI)");
+  assert.ok(/USLCI/.test(di.sourceCitation), "citation must name USLCI");
+  assert.ok(!/BAFU/.test(JSON.stringify(payload)), "USLCI fallback must contain no BAFU text");
+  assert.equal(
+    di.classificationInformation["common:classification"]["common:class"]["#text"],
+    "Databases",
+  );
+  // USLCI id must differ from the BAFU fallback id (no collision with BAFU's source).
+  const bafuId = utils().buildDatabaseFallbackSourcePayload({ profile: "bafu" }).sourceDataSet
+    .sourceInformation.dataSetInformation["common:UUID"];
+  assert.notEqual(di["common:UUID"], bafuId, "USLCI fallback id must not equal BAFU's");
+});

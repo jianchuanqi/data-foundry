@@ -388,6 +388,7 @@ const supportCacheCommands = createSupportCacheCommands({
 
 const {
   buildBafuFallbackSourcePayload,
+  buildDatabaseFallbackSourcePayload,
   buildBafuProcessContextSourcePayload,
   canonicalSourceReferenceForRelation,
   processOriginalSourceMetadata,
@@ -827,6 +828,7 @@ const bundleSampleRowsCommands = createBundleSampleRowsCommands({
   profileFor,
   repoRoot,
   buildBafuFallbackSourcePayload,
+  buildDatabaseFallbackSourcePayload,
   buildBafuProcessContextSourcePayload,
   buildIdentityPreflightArtifacts,
   buildLibraryContactPayload,

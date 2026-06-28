@@ -395,19 +395,53 @@ export function createSourceSemanticUtils({
     };
   }
 
-  function buildBafuFallbackSourcePayload({
+  // Database-level fallback source identity is profile-specific. A converted
+  // package whose process data source points at a non-source placeholder (and
+  // that has no unambiguous process-specific report/publication source) is
+  // rewritten to cite the package's own database-level source. That source must
+  // belong to the package being imported — a USLCI process must cite the USLCI
+  // database, never BAFU's. The BAFU branch is kept byte-identical to the
+  // original so already-imported BAFU rows are unaffected.
+  function databaseFallbackSourceConfig(profile) {
+    const key = asText(profile).toLowerCase();
+    if (key === "uslci") {
+      return {
+        id: deterministicUuid(
+          "tiangong-lca-foundry:uslci:database-source:U.S. Life Cycle Inventory Database (USLCI)",
+        ),
+        shortName: "U.S. Life Cycle Inventory Database (USLCI)",
+        citation:
+          "U.S. Life Cycle Inventory Database (USLCI), National Renewable Energy Laboratory (NREL), U.S. Federal LCA Commons, 2025.",
+        description:
+          "Database-level fallback source used when the converted USLCI package has no more specific report, publication, or data-source evidence for the process scope.",
+        permanentDataSetUri: (sourceId) => `https://www.lcacommons.gov/uslci/${sourceId}`,
+      };
+    }
+    // Default (BAFU and any unspecified profile): preserve the original behavior.
+    return {
+      id: bafuFallbackSourceId(),
+      shortName: "BAFU 2025 Version 2 LCA database",
+      citation:
+        "BAFU 2025 Version 2 LCA database, Federal Office for the Environment (FOEN), 2025.",
+      description:
+        "Database-level fallback source used when the converted BAFU package has no more specific report, publication, or data-source evidence for the process scope.",
+      permanentDataSetUri: (sourceId) => `https://www.bafu.admin.ch/bafu-2025-v2/${sourceId}`,
+    };
+  }
+
+  function buildDatabaseFallbackSourcePayload({
+    profile = "bafu",
     contactReference,
     id = null,
     version = "00.00.001",
     language = "en",
     timestamp = null,
   } = {}) {
-    const sourceId = asText(id) || bafuFallbackSourceId();
-    const shortName = "BAFU 2025 Version 2 LCA database";
-    const citation =
-      "BAFU 2025 Version 2 LCA database, Federal Office for the Environment (FOEN), 2025.";
-    const description =
-      "Database-level fallback source used when the converted BAFU package has no more specific report, publication, or data-source evidence for the process scope.";
+    const config = databaseFallbackSourceConfig(profile);
+    const sourceId = asText(id) || config.id;
+    const shortName = config.shortName;
+    const citation = config.citation;
+    const description = config.description;
     const dataFormatReference = canonicalSourceReferenceForRelation("dataset_format_source");
     // ILCD expects the format reference inside dataEntryBy (see
     // buildBafuProcessContextSourcePayload); at the administrativeInformation
@@ -422,7 +456,7 @@ export function createSourceSemanticUtils({
       dataEntryBy,
       publicationAndOwnership: {
         "common:dataSetVersion": version,
-        "common:permanentDataSetURI": `https://www.bafu.admin.ch/bafu-2025-v2/${sourceId}`,
+        "common:permanentDataSetURI": config.permanentDataSetUri(sourceId),
       },
     };
     if (contactReference) {
@@ -456,6 +490,13 @@ export function createSourceSemanticUtils({
         administrativeInformation: admin,
       },
     };
+  }
+
+  // Backward-compatible alias: existing callers that explicitly want the BAFU
+  // database-level fallback source. New callers should use
+  // buildDatabaseFallbackSourcePayload({ profile }).
+  function buildBafuFallbackSourcePayload(options = {}) {
+    return buildDatabaseFallbackSourcePayload({ ...options, profile: "bafu" });
   }
 
   function sourceReferenceFromSummary(source, language = "en") {
@@ -769,7 +810,7 @@ export function createSourceSemanticUtils({
           ? "process_data_source_fallback_database"
           : "process_data_source_true_source";
         reason = replacementSource.fallback_database_source
-          ? "Converted process data source pointed to a non-source support placeholder and no unambiguous process-specific report/publication source was available; the reference is rewritten to the BAFU database-level fallback source."
+          ? "Converted process data source pointed to a non-source support placeholder and no unambiguous process-specific report/publication source was available; the reference is rewritten to the imported package's database-level fallback source."
           : "Converted process data source pointed to a non-source support placeholder; the bundle contains one unambiguous true source, so the reference is rewritten to that curated source row.";
       }
 
@@ -901,6 +942,7 @@ export function createSourceSemanticUtils({
 
   return {
     buildBafuFallbackSourcePayload,
+    buildDatabaseFallbackSourcePayload,
     buildBafuProcessContextSourcePayload,
     canonicalSourceReferenceForRelation,
     processSourceReferenceRows,
