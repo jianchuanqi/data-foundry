@@ -21,6 +21,7 @@ import { createPostAuthoringFinalizeCommands } from "./commands/post-authoring-f
 import { createPostWriteCloseoutCommands } from "./commands/post-write-closeout.mjs";
 import { createSupportCacheCommands } from "./commands/support-cache.mjs";
 import { createTaskCommands } from "./commands/tasks.mjs";
+import { createUslciBatchImportRunCommands } from "./commands/uslci-batch-import-run.mjs";
 import { bundleRowTypes } from "./lib/bundle-row-types.mjs";
 import { createBundleSampleUtils } from "./lib/bundle-sample-utils.mjs";
 import { createCanonicalSupportRewriteUtils } from "./lib/canonical-support-rewrites.mjs";
@@ -387,6 +388,7 @@ const supportCacheCommands = createSupportCacheCommands({
 
 const {
   buildBafuFallbackSourcePayload,
+  buildDatabaseFallbackSourcePayload,
   buildBafuProcessContextSourcePayload,
   canonicalSourceReferenceForRelation,
   processOriginalSourceMetadata,
@@ -582,7 +584,7 @@ const bafuProcessScopeE2eCommands = createBafuProcessScopeE2eCommands({
   textValue,
   writeJson,
 });
-const bafuBatchImportRunCommands = createBafuBatchImportRunCommands({
+const batchImportRunDeps = {
   asText: textValue,
   booleanOption,
   datasetIdentity,
@@ -598,7 +600,9 @@ const bafuBatchImportRunCommands = createBafuBatchImportRunCommands({
   shellQuote,
   writeJson,
   writeJsonLines,
-});
+};
+const bafuBatchImportRunCommands = createBafuBatchImportRunCommands(batchImportRunDeps);
+const uslciBatchImportRunCommands = createUslciBatchImportRunCommands(batchImportRunDeps);
 const bafuLeafClassificationTaskCommands = createBafuLeafClassificationTaskCommands({
   asText: textValue,
   ensureArray,
@@ -768,6 +772,7 @@ const identityDecisionTaskCommands = createIdentityDecisionTaskCommands({
 const postAuthoringFinalizeCommands = createPostAuthoringFinalizeCommands({
   appendOption,
   applyCanonicalSupportRewrites,
+  loadCanonicalSupportCache,
   applyIdentityReferenceRewrites,
   asText,
   profileFor,
@@ -823,6 +828,7 @@ const bundleSampleRowsCommands = createBundleSampleRowsCommands({
   profileFor,
   repoRoot,
   buildBafuFallbackSourcePayload,
+  buildDatabaseFallbackSourcePayload,
   buildBafuProcessContextSourcePayload,
   buildIdentityPreflightArtifacts,
   buildLibraryContactPayload,
@@ -871,6 +877,7 @@ const bundleSampleRowsCommands = createBundleSampleRowsCommands({
 runFoundryCli({
   commandDeps: {
     authoringPlanCommands,
+    uslciBatchImportRunCommands,
     bafuAutoAuthoringCommands,
     bafuBatchImportRunCommands,
     bafuLeafClassificationTaskCommands,

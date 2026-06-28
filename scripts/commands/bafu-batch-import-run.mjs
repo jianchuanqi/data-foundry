@@ -102,13 +102,18 @@ const bafuBatchRuntimeKeys = [
 ];
 
 let bafuBatchRuntime = null;
+// Profile config lets the same engine drive other profiles (e.g. USLCI) without
+// changing BAFU behavior: every default below reproduces the BAFU runner exactly,
+// so an empty config == the historical BAFU runner.
+let bafuBatchConfig = {};
 
-function installBafuBatchRuntime(deps) {
+function installBafuBatchRuntime(deps, config = {}) {
   const missing = bafuBatchRuntimeKeys.filter((key) => typeof deps?.[key] !== "function");
   if (missing.length > 0) {
     throw new Error(`createBafuBatchImportRunCommands missing dependencies: ${missing.join(", ")}`);
   }
   bafuBatchRuntime = deps;
+  bafuBatchConfig = config || {};
 }
 
 function runtime() {
@@ -116,6 +121,65 @@ function runtime() {
     throw new Error("createBafuBatchImportRunCommands must install command dependencies.");
   }
   return bafuBatchRuntime;
+}
+
+// Profile-config accessors. Defaults == BAFU, so BAFU is byte-for-byte unchanged.
+function activeProfile() {
+  return bafuBatchConfig.profile || "bafu";
+}
+function activeCommandName() {
+  return bafuBatchConfig.commandName || commandName;
+}
+function bafuAutofillEnabled() {
+  return bafuBatchConfig.enableBafuAutofill !== false;
+}
+function familySignaturesEnabled() {
+  return bafuBatchConfig.enableFamilySignatures !== false;
+}
+function activeDefaults() {
+  return bafuBatchConfig.defaults || {};
+}
+// When true, the dependency-flow finalize commits its source/contact support
+// (the shared library contact) inline right after pre-finalize — mirroring the
+// process path — so the first scope of a never-before-imported library can prove
+// reference closure for its own flows. BAFU leaves this false: its FOEN library
+// contact already exists remotely, so flow pre-finalize is closure-clean and the
+// inline support commit would be redundant.
+function commitFlowSupportInline() {
+  return Boolean(bafuBatchConfig.commitFlowSupportInline);
+}
+// When true, the finalize lifts the scope's UNMATCHED (non-canonical) Unit Groups
+// and Flow Properties into the support commit set so they are minted as
+// account-local My Data once and committed before the flows that reference them
+// (P1a of the BAFU-cleanup backlog). USLCI-only: BAFU keeps FP/UG reference-only
+// and must not start minting them even though its profile also has the
+// account-local override enabled.
+function mintUnmatchedFpUgSupport() {
+  return Boolean(bafuBatchConfig.mintUnmatchedFpUgSupport);
+}
+// The dataset types the runner tracks as account-local "support" identities. BAFU
+// (and every non-USLCI profile) commits only contacts + true sources as support, so
+// its support identity set, reuse-skip condition, cache, and cross-scope discovery
+// stay exactly contact|source — unchanged. Under --mint-unmatched-fp-ug-support
+// (USLCI only), minted Flow Properties and Unit Groups are ALSO account-local
+// support: they must be tracked as support identities so the reuse-skip branch does
+// not falsely short-circuit the support commit (a contact already verified must not
+// hide an un-committed minted FP/UG), and so a committed FP/UG can be reused across
+// scopes. Order is irrelevant; membership is what gates.
+function supportIdentityTypes() {
+  return mintUnmatchedFpUgSupport()
+    ? ["contact", "source", "unitgroup", "flowproperty"]
+    : ["contact", "source"];
+}
+// When true (USLCI only), the flow-identity step applies the authoritative
+// library-resolution exchange-reference-rewrites deterministically: every flow the
+// resolution proved reusable becomes a canonical reference, only flows with NO
+// rewrite mint. This replaces the brittle decisions-* carry-forward whose additions
+// frequently came out empty (apply skipped -> dependency flows wrongly minted even
+// when the offline resolution already matched them to canonical). BAFU keeps this
+// false: its reuse runs entirely through autofill + carry-forward.
+function applyResolutionRewrites() {
+  return Boolean(bafuBatchConfig.applyResolutionRewrites);
 }
 
 function nowIso() {
@@ -412,7 +476,7 @@ function supportIdentityKeysFromHandoffPlan(handoffPlan) {
     .map((row) => {
       const type =
         datasetTypeFromRow(row) || commandOptionValue(handoffPlan?.commands?.commit, "--type");
-      if (!["contact", "source"].includes(type)) return null;
+      if (!supportIdentityTypes().includes(type)) return null;
       const identity = datasetIdentity(row, type);
       return identity.id ? `${type}:${identity.id}@${identity.version}` : null;
     })
@@ -420,17 +484,29 @@ function supportIdentityKeysFromHandoffPlan(handoffPlan) {
 }
 
 function splitSupportIdentityKey(identityKey) {
-  const match = /^(contact|source):([^@]+)@(.+)$/u.exec(String(identityKey || ""));
+  // contact|source for every profile; unitgroup|flowproperty additionally under
+  // --mint-unmatched-fp-ug-support (USLCI). Parsing a wider key set is harmless for
+  // BAFU because BAFU never produces unitgroup/flowproperty support identity keys.
+  const match = /^(contact|source|unitgroup|flowproperty):([^@]+)@(.+)$/u.exec(
+    String(identityKey || ""),
+  );
   if (!match) return null;
   return { dataset_type: match[1], dataset_id: match[2], dataset_version: match[3] };
 }
 
 function supportIdentityKeyFromCacheRow(row) {
   if (row?.identity_key) return String(row.identity_key);
-  const type = row?.dataset_type || row?.type || row?.table?.replace(/s$/u, "");
+  const rawType = row?.dataset_type || row?.type || row?.table;
+  // Tables are plural (flowproperties/unitgroups/contacts/sources); strip to singular.
+  const type =
+    rawType === "flowproperties"
+      ? "flowproperty"
+      : rawType === "unitgroups"
+        ? "unitgroup"
+        : String(rawType || "").replace(/s$/u, "");
   const id = row?.dataset_id || row?.id;
   const version = row?.dataset_version || row?.version || "00.00.001";
-  return ["contact", "source"].includes(type) && id ? `${type}:${id}@${version}` : null;
+  return supportIdentityTypes().includes(type) && id ? `${type}:${id}@${version}` : null;
 }
 
 function supportIdentityCacheRow({ identityKey, source, report }) {
@@ -487,8 +563,17 @@ function staleReusedSupportIdentityKeys(finalizeReport, supportIdentityKeys) {
       continue;
     }
     const table = asText(blocker?.table);
-    const type = table === "contacts" ? "contact" : table === "sources" ? "source" : null;
-    if (!type) continue;
+    const type =
+      table === "contacts"
+        ? "contact"
+        : table === "sources"
+          ? "source"
+          : table === "unitgroups"
+            ? "unitgroup"
+            : table === "flowproperties"
+              ? "flowproperty"
+              : null;
+    if (!type || !supportIdentityTypes().includes(type)) continue;
     const id = asText(blocker?.reference_id ?? blocker?.id);
     if (!id) continue;
     const version = asText(blocker?.reference_version ?? blocker?.version) || "00.00.001";
@@ -520,8 +605,16 @@ function supportCacheRowsFromCommitSummary(summaryPath, closeoutPath) {
     .filter((row) => row?.status === "executed")
     .map((row) => {
       const type =
-        row.table === "contacts" ? "contact" : row.table === "sources" ? "source" : row.type;
-      if (!["contact", "source"].includes(type) || !row.id) return null;
+        row.table === "contacts"
+          ? "contact"
+          : row.table === "sources"
+            ? "source"
+            : row.table === "unitgroups"
+              ? "unitgroup"
+              : row.table === "flowproperties"
+                ? "flowproperty"
+                : row.type;
+      if (!supportIdentityTypes().includes(type) || !row.id) return null;
       return supportIdentityCacheRow({
         identityKey: `${type}:${row.id}@${row.version || "00.00.001"}`,
         source: "existing_support_closeout_scan",
@@ -1224,6 +1317,32 @@ function loadCompletedReusableIdentityDecisions(runDir) {
     }
   }
   return { files, byKey, conflicts };
+}
+
+// FIX A: load the authoritative library-resolution exchange-reference-rewrites into a
+// Map keyed by process_id -> array of rewrite rows. Each row proves, per process and
+// per exchange, that a materialized source flow (source_flow_id/source_flow_version)
+// should reference a canonical library flow (canonical_flow_id/canonical_flow_version).
+// Empty/missing dir yields an empty map (deterministic path simply applies no reuse).
+function loadResolutionRewritesByProcess(resolutionDir) {
+  const byProcess = new Map();
+  if (!resolutionDir) return byProcess;
+  const rewritesFile = path.join(
+    resolveRepoPath(resolutionDir),
+    "exchange-reference-rewrites.jsonl",
+  );
+  if (!fileExists(rewritesFile)) {
+    throw new Error(
+      `--library-resolution directory does not contain exchange-reference-rewrites.jsonl: ${repoRelative(rewritesFile)}`,
+    );
+  }
+  for (const row of readJsonLines(rewritesFile)) {
+    const processId = asText(row?.process_id);
+    if (!processId) continue;
+    if (!byProcess.has(processId)) byProcess.set(processId, []);
+    byProcess.get(processId).push(row);
+  }
+  return byProcess;
 }
 
 function curationGateAuthoringPackagesById(curationGateReport) {
@@ -2789,6 +2908,66 @@ function blockRow({ scope, stage, blocker, report, rerunCommand }) {
   };
 }
 
+// Worker-level safety net: an uncaught throw inside runOneScope (e.g. a transient
+// fs EINVAL/ENOENT from concurrent shared-cache access at higher --parallel) would
+// otherwise reject Promise.all and abort the ENTIRE batch with no ledgers written.
+// Record the scope as a retryable failure (mirroring the in-scope `fail` path) so the
+// remaining scopes continue and the failed scope can simply be rerun.
+function recordScopeExecutionException({ scope, familySignature, error, paths }) {
+  const processId = scope.process_id || scope.id;
+  const processVersion = scope.process_version || scope.version || "00.00.001";
+  const row = blockRow({
+    scope,
+    stage: "scope_execution",
+    blocker: {
+      code: "scope_execution_exception",
+      message: `Uncaught error during scope execution: ${error?.message || String(error)}`,
+      retryable: true,
+      retryable_reason_code: "scope_execution_exception",
+      required_human_action:
+        "Transient runtime error during scope execution (often a concurrent shared-cache fs race at higher --parallel). Rerun the exact scope command; if it persists, retry with --parallel 1.",
+    },
+    report: null,
+    rerunCommand: commandString([
+      process.execPath,
+      "scripts/foundry.mjs",
+      commandName,
+      "--scope-file",
+      repoRelative(paths.scopeFile),
+      "--process-bundles-dir",
+      repoRelative(paths.processBundlesDir),
+      "--run-dir",
+      repoRelative(paths.runDir),
+      "--out-dir",
+      repoRelative(paths.outDir),
+      "--process-id",
+      processId,
+      "--commit",
+      "--parallel",
+      "1",
+    ]),
+  });
+  appendJsonLine(paths.failedRetry, row);
+  appendJsonLine(paths.blocked_remote_write, row);
+  appendJsonLine(paths.scopeCheckpoints, {
+    schema_version: 1,
+    generated_at_utc: nowIso(),
+    process_id: processId,
+    process_version: processVersion,
+    scope_lock: `process:${processId}:${processVersion}`,
+    ...bafuFamilyPlanFields(familySignature),
+    state: "failed_retryable",
+    stage: "scope_execution",
+    code: row.code,
+  });
+  return {
+    status: "failed",
+    checkpoint: { state: "failed_retryable" },
+    block: row,
+    stages: [],
+  };
+}
+
 const retryableStageFailurePattern =
   /\b(?:ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|ESOCKETTIMEDOUT)\b|npm error network|registry\.npmjs\.org|network connectivity|timed out after|lookup_failed after insert|identity_preflight_report_missing_or_non_json|identity_preflight_timeout|REMOTE_REQUEST_FAILED|Auth session missing/u;
 
@@ -2863,6 +3042,8 @@ function buildFinalizeArgs({
   ledgerDir,
   sourceSupportRowsFile,
   sourceRowsFile,
+  flowpropertyRowsFile,
+  unitgroupRowsFile,
   identityPreflightIndex,
   context,
   classificationQueue,
@@ -2882,7 +3063,7 @@ function buildFinalizeArgs({
     "--type",
     type,
     "--profile",
-    "bafu",
+    activeProfile(),
     "--rows-file",
     repoRelative(rowsFile),
     "--out-dir",
@@ -2912,6 +3093,30 @@ function buildFinalizeArgs({
     "--run-identity-preflight",
     "--refresh-identity-preflight",
   );
+  // Thread the active profile's library contact identity into the finalize
+  // subprocess so its buildLibraryContactPayload mints the SAME shared library
+  // contact the materialize stage stamped (deterministic on profile+name+website).
+  // Without this the finalize would fall back to the default (BAFU FOEN) contact.
+  // Empty for BAFU (no libraryContact config) → BAFU finalize args unchanged.
+  const libraryContact = bafuBatchConfig.libraryContact;
+  if (libraryContact && typeof libraryContact === "object") {
+    appendOption(args, "--library-name", libraryContact.libraryName);
+    appendOption(args, "--library-short-name", libraryContact.shortName);
+    appendOption(args, "--library-website", libraryContact.website);
+    appendOption(args, "--library-email", libraryContact.email);
+    appendOption(args, "--library-telephone", libraryContact.telephone);
+    appendOption(args, "--library-contact-address", libraryContact.contactAddress);
+    appendOption(args, "--library-central-contact-point", libraryContact.centralContactPoint);
+    appendOption(args, "--library-description", libraryContact.description);
+  }
+  // P1a: USLCI-only — mint unmatched FP/UG as account-local support before the
+  // flows that reference them. Empty for BAFU (config flag off) so its finalize
+  // args and reference-only FP/UG policy are unchanged.
+  if (mintUnmatchedFpUgSupport()) {
+    args.push("--mint-unmatched-fp-ug-support");
+    appendPathOption(args, "--support-flowproperty-rows-file", flowpropertyRowsFile);
+    appendPathOption(args, "--support-unitgroup-rows-file", unitgroupRowsFile);
+  }
   if (patchCollectReport) args.push("--require-patch-collect-report");
   return args;
 }
@@ -2963,6 +3168,9 @@ async function runIdentityAndPatch({
   stages,
   label = type,
   stagePrefix = type,
+  // FIX A: rewrite rows for THIS scope's process_id (may be undefined) + the mode flag.
+  resolutionRewriteRows = undefined,
+  applyResolutionRewritesMode = false,
 }) {
   const gateReport = resolveRepoPath(preFinalizeReport?.files?.curation_gate_report);
   if (!fileExists(gateReport)) {
@@ -3007,7 +3215,7 @@ async function runIdentityAndPatch({
   let identityApplyReport = null;
   let identityOutputRows = inputRowsFile;
   const identityDecisions = path.join(identityTaskDir, "identity-decisions.jsonl");
-  if (statusIs(identityTask.json, ["ready_for_ai_identity_decisions"])) {
+  if (bafuAutofillEnabled() && statusIs(identityTask.json, ["ready_for_ai_identity_decisions"])) {
     const identityAutofill = await runArgvStage({
       stage: `${stagePrefix}.identity_autofill`,
       argv: foundryCommand("dataset-bafu-identity-decisions-autofill", {
@@ -3054,7 +3262,7 @@ async function runIdentityAndPatch({
       stage: `${stagePrefix}.identity_apply`,
       argv: foundryCommand("dataset-identity-decisions-apply", {
         type,
-        profile: "bafu",
+        profile: activeProfile(),
         rowsFile: repoRelative(inputRowsFile),
         decisions: repoRelative(carryForward.outputFile),
         outDir: repoRelative(identityApplyDir),
@@ -3094,10 +3302,126 @@ async function runIdentityAndPatch({
     }
     identityOutputRows =
       resolveRepoPath(identityApply.json?.files?.output_rows) || identityOutputRows;
-  } else if (statusIs(identityTask.json, ["ready_no_identity_actions"])) {
-    // No identity action items does not mean no identity work: rows may still carry
-    // completed library reuse decisions (e.g. elementary flows whose preflight produced
-    // no review item). Apply them so such rows become references instead of writes.
+  } else if (
+    applyResolutionRewritesMode &&
+    type === "flow" &&
+    resolutionRewriteRows &&
+    resolutionRewriteRows.length > 0
+  ) {
+    // FIX A: deterministic identity application from the authoritative library
+    // resolution. The carry-forward (decisions-* glob -> byKey -> additions) frequently
+    // produced additions=0 for autofill-off scopes, skipping the apply entirely and
+    // wrongly minting every dependency flow even when the offline resolution already
+    // matched them to canonical. Here we synthesize one completed reuse decision per
+    // distinct source flow proven by the resolution and apply it UNCONDITIONALLY, so
+    // every proven reuse becomes a canonical reference and only no-rewrite flows mint.
+    const distinctBySourceFlow = new Map();
+    for (const rewrite of resolutionRewriteRows) {
+      const sourceFlowId = asText(rewrite?.source_flow_id);
+      if (!sourceFlowId) continue;
+      const sourceFlowVersion = asText(rewrite?.source_flow_version) || "00.00.001";
+      const key = `${sourceFlowId}@@${sourceFlowVersion}`;
+      if (distinctBySourceFlow.has(key)) continue;
+      distinctBySourceFlow.set(key, {
+        schema_version: 1,
+        dataset_type: "flow",
+        dataset_id: sourceFlowId,
+        dataset_version: sourceFlowVersion,
+        decision: "reuse_existing_reference",
+        identity_decision: "reuse_existing_reference",
+        decision_status: "completed",
+        canonical: {
+          table: "flows",
+          ref_object_id: asText(rewrite?.canonical_flow_id),
+          version: asText(rewrite?.canonical_flow_version) || "00.00.001",
+          // Carry the canonical flow's display name so dataset-identity-decisions-apply
+          // sets referenceToFlowDataSet common:shortDescription to the real name instead
+          // of falling back to the UUID (identity-decisions.mjs: short_description ?? id).
+          short_description: asText(rewrite?.canonical_short_description) || undefined,
+        },
+        canonical_flow_id: asText(rewrite?.canonical_flow_id),
+        canonical_flow_version: asText(rewrite?.canonical_flow_version) || "00.00.001",
+        canonical_short_description: asText(rewrite?.canonical_short_description) || undefined,
+        basis:
+          "Applied from library-resolution exchange-reference-rewrites (deterministic physical-equivalence reuse).",
+        evidence: {
+          source: "library-resolution",
+          artifact: "exchange-reference-rewrites.jsonl",
+          process_id: asText(rewrite?.process_id),
+          exchange_index: rewrite?.exchange_index ?? null,
+        },
+        used_context_kinds: ["schema", "methodology_yaml", "ruleset", "library_resolution"],
+        closes_action_items: [
+          "identity_preflight_manual_review",
+          "elementary_flow_identity_manual_review",
+        ],
+        confidence: "high",
+      });
+    }
+    const resolutionDecisions = [...distinctBySourceFlow.values()];
+    const resolutionDecisionsFile = path.join(
+      identityTaskDir,
+      "identity-decisions.resolution.jsonl",
+    );
+    writeJsonLines(resolutionDecisionsFile, resolutionDecisions);
+    stages.push({
+      stage: `${stagePrefix}.identity_resolution_rewrites`,
+      status: "completed",
+      reuse_count: resolutionDecisions.length,
+      report: repoRelative(resolutionDecisionsFile),
+    });
+    const identityApplyDir = path.join(scopeDir, `${label}-identity-apply`);
+    const identityApply = await runArgvStage({
+      stage: `${stagePrefix}.identity_apply`,
+      argv: foundryCommand("dataset-identity-decisions-apply", {
+        type,
+        profile: activeProfile(),
+        rowsFile: repoRelative(inputRowsFile),
+        decisions: repoRelative(resolutionDecisionsFile),
+        outDir: repoRelative(identityApplyDir),
+      }),
+      logDir,
+      reportPath: path.join(identityApplyDir, "identity-decisions-apply-report.json"),
+    });
+    stages.push(identityApply);
+    identityApplyReport = reportFile(
+      identityApply.json,
+      path.join(identityApplyDir, "identity-decisions-apply-report.json"),
+    );
+    if (!statusIs(identityApply.json, ["completed"])) {
+      return {
+        status: "blocked",
+        blocker: firstBlocker(
+          identityApply.json,
+          `${type}_identity_apply_not_completed`,
+          `${type} identity decisions did not apply cleanly.`,
+        ),
+        report: identityApplyReport,
+      };
+    }
+    const unresolvedReferenceBlocker = identityUnresolvedReferenceBlocker({
+      type,
+      report: identityApply.json,
+    });
+    if (unresolvedReferenceBlocker) {
+      return {
+        status: "blocked",
+        blocker: unresolvedReferenceBlocker,
+        report: identityApplyReport,
+      };
+    }
+    identityOutputRows =
+      resolveRepoPath(identityApply.json?.files?.output_rows) || identityOutputRows;
+  } else {
+    // Pre-authored reuse path (no runtime AI autofill). Reached for BOTH
+    // ready_no_identity_actions AND ready_for_ai_identity_decisions when autofill is
+    // disabled (e.g. USLCI: identity decisions are authored offline, not by per-scope
+    // autofill). Rows carry completed library reuse decisions from the offline
+    // decisions-* dirs; the carry-forward merges them and the apply rewrites references
+    // to canonical so reuse-eligible flows become references instead of account-local
+    // mints. Without this branch, autofill-off scopes whose identity task still has
+    // action items (ready_for_ai_identity_decisions) would skip the apply entirely and
+    // wrongly mint flows that the offline decisions already matched to canonical.
     const carryForward = mergeCompletedReusableIdentityDecisions({
       runDir,
       decisionsFile: identityDecisions,
@@ -3114,13 +3438,13 @@ async function runIdentityAndPatch({
       additions: carryForward.report.counts.additions,
       conflicts: carryForward.report.counts.conflicts,
     });
-    if (carryForward.report.counts.additions > 0) {
+    if (carryForward.report.counts.additions > 0 || carryForward.report.counts.replacements > 0) {
       const identityApplyDir = path.join(scopeDir, `${label}-identity-apply`);
       const identityApply = await runArgvStage({
         stage: `${stagePrefix}.identity_apply`,
         argv: foundryCommand("dataset-identity-decisions-apply", {
           type,
-          profile: "bafu",
+          profile: activeProfile(),
           rowsFile: repoRelative(inputRowsFile),
           decisions: repoRelative(carryForward.outputFile),
           outDir: repoRelative(identityApplyDir),
@@ -3211,6 +3535,18 @@ async function runIdentityAndPatch({
     };
   }
 
+  if (!bafuAutofillEnabled()) {
+    // Non-BAFU profiles (e.g. USLCI) must not run BAFU-shaped patch autofill;
+    // surface the un-authored action items instead of mis-authoring them.
+    return {
+      status: "blocked",
+      blocker: {
+        code: `${type}_authoring_action_items_require_authoring`,
+        message: `${type} scope has authoring action items but BAFU patch autofill is disabled for this profile; author the fields explicitly before commit.`,
+      },
+      report: reportFile(taskBuild.json, taskManifest),
+    };
+  }
   const patchAutofill = await runArgvStage({
     stage: `${stagePrefix}.patch_autofill`,
     argv: foundryCommand("dataset-bafu-authoring-patches-autofill", {
@@ -3461,6 +3797,8 @@ async function finalizeAndCommitDataset({
       ledgerDir,
       sourceSupportRowsFile: materialized.supportRowsFile,
       sourceRowsFile: materialized.sourceRowsFile,
+      flowpropertyRowsFile: materialized.flowpropertyRowsFile,
+      unitgroupRowsFile: materialized.unitgroupRowsFile,
       identityPreflightIndex: materialized.identityPreflightIndex,
       context,
       classificationQueue: materialized.classificationQueue,
@@ -3769,7 +4107,11 @@ async function runOneScope({
       bundlesDir: repoRelative(paths.processBundlesDir),
       processId,
       outDir: repoRelative(materializedDir),
-      profile: "bafu",
+      profile: activeProfile(),
+      // Non-BAFU profiles must not inherit the BAFU FOEN library contact; the
+      // profile config supplies the dataset-appropriate library contact (e.g. NREL
+      // for USLCI). BAFU passes nothing here, keeping its FOEN default unchanged.
+      ...(bafuBatchConfig.libraryContact || {}),
     }),
     logDir,
     reportPath: path.join(materializedDir, "dataset-bundle-sample-rows-report.json"),
@@ -3797,6 +4139,8 @@ async function runOneScope({
     processRowsFile: resolveRepoPath(materializedReport.files?.rows?.process),
     sourceRowsFile: resolveRepoPath(materializedReport.files?.rows?.source),
     supportRowsFile: resolveRepoPath(materializedReport.files?.rows?.support),
+    flowpropertyRowsFile: resolveRepoPath(materializedReport.files?.rows?.flowproperty),
+    unitgroupRowsFile: resolveRepoPath(materializedReport.files?.rows?.unitgroup),
     classificationQueue: resolveRepoPath(materializedReport.files?.classification_authoring_queue),
     locationQueue: resolveRepoPath(materializedReport.files?.location_authoring_queue),
     identityPreflightIndex: resolveRepoPath(materializedReport.files?.identity_preflight_requests),
@@ -4183,6 +4527,8 @@ async function runOneScope({
       ledgerDir,
       sourceSupportRowsFile: materialized.supportRowsFile,
       sourceRowsFile: materialized.sourceRowsFile,
+      flowpropertyRowsFile: materialized.flowpropertyRowsFile,
+      unitgroupRowsFile: materialized.unitgroupRowsFile,
       identityPreflightIndex: materialized.identityPreflightIndex,
       context: defaultContext(paths.runDir, "flow"),
       classificationQueue: materialized.classificationQueue,
@@ -4211,10 +4557,41 @@ async function runOneScope({
         report: flowPreReportPath,
       });
     }
+    // For a never-before-imported library, the dependency-flow references the
+    // shared library contact (ownership/data-entry) which is not yet remote and
+    // is not in the flow's own write scope, so pre-finalize blocks on reference
+    // closure. Commit the flow's source/contact support inline here (mirroring the
+    // process path) so the library contact lands remotely and the re-finalized
+    // flow proves closure. Gated off for BAFU (its FOEN contact already exists).
+    if (commitFlowSupportInline()) {
+      flowPre.json = await maybeCommitSupportThenRerunFinalize({
+        type: "flow",
+        finalizeReport: flowPre.json,
+        finalizeReportPath: flowPreReportPath,
+        finalizeArgs: flowPreArgs,
+        ledgerDir,
+        scopeDir,
+        logDir,
+        stages,
+        supportIdentityCacheFile: paths.supportIdentityCache,
+      });
+    }
     let flowReadyRows = resolveRepoPath(flowPre.json?.files?.final_rows) || flowRowsForFinalize;
     let flowPatchCollectReport = null;
     let flowPatchApplyReport = null;
-    if (flowPre.json?.status !== "ready_for_remote_write") {
+    // FIX A (apply-gate): in deterministic resolution-rewrite mode the flow identity
+    // apply MUST run even when pre-finalize reports ready_for_remote_write. A "ready"
+    // status there means the source elementary flows would be MINTED as account-local
+    // as-is — but the library resolution already proved they reuse canonical. Forcing
+    // runIdentityAndPatch applies those reuses (rewrites references to canonical and
+    // drops reused flows from the write set) instead of wrongly minting them. Without
+    // this, scopes whose per-scope preflight surfaced no candidates skip identity
+    // entirely and over-mint (e.g. 00e711cb: 27/27 reuse-eligible minted). Gated on the
+    // mode + the presence of proven rewrites for THIS process, so BAFU is unaffected.
+    const deterministicFlowReuse =
+      Boolean(paths.applyResolutionRewritesMode) &&
+      (paths.resolutionRewritesByProcess?.get(processId)?.length || 0) > 0;
+    if (flowPre.json?.status !== "ready_for_remote_write" || deterministicFlowReuse) {
       const flowAuthoring = await runIdentityAndPatch({
         type: "flow",
         inputRowsFile: flowReadyRows,
@@ -4223,6 +4600,12 @@ async function runOneScope({
         runDir: paths.runDir,
         logDir,
         stages,
+        // FIX A: deterministic identity application from the authoritative
+        // library-resolution rewrites for THIS process (flow-only; process has no
+        // flow reuse). undefined rewrite rows -> mode no-ops, falling back to the
+        // unchanged carry-forward path.
+        resolutionRewriteRows: paths.resolutionRewritesByProcess?.get(processId),
+        applyResolutionRewritesMode: Boolean(paths.applyResolutionRewritesMode),
       });
       if (flowAuthoring.status !== "completed") {
         return defer({
@@ -4349,6 +4732,8 @@ async function runOneScope({
     ledgerDir,
     sourceSupportRowsFile: materialized.supportRowsFile,
     sourceRowsFile: materialized.sourceRowsFile,
+    flowpropertyRowsFile: materialized.flowpropertyRowsFile,
+    unitgroupRowsFile: materialized.unitgroupRowsFile,
     identityPreflightIndex: materialized.identityPreflightIndex,
     context: defaultContext(paths.runDir, "process"),
     classificationQueue: materialized.classificationQueue,
@@ -4549,14 +4934,18 @@ async function runOneScope({
   return { status: "verified", stages };
 }
 
-export function createBafuBatchImportRunCommands(deps) {
-  installBafuBatchRuntime(deps);
+export function createBafuBatchImportRunCommands(deps, config = {}) {
+  installBafuBatchRuntime(deps, config);
   async function runDatasetBafuBatchImportRun(options = {}) {
+    // Re-install this factory's profile config so a sibling factory (e.g. USLCI)
+    // constructed against the same module cannot leak its config into this run.
+    // Runs are sequential, so this is race-free.
+    installBafuBatchRuntime(deps, config);
     if (options.help || options.h) {
       return {
         schema_version: 1,
         status: "help",
-        command: commandName,
+        command: activeCommandName(),
         usage: [
           "node scripts/foundry.mjs dataset-bafu-batch-import-run --scope-file <ready-scopes.jsonl> --process-bundles-dir <.../process-bundles> --run-dir <run-dir> --out-dir <run-dir>/batch-import --parallel 5 --commit",
           "node scripts/foundry.mjs dataset-bafu-batch-import-run --scope-file <ready-scopes.jsonl> --out-dir <existing-batch-dir> --pending-only --selection-order estimated-weight-asc --limit 20 --pause-file <pause.flag> --commit",
@@ -4609,6 +4998,16 @@ export function createBafuBatchImportRunCommands(deps) {
     const requireLeafClassification = booleanOption(
       options.requireLeafClassification || options.leafClassificationOnly,
     );
+    // FIX A: optional authoritative library-resolution directory holding the proven
+    // per-process per-exchange elementary reuses (exchange-reference-rewrites.jsonl).
+    // Only consumed when the profile config enables applyResolutionRewrites (USLCI).
+    const libraryResolutionDir = asText(options.libraryResolution || options.libraryResolutionDir)
+      ? resolveRepoPath(options.libraryResolution || options.libraryResolutionDir)
+      : null;
+    const resolutionRewritesByProcess =
+      applyResolutionRewrites() && libraryResolutionDir
+        ? loadResolutionRewritesByProcess(libraryResolutionDir)
+        : new Map();
     const pauseFile = asText(options.pauseFile) ? resolveRepoPath(options.pauseFile) : null;
     const stopAfterBlocked =
       options.stopAfterBlocked == null
@@ -4663,6 +5062,11 @@ export function createBafuBatchImportRunCommands(deps) {
       ),
       preflightPlan: path.join(outDir, "import-ledger", "preflight.plan.jsonl"),
       bafuFamilySignatures: path.join(outDir, "import-ledger", "bafu-family-signatures.json"),
+      // FIX A: run-level resolution rewrite index (process_id -> rewrite rows) plus the
+      // mode flag, threaded into runOneScope -> flow runIdentityAndPatch. Empty map when
+      // the flag is off or --library-resolution is not provided (BAFU defaults).
+      resolutionRewritesByProcess,
+      applyResolutionRewritesMode: applyResolutionRewrites(),
     };
     const ledgerSourceDirs = resolveLedgerSourceDirs(
       options.ledgerSourceDir ||
@@ -4717,12 +5121,14 @@ export function createBafuBatchImportRunCommands(deps) {
       cacheFile: paths.supportIdentityCache,
       sourceLedgerDirs: ledgerSourceDirs,
     });
-    const familySignatureIndex = buildBafuFamilySignatureIndex({
-      scopes: allScopes,
-      processBundlesDir,
-      processesDir: directoryExists(processFilesDir) ? processFilesDir : null,
-      readJson,
-    });
+    const familySignatureIndex = familySignaturesEnabled()
+      ? buildBafuFamilySignatureIndex({
+          scopes: allScopes,
+          processBundlesDir,
+          processesDir: directoryExists(processFilesDir) ? processFilesDir : null,
+          readJson,
+        })
+      : { summary: {}, entries: [], byScopeKey: new Map() };
     const classificationDecisionIndex = loadClassificationDecisionIndex(
       paths.libraryClassificationDecisions,
     );
@@ -4745,7 +5151,7 @@ export function createBafuBatchImportRunCommands(deps) {
       schema_version: 1,
       generated_at_utc: nowIso(),
       status: "completed",
-      command: commandName,
+      command: activeCommandName(),
       scope_file: repoRelative(scopeFile),
       process_bundles_dir: repoRelative(processBundlesDir),
       processes_dir: repoRelative(processFilesDir),
@@ -4771,7 +5177,7 @@ export function createBafuBatchImportRunCommands(deps) {
     const manifest = {
       schema_version: 1,
       generated_at_utc: nowIso(),
-      command: commandName,
+      command: activeCommandName(),
       status: "running",
       mode: preflightOnly ? "preflight" : "commit",
       target_user_id: targetUserId,
@@ -4854,7 +5260,7 @@ export function createBafuBatchImportRunCommands(deps) {
       const report = {
         schema_version: 1,
         generated_at_utc: nowIso(),
-        command: commandName,
+        command: activeCommandName(),
         status: "preflight_completed",
         mode: "preflight",
         parallel,
@@ -4927,24 +5333,33 @@ export function createBafuBatchImportRunCommands(deps) {
         const scope = scopes[nextIndex];
         const familySignature = bafuFamilySignatureForScope(familySignatureIndex, scope);
         nextIndex += 1;
-        const result = await runOneScope({
-          scope,
-          familySignature,
-          options: { ...options, targetUserId, stateCode },
-          paths,
-          schemas,
-          verifiedScopes,
-          verifiedFlows,
-          verifiedFlowRowsByKey,
-          blockedScopes,
-          workerIndex,
-        });
+        let result;
+        try {
+          result = await runOneScope({
+            scope,
+            familySignature,
+            options: { ...options, targetUserId, stateCode },
+            paths,
+            schemas,
+            verifiedScopes,
+            verifiedFlows,
+            verifiedFlowRowsByKey,
+            blockedScopes,
+            workerIndex,
+          });
+        } catch (error) {
+          result = recordScopeExecutionException({ scope, familySignature, error, paths });
+        }
         results.push({
           process_id: scope.process_id || scope.id,
           status: result.status,
           ...bafuFamilyPlanFields(familySignature),
         });
-        enforceSharedContextCacheCap(paths.runDir, options);
+        try {
+          enforceSharedContextCacheCap(paths.runDir, options);
+        } catch {
+          /* best-effort cache cap; never abort the run on a cache-eviction fs race */
+        }
         if (
           stopAfterBlocked != null &&
           results.filter((row) => row.status === "blocked").length >= stopAfterBlocked
@@ -4961,7 +5376,7 @@ export function createBafuBatchImportRunCommands(deps) {
     const report = {
       schema_version: 1,
       generated_at_utc: nowIso(),
-      command: commandName,
+      command: activeCommandName(),
       status: batchRunStatus(results, { paused: pauseObserved, stoppedAfterBlocked }),
       mode: "commit",
       parallel,
@@ -5052,6 +5467,14 @@ export const bafuBatchImportRunTestHooks = {
   requestedProcessIdValues,
   retryableStageFailure,
   sha256File,
+  splitSupportIdentityKey,
+  supportIdentityKeysFromHandoffPlan,
+  supportIdentityTypes,
   trimVerifiedScopeScratch,
   writeScopeCarriedForwardVerifiedFlowRows,
+  // Test-only: drive the profile-config flags (e.g. mintUnmatchedFpUgSupport) that
+  // gate the FP/UG support-identity behavior without standing up a full run.
+  setBafuBatchConfigForTest: (config) => {
+    bafuBatchConfig = config || {};
+  },
 };

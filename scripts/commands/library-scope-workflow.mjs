@@ -947,6 +947,11 @@ export function createLibraryScopeWorkflowCommands({
         source_flow_version: flowVersion,
         canonical_flow_id: target.id,
         canonical_flow_version: target.version,
+        // Carry the canonical flow's display name so downstream consumers (e.g. the
+        // batch runner's deterministic identity apply) can set referenceToFlowDataSet
+        // common:shortDescription to the real name instead of falling back to the UUID.
+        canonical_short_description:
+          asText(decision.canonical_short_description) || target.short_description || null,
         changed_path: "referenceToFlowDataSet",
         preserved_exchange_fields: beforePreservationHash === afterPreservationHash,
         before_preservation_hash: beforePreservationHash,

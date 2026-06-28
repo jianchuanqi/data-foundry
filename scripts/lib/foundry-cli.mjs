@@ -13,6 +13,7 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
   const { exitCodeForCommand, parseArgs, printJson, usage } = runtime;
   const {
     authoringPlanCommands,
+    uslciBatchImportRunCommands,
     bafuAutoAuthoringCommands,
     bafuBatchImportRunCommands,
     bafuLeafClassificationTaskCommands,
@@ -123,6 +124,8 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
       bafuProcessScopeE2eCommands.runDatasetBafuProcessScopeE2e(options),
     "dataset-bafu-batch-import-run": (options) =>
       bafuBatchImportRunCommands.runDatasetBafuBatchImportRun(options),
+    "dataset-uslci-batch-import-run": (options) =>
+      uslciBatchImportRunCommands.runDatasetUslciBatchImportRun(options),
     "dataset-bafu-universe-coverage-report": (options) =>
       bafuBatchImportRunCommands.runDatasetBafuUniverseCoverageReport(options),
     "dataset-identity-reference-rewrites-apply": (options) =>

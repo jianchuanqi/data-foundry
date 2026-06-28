@@ -43,7 +43,7 @@ function commitCommandForDatasetType(
     ];
   }
   if (datasetType === "support") {
-    return [
+    const supportArgs = [
       ...cliPrefix(),
       "dataset",
       "save-draft",
@@ -56,6 +56,13 @@ function commitCommandForDatasetType(
       "--commit",
       "--json",
     ];
+    // A mixed support set may carry account-local FP/UG (P1a), which are
+    // reference-only types gated behind the override. No-op for contact/source-
+    // only support sets, so it is safe to pass whenever the override is active.
+    if (allowAccountLocalSupportAndElementary) {
+      supportArgs.push("--allow-account-local-support");
+    }
+    return supportArgs;
   }
   if (["contact", "source"].includes(datasetType)) {
     return [

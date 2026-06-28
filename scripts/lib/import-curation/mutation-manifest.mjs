@@ -48,8 +48,11 @@ const {
   readProcessDryRunArtifacts,
   readRows,
   readRowsIfExists,
+  publicCanonicalSourceReferenceKeys,
   readSourceContactRewriteContext,
   readSourceReferenceRewriteContext,
+  sourceContactSupportCanonicalUnitGroupProofKeys,
+  sourceContactSupportTrueSourceProofKeys,
   sourceReferenceRewriteProofKeys,
   readUnresolvedExchangeExternalizationContext,
   referenceKey,
@@ -354,6 +357,28 @@ export function runDatasetMutationManifest({ repoRoot, options = {} } = {}) {
       provenReferenceKeys: new Set([
         ...identityReferenceRewriteProofKeys(identityReferenceRewriteContext),
         ...sourceReferenceRewriteProofKeys(sourceReferenceRewriteContext),
+        // FIX C: true sources the source/contact-rewrite stage committed into THIS
+        // scope's support set (including review-report sources defensively harvested
+        // even when their kind did not classify as true_source). The first
+        // process.finalize must pass closure for these once they are in the support
+        // commit. Only sources actually committed by that stage are surfaced here, so
+        // this cannot loosen closure for any source not in the scope's support set.
+        ...sourceContactSupportTrueSourceProofKeys(sourceContactRewriteContext),
+        // CLASS 1 fix: a minted (account-local) Flow Property whose reference Unit Group
+        // is a public canonical UG keeps the canonical UG as a remote reference (the
+        // FP's referenceToReferenceUnitGroup was rewritten to the canonical published
+        // version, and the canonical UG is never written). Prove that canonical UG
+        // id@published-version so closure passes for the FP->UG edge without writing the
+        // UG. Only UGs the source/contact-rewrite stage proved against the canonical
+        // support cache are surfaced, so this cannot prove a non-canonical UG.
+        ...sourceContactSupportCanonicalUnitGroupProofKeys(sourceContactRewriteContext),
+        // Direct references to the well-known public canonical sources (ILCD
+        // format + compliance-system) are always reusable from remote, even when
+        // they were not produced by an in-scope rewrite mapping — e.g. minted
+        // account-local FP/UG (P1a) reference the canonical compliance source
+        // directly. Without this, their closure blocked on a source that is in
+        // fact a fixed public canonical dataset.
+        ...publicCanonicalSourceReferenceKeys,
         ...verifiedReferenceProof.keys,
       ]),
       unresolvedReferenceKeys: identityDecisionUnresolvedReferenceKeys(

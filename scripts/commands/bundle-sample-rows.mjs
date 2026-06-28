@@ -66,6 +66,7 @@ export function createBundleSampleRowsCommands({
   profileFor,
   repoRoot,
   buildBafuFallbackSourcePayload,
+  buildDatabaseFallbackSourcePayload,
   buildBafuProcessContextSourcePayload,
   buildIdentityPreflightArtifacts,
   buildLibraryContactPayload,
@@ -917,17 +918,19 @@ export function createBundleSampleRowsCommands({
     );
     let fallbackSourceSummary = null;
     if (!processSourceReplacement && needsFallbackSource) {
-      const fallbackSource = buildBafuFallbackSourcePayload({
+      const fallbackSource = buildDatabaseFallbackSourcePayload({
+        profile: asText(options.profile) || "bafu",
         contactReference: libraryContactRef,
         language: asText(options.language || options.lang || "en") || "en",
         timestamp: nowIso(),
       });
       const fallbackIdentity = datasetIdentity(fallbackSource, "source");
       const fallbackKey = `${fallbackIdentity.id}::${fallbackIdentity.version}`;
+      const fallbackProvenance = `foundry:${asText(options.profile) || "bafu"}-database-fallback-source`;
       rowsByType.source.set(fallbackKey, fallbackSource);
-      sourceByType.source.set(fallbackKey, "foundry:bafu-database-fallback-source");
+      sourceByType.source.set(fallbackKey, fallbackProvenance);
       fallbackSourceSummary = {
-        ...sourceSemanticSummary(fallbackSource, "foundry:bafu-database-fallback-source"),
+        ...sourceSemanticSummary(fallbackSource, fallbackProvenance),
         fallback_database_source: true,
       };
       sourceSemanticsRows = [...sourceSemanticsRows, fallbackSourceSummary];
@@ -954,8 +957,15 @@ export function createBundleSampleRowsCommands({
       (row) => row.relation === "process_data_source",
     );
     blockers.push(...sourceReferenceSemanticBlockers(allProcessSourceReferenceRows));
+    // A true source is "referenced" (and must stay in the materialized support set
+    // so it commits before the process) if ANY process field points at it — not
+    // only referenceToDataSource. USLCI processes cite a review-report source via
+    // validation/review/referenceToCompleteReviewReport; counting only
+    // process_data_source wrongly dropped it, blocking the process on reference
+    // closure. The data-source-only queue above is still used for the
+    // process_data_source semantic checks; this set governs support retention.
     const referencedProcessSourceKeys = new Set(
-      processSourceReferenceQueueRows
+      allProcessSourceReferenceRows
         .filter((row) => row.ref_object_id)
         .map((row) => `${row.ref_object_id}::${row.version || "00.00.001"}`),
     );
@@ -975,9 +985,35 @@ export function createBundleSampleRowsCommands({
       row.omitted_reason = "unreferenced_by_selected_process_scope";
       sanitizeStats.omitted_unreferenced_true_source_rows += 1;
     }
-    const omittedSourceSemanticsRows = sourceSemanticsRows.filter(
-      (row) => row.kind !== "true_source",
-    );
+    // FIX C (support closure): a non-true_source (e.g. a "Data set formats" review
+    // report cited via validation/review/referenceToCompleteReviewReport) is normally
+    // dropped from the materialized source/support set, because for BAFU such format/
+    // compliance references are rewritten to canonical public rows and the process no
+    // longer points at the original. USLCI cites a review-report source that has NO
+    // canonical mapping, so the process keeps a hard reference to it; dropping it left
+    // a dangling dependency and blocked process.finalize on reference_closure_unproven.
+    // Under the account-local override (USLCI; BAFU has it false → unchanged), retain
+    // any source still referenced by a process in this scope so it is committed as
+    // account-local support BEFORE the process finalize. This can only KEEP a source
+    // the scope already collected and the process already references, so it never
+    // loosens closure for an unreferenced source.
+    const omittedSourceSemanticsRows = sourceSemanticsRows.filter((row) => {
+      if (row.kind === "true_source") return false;
+      if (
+        allowAccountLocalSupportAndElementary &&
+        row.dataset_id &&
+        referencedProcessSourceKeys.has(`${row.dataset_id}::${row.dataset_version || "00.00.001"}`)
+      ) {
+        // Retain (do NOT add to the omitted set): the process keeps a hard reference to
+        // this source, so it must travel as account-local support and commit first.
+        row.materialized_as_source_row = true;
+        row.retained_reason = "referenced_account_local_support_source";
+        sanitizeStats.retained_referenced_account_local_support_source_rows =
+          Number(sanitizeStats.retained_referenced_account_local_support_source_rows ?? 0) + 1;
+        return false;
+      }
+      return true;
+    });
     for (const row of omittedSourceSemanticsRows) {
       if (!row.dataset_id) continue;
       rowsByType.source.delete(`${row.dataset_id}::${row.dataset_version || ""}`);

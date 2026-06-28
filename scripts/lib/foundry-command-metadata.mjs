@@ -786,6 +786,35 @@ export const commandMetadata = {
       ),
     ],
   }),
+  "dataset-uslci-batch-import-run": metadata({
+    category: "workflow-internal",
+    ownerModule: "scripts/commands/uslci-batch-import-run.mjs",
+    ownerExport: "createUslciBatchImportRunCommands().runDatasetUslciBatchImportRun",
+    inputs: [
+      "ready-scopes.jsonl (library-resolution-v8)",
+      "process-bundles directory (conversion-v6)",
+      "USLCI run directory with context and pre-authored decisions-v4",
+      "library classification decisions (decisions-v4/classification-decisions.jsonl)",
+      "target user id (USLCI account)",
+      "optional prior batch/import-ledger directories for pending-only carry-forward",
+      "optional explicit retry ids via repeated --process-id or --process-id-file",
+    ],
+    outputs: [
+      "dataset-uslci-batch-import-run-report.json",
+      "scope-checkpoints.jsonl",
+      "import-ledger/ok.*.verified.jsonl",
+      "import-ledger/blocked.*.jsonl",
+      "import-ledger/failed.scopes.retry.jsonl",
+      "import-ledger/verified-support-identities.jsonl",
+      "import-ledger/preflight.plan.jsonl when --preflight-only is used",
+    ],
+    keyTests: [
+      nodeTest(
+        "test/commands/bafu-batch-import-run.test.mjs",
+        "BAFU batch import runner skips already verified scopes through resumable ledgers",
+      ),
+    ],
+  }),
   "dataset-bafu-universe-coverage-report": metadata({
     category: "workflow-internal",
     ownerModule: "scripts/commands/bafu-batch-import-run.mjs",

@@ -395,19 +395,53 @@ export function createSourceSemanticUtils({
     };
   }
 
-  function buildBafuFallbackSourcePayload({
+  // Database-level fallback source identity is profile-specific. A converted
+  // package whose process data source points at a non-source placeholder (and
+  // that has no unambiguous process-specific report/publication source) is
+  // rewritten to cite the package's own database-level source. That source must
+  // belong to the package being imported — a USLCI process must cite the USLCI
+  // database, never BAFU's. The BAFU branch is kept byte-identical to the
+  // original so already-imported BAFU rows are unaffected.
+  function databaseFallbackSourceConfig(profile) {
+    const key = asText(profile).toLowerCase();
+    if (key === "uslci") {
+      return {
+        id: deterministicUuid(
+          "tiangong-lca-foundry:uslci:database-source:U.S. Life Cycle Inventory Database (USLCI)",
+        ),
+        shortName: "U.S. Life Cycle Inventory Database (USLCI)",
+        citation:
+          "U.S. Life Cycle Inventory Database (USLCI), National Renewable Energy Laboratory (NREL), U.S. Federal LCA Commons, 2025.",
+        description:
+          "Database-level fallback source used when the converted USLCI package has no more specific report, publication, or data-source evidence for the process scope.",
+        permanentDataSetUri: (sourceId) => `https://www.lcacommons.gov/uslci/${sourceId}`,
+      };
+    }
+    // Default (BAFU and any unspecified profile): preserve the original behavior.
+    return {
+      id: bafuFallbackSourceId(),
+      shortName: "BAFU 2025 Version 2 LCA database",
+      citation:
+        "BAFU 2025 Version 2 LCA database, Federal Office for the Environment (FOEN), 2025.",
+      description:
+        "Database-level fallback source used when the converted BAFU package has no more specific report, publication, or data-source evidence for the process scope.",
+      permanentDataSetUri: (sourceId) => `https://www.bafu.admin.ch/bafu-2025-v2/${sourceId}`,
+    };
+  }
+
+  function buildDatabaseFallbackSourcePayload({
+    profile = "bafu",
     contactReference,
     id = null,
     version = "00.00.001",
     language = "en",
     timestamp = null,
   } = {}) {
-    const sourceId = asText(id) || bafuFallbackSourceId();
-    const shortName = "BAFU 2025 Version 2 LCA database";
-    const citation =
-      "BAFU 2025 Version 2 LCA database, Federal Office for the Environment (FOEN), 2025.";
-    const description =
-      "Database-level fallback source used when the converted BAFU package has no more specific report, publication, or data-source evidence for the process scope.";
+    const config = databaseFallbackSourceConfig(profile);
+    const sourceId = asText(id) || config.id;
+    const shortName = config.shortName;
+    const citation = config.citation;
+    const description = config.description;
     const dataFormatReference = canonicalSourceReferenceForRelation("dataset_format_source");
     // ILCD expects the format reference inside dataEntryBy (see
     // buildBafuProcessContextSourcePayload); at the administrativeInformation
@@ -422,7 +456,7 @@ export function createSourceSemanticUtils({
       dataEntryBy,
       publicationAndOwnership: {
         "common:dataSetVersion": version,
-        "common:permanentDataSetURI": `https://www.bafu.admin.ch/bafu-2025-v2/${sourceId}`,
+        "common:permanentDataSetURI": config.permanentDataSetUri(sourceId),
       },
     };
     if (contactReference) {
@@ -456,6 +490,13 @@ export function createSourceSemanticUtils({
         administrativeInformation: admin,
       },
     };
+  }
+
+  // Backward-compatible alias: existing callers that explicitly want the BAFU
+  // database-level fallback source. New callers should use
+  // buildDatabaseFallbackSourcePayload({ profile }).
+  function buildBafuFallbackSourcePayload(options = {}) {
+    return buildDatabaseFallbackSourcePayload({ ...options, profile: "bafu" });
   }
 
   function sourceReferenceFromSummary(source, language = "en") {
@@ -502,6 +543,22 @@ export function createSourceSemanticUtils({
     return reference ? cloneJson(reference) : null;
   }
 
+  // A format/compliance support source is the same public canonical dataset no matter
+  // which slot references it. The path-relation maps a format/compliance slot to its
+  // canonical; this maps the source's own semantic KIND to the same canonical, so a
+  // format/compliance source landing in a non-format/compliance slot (e.g.
+  // modellingAndValidation/validation/review/common:referenceToCompleteReviewReport)
+  // is rewritten to the same public canonical source it would get on its format slot.
+  const canonicalSourceReferenceByKind = {
+    format_support_source: "dataset_format_source",
+    compliance_support_source: "compliance_system_source",
+  };
+
+  function canonicalSourceReferenceForSourceKind(kind) {
+    const relation = canonicalSourceReferenceByKind[asText(kind)];
+    return relation ? canonicalSourceReferenceForRelation(relation) : null;
+  }
+
   function sourceReferenceSnapshot(reference) {
     return {
       ref_object_id: asText(reference?.["@refObjectId"]) || null,
@@ -513,7 +570,15 @@ export function createSourceSemanticUtils({
 
   function rewriteCanonicalSourceReferences(
     value,
-    { datasetType, sourceFile, stats, rewriteRows, pathSegments = [], datasetIdentityCache = null },
+    {
+      datasetType,
+      sourceFile,
+      stats,
+      rewriteRows,
+      pathSegments = [],
+      datasetIdentityCache = null,
+      sourceLookup = null,
+    },
   ) {
     if (!value || typeof value !== "object") return;
     if (Array.isArray(value)) {
@@ -525,15 +590,36 @@ export function createSourceSemanticUtils({
           rewriteRows,
           pathSegments: [...pathSegments, index],
           datasetIdentityCache,
+          sourceLookup,
         }),
       );
       return;
     }
 
     const relation = sourceReferenceKind(pathSegments);
-    const canonical = canonicalSourceReferenceForRelation(relation);
     const refType = asText(value["@type"]).toLowerCase();
     const refObjectId = asText(value["@refObjectId"]);
+    // The canonical target is fixed first by the reference path-relation (format /
+    // compliance slots), then — for any other slot, e.g. referenceToCompleteReviewReport
+    // — by the referenced source's own semantic KIND when a sourceLookup is supplied. A
+    // format/compliance support source ("ILCD format"/"Data set formats",
+    // "...compliance systems") is the same public canonical dataset wherever it is
+    // referenced, so it must be rewritten on every path; a true source has no kind-based
+    // canonical and is never touched here.
+    let canonical = canonicalSourceReferenceForRelation(relation);
+    // effectiveRelation records WHY the rewrite happened: a path-relation rewrite keeps
+    // its slot relation; a kind-based rewrite on an otherwise-unmapped slot records the
+    // referenced source's support kind so the rewrite row is traceable.
+    let effectiveRelation = relation;
+    let kindBasedRewrite = false;
+    if (!canonical && sourceLookup && refObjectId && refType.includes("source")) {
+      const referencedKind = sourceLookup.get(refObjectId)?.kind;
+      canonical = canonicalSourceReferenceForSourceKind(referencedKind);
+      if (canonical) {
+        effectiveRelation = asText(referencedKind) || relation;
+        kindBasedRewrite = true;
+      }
+    }
     if (canonical && refObjectId && refType.includes("source")) {
       const before = sourceReferenceSnapshot(value);
       const after = sourceReferenceSnapshot(canonical);
@@ -553,11 +639,12 @@ export function createSourceSemanticUtils({
           dataset_version: identity.version,
           source_file: repoRelativeMaybe(sourceFile),
           path: pathExpression(pathSegments),
-          relation,
+          relation: effectiveRelation,
           original: before,
           canonical: after,
-          reason:
-            relation === "dataset_format_source"
+          reason: kindBasedRewrite
+            ? "A format/compliance support source referenced outside its format/compliance slot (e.g. a review report reference) is rewritten to the same public canonical source it uses on its format/compliance slot, so reference closure proves it as a reusable public dataset."
+            : relation === "dataset_format_source"
               ? "Data set format uses the public canonical ILCD format source instead of a converted package-local support source."
               : "Compliance declaration uses the public canonical ILCD Data Network Entry-level source instead of a converted placeholder support source.",
         });
@@ -576,6 +663,7 @@ export function createSourceSemanticUtils({
         rewriteRows,
         pathSegments: [...pathSegments, key],
         datasetIdentityCache,
+        sourceLookup,
       });
     }
   }
@@ -722,7 +810,7 @@ export function createSourceSemanticUtils({
           ? "process_data_source_fallback_database"
           : "process_data_source_true_source";
         reason = replacementSource.fallback_database_source
-          ? "Converted process data source pointed to a non-source support placeholder and no unambiguous process-specific report/publication source was available; the reference is rewritten to the BAFU database-level fallback source."
+          ? "Converted process data source pointed to a non-source support placeholder and no unambiguous process-specific report/publication source was available; the reference is rewritten to the imported package's database-level fallback source."
           : "Converted process data source pointed to a non-source support placeholder; the bundle contains one unambiguous true source, so the reference is rewritten to that curated source row.";
       }
 
@@ -854,6 +942,7 @@ export function createSourceSemanticUtils({
 
   return {
     buildBafuFallbackSourcePayload,
+    buildDatabaseFallbackSourcePayload,
     buildBafuProcessContextSourcePayload,
     canonicalSourceReferenceForRelation,
     processSourceReferenceRows,

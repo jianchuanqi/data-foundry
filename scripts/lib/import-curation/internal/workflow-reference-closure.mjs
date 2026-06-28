@@ -14,6 +14,7 @@ import {
   evidenceResolutionMode,
   fullContextPackageProofBlockers,
 } from "./full-context-proof.mjs";
+import { externalizeImportTraceMetadata } from "./prewrite-cleanup.mjs";
 import {
   asText,
   ensureArray,
@@ -814,7 +815,14 @@ export function buildWriteCandidateItem({
       });
       dryRunEvidence = { reasons: failureReasons(failure) };
     }
-  } else if (supportDatasetTypes.has(datasetType)) {
+  } else if (
+    supportDatasetTypes.has(datasetType) ||
+    referenceOnlySupportDatasetTypes.has(datasetType)
+  ) {
+    // unitgroup/flowproperty are reference-only by default but, under the
+    // account-local override (P1a), they are committed through the same
+    // dataset save-draft (--type auto) dry-run as contacts/sources, so their
+    // prepared/failure evidence lives in the datasetSaveDraft maps too.
     const prepared = dryRun.datasetSaveDraft?.prepared.get(key);
     const failure = dryRun.datasetSaveDraft?.failures.get(key);
     if (prepared) {
@@ -915,6 +923,17 @@ export function buildReferenceReuseItems({
       rowIndex: index,
     });
     const alreadyWriteCandidate = writeCandidateKeys.has(key);
+    // Reference-reuse rows are never written, but the closure proof still
+    // requires their payload snapshot to be free of raw import-only trace.
+    // Write-candidate rows get this scrubbing via curation cleanup; reference
+    // rows skip it, so a benign converter import trace would otherwise block
+    // closure on a row we never write. Externalize it here (after the trace
+    // summary is captured for reporting) so the raw tidasimport:* trace becomes
+    // the sanctioned Foundry summary breadcrumb instead of a blocker. Matches
+    // externalizeImportTraceMetadata's use on the write-candidate path.
+    if (hasImportOnlyTrace(row)) {
+      externalizeImportTraceMetadata(row);
+    }
     const blockers = hasImportOnlyTrace(row)
       ? [
           {
