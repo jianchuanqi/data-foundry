@@ -314,8 +314,10 @@ export function createPostAuthoringFinalizeCommands({
     // source/contact rewrite folds every row's ownership + data-entry contact onto
     // a single library contact and lifts referenced true sources into the support
     // commit set. BAFU was first; USLCI (NREL) reuses the same machinery via its
-    // profile-driven library contact identity.
-    const supportedForProfile = profile === "bafu" || profile === "uslci";
+    // profile-driven library contact identity; worldsteel reuses it with the
+    // worldsteel attribution contact carried in its runner config.
+    const supportedForProfile =
+      profile === "bafu" || profile === "uslci" || profile === "worldsteel";
     // Gate for every new mixed reuse+mint support-closure behavior in this stage. Only the
     // USLCI profile sets allowAccountLocalSupportAndElementary; BAFU never does, so all
     // gated paths below are no-ops for BAFU and its rewrite output stays byte-identical.

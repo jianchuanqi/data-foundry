@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { normalizeProfile } from "../../scripts/lib/import-curation/internal/profiles-config.mjs";
 import {
   flowPrewriteIdentityBlockers,
@@ -25,6 +28,29 @@ test("normalizeProfile surfaces the account-local override flag per profile", ()
     "x",
   );
   assert.equal(disabled.allowAccountLocalSupportAndElementary, false);
+});
+
+// The worldsteel profile must be registered with the capped account-local override
+// (for the <=17 GaBi/Sphera pseudo-elementary flows) and full-context AI proof on for
+// authored flow/process/lifecyclemodel. The ~1,315 reference flows are reused by UUID.
+test("worldsteel profile registers the capped override and full-context proof", () => {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const { profiles } = JSON.parse(
+    readFileSync(path.join(repoRoot, "specs/import-profiles.json"), "utf8"),
+  );
+  assert.ok(profiles.worldsteel, "worldsteel profile is registered");
+  const ws = normalizeProfile(profiles.worldsteel, "worldsteel");
+  assert.equal(ws.allowAccountLocalSupportAndElementary, true);
+  assert.ok(ws.accountLocalSupportOverride, "raw override object preserved for audit");
+  assert.equal(profiles.worldsteel.full_context_ai_completion.required, true);
+  assert.deepEqual(profiles.worldsteel.full_context_ai_completion.dataset_types, [
+    "flow",
+    "process",
+    "lifecyclemodel",
+  ]);
+  assert.deepEqual(profiles.worldsteel.waived_qa_codes_by_type, {
+    process: ["process_material_balance_deviation"],
+  });
 });
 
 function elementaryFlowPayload() {

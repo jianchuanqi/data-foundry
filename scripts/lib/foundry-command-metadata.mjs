@@ -815,6 +815,36 @@ export const commandMetadata = {
       ),
     ],
   }),
+  "dataset-worldsteel-batch-import-run": metadata({
+    category: "workflow-internal",
+    ownerModule: "scripts/commands/worldsteel-batch-import-run.mjs",
+    ownerExport: "createWorldsteelBatchImportRunCommands().runDatasetWorldsteelBatchImportRun",
+    inputs: [
+      "ready-scopes.jsonl (worldsteel library-resolution)",
+      "process-bundles directory (worldsteel conversion)",
+      "worldsteel run directory with context and pre-authored decisions",
+      "library classification decisions (decisions/classification-decisions.jsonl)",
+      "library-resolution directory holding exchange-reference-rewrites.jsonl (UUID reuse)",
+      "target user id (worldsteel account: data@worldsteel.org)",
+      "optional prior batch/import-ledger directories for pending-only carry-forward",
+      "optional explicit retry ids via repeated --process-id or --process-id-file",
+    ],
+    outputs: [
+      "dataset-worldsteel-batch-import-run-report.json",
+      "scope-checkpoints.jsonl",
+      "import-ledger/ok.*.verified.jsonl",
+      "import-ledger/blocked.*.jsonl",
+      "import-ledger/failed.scopes.retry.jsonl",
+      "import-ledger/verified-support-identities.jsonl",
+      "import-ledger/preflight.plan.jsonl when --preflight-only is used",
+    ],
+    keyTests: [
+      nodeTest(
+        "test/commands/bafu-batch-import-run.test.mjs",
+        "BAFU batch import runner skips already verified scopes through resumable ledgers",
+      ),
+    ],
+  }),
   "dataset-bafu-universe-coverage-report": metadata({
     category: "workflow-internal",
     ownerModule: "scripts/commands/bafu-batch-import-run.mjs",

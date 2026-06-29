@@ -493,9 +493,15 @@ export function createBundleSampleUtils({
         "Library-level contact for the BAFU 2025 Version 2 LCA data package.",
     );
     const profile = asText(options.profile || "bafu");
-    const version = asText(options.contactVersion || options.version || "00.00.001");
+    // `library*`-prefixed alternates (libraryContactId/libraryContactVersion) let the
+    // cross-process finalize CLI pass an explicit existing contact identity to REUSE
+    // (e.g. worldsteel reuses its packaged contact d5710976 as the library contact)
+    // instead of minting a synthetic foundry contact.
+    const version = asText(
+      options.libraryContactVersion || options.contactVersion || options.version || "00.00.001",
+    );
     const id =
-      asText(options.contactId || options.id) ||
+      asText(options.libraryContactId || options.contactId || options.id) ||
       (profile === "bafu"
         ? "a6db11f5-1cb4-579a-b503-bd17c361b8c2"
         : deterministicUuid(

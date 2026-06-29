@@ -49,6 +49,7 @@ export const datasetPolicyCommands = [
   "dataset-bafu-process-scope-e2e",
   "dataset-bafu-batch-import-run",
   "dataset-uslci-batch-import-run",
+  "dataset-worldsteel-batch-import-run",
   "dataset-bafu-universe-coverage-report",
   "dataset-identity-reference-rewrites-apply",
   "dataset-identity-decisions-apply",
@@ -189,6 +190,7 @@ export function exitCodeForCommand(command, result) {
         : 1;
     case "dataset-bafu-batch-import-run":
     case "dataset-uslci-batch-import-run":
+    case "dataset-worldsteel-batch-import-run":
       return statusIs(result, [
         "help",
         "preflight_completed",

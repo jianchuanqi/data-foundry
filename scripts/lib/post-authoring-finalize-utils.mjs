@@ -667,6 +667,7 @@ export function createPostAuthoringFinalizeUtils({
 
   return {
     identityReferenceRewritesFileForRowsFile,
+    preseedResolutionReuseDecisions,
     runFinalizeAutoCurationQueue,
     runFinalizeIdentityPreflightStage,
     sourceReferenceRewritesFileForRowsFile,
