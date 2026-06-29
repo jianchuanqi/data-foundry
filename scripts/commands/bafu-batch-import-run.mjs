@@ -3108,6 +3108,11 @@ function buildFinalizeArgs({
     appendOption(args, "--library-contact-address", libraryContact.contactAddress);
     appendOption(args, "--library-central-contact-point", libraryContact.centralContactPoint);
     appendOption(args, "--library-description", libraryContact.description);
+    // Optional explicit identity to REUSE an existing packaged contact as the
+    // shared library contact (worldsteel reuses its packaged contact d5710976)
+    // instead of minting a synthetic deterministic foundry contact.
+    appendOption(args, "--library-contact-id", libraryContact.contactId);
+    appendOption(args, "--library-contact-version", libraryContact.contactVersion);
   }
   // P1a: USLCI-only — mint unmatched FP/UG as account-local support before the
   // flows that reference them. Empty for BAFU (config flag off) so its finalize
@@ -5008,6 +5013,23 @@ export function createBafuBatchImportRunCommands(deps, config = {}) {
       applyResolutionRewrites() && libraryResolutionDir
         ? loadResolutionRewritesByProcess(libraryResolutionDir)
         : new Map();
+    // Mega-scope speed-up: when applying the library resolution, also expose its
+    // exchange-reference-rewrites to every per-scope finalize as
+    // IDENTITY_PREFLIGHT_REUSE_MAP. The finalize stage then PRE-SEEDS a reuse decision
+    // for each reuse-proven flow and SKIPS the redundant per-flow REMOTE identity
+    // preflight (the dominant cost on worldsteel's ~2,000-2,543-exchange mega-scopes).
+    // The finalize subprocess inherits process.env. Respect an operator-set value; no-op
+    // for BAFU (applyResolutionRewrites off) and when the rewrites file is absent.
+    if (
+      applyResolutionRewrites() &&
+      libraryResolutionDir &&
+      !asText(process.env.IDENTITY_PREFLIGHT_REUSE_MAP)
+    ) {
+      const reuseMapFile = path.join(libraryResolutionDir, "exchange-reference-rewrites.jsonl");
+      if (fs.existsSync(reuseMapFile)) {
+        process.env.IDENTITY_PREFLIGHT_REUSE_MAP = reuseMapFile;
+      }
+    }
     const pauseFile = asText(options.pauseFile) ? resolveRepoPath(options.pauseFile) : null;
     const stopAfterBlocked =
       options.stopAfterBlocked == null

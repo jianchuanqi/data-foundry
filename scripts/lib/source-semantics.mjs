@@ -430,6 +430,24 @@ export function createSourceSemanticUtils({
         permanentDataSetUri: (sourceId) => `https://www.lcacommons.gov/uslci/${sourceId}`,
       };
     }
+    if (key === "worldsteel") {
+      // worldsteel ships no database-level source dataset of its own, so the
+      // converted steel processes whose data source resolves to a placeholder
+      // are cited to this synthesized worldsteel database source rather than
+      // silently inheriting the BAFU default. A worldsteel process must never
+      // cite the BAFU 2025 database.
+      return {
+        id: deterministicUuid(
+          "tiangong-lca-foundry:worldsteel:database-source:worldsteel LCI database",
+        ),
+        shortName: "worldsteel LCI database",
+        citation:
+          "worldsteel Life Cycle Inventory (LCI) database, World Steel Association (worldsteel), 2022.",
+        description:
+          "Database-level fallback source used when the converted worldsteel package has no more specific report, publication, or data-source evidence for the process scope.",
+        permanentDataSetUri: (sourceId) => `https://worldsteel.org/lci/${sourceId}`,
+      };
+    }
     // Default (BAFU and any unspecified profile): preserve the original behavior.
     return {
       id: bafuFallbackSourceId(),

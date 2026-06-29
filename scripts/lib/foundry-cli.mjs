@@ -14,6 +14,7 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
   const {
     authoringPlanCommands,
     uslciBatchImportRunCommands,
+    worldsteelBatchImportRunCommands,
     bafuAutoAuthoringCommands,
     bafuBatchImportRunCommands,
     bafuLeafClassificationTaskCommands,
@@ -126,6 +127,8 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
       bafuBatchImportRunCommands.runDatasetBafuBatchImportRun(options),
     "dataset-uslci-batch-import-run": (options) =>
       uslciBatchImportRunCommands.runDatasetUslciBatchImportRun(options),
+    "dataset-worldsteel-batch-import-run": (options) =>
+      worldsteelBatchImportRunCommands.runDatasetWorldsteelBatchImportRun(options),
     "dataset-bafu-universe-coverage-report": (options) =>
       bafuBatchImportRunCommands.runDatasetBafuUniverseCoverageReport(options),
     "dataset-identity-reference-rewrites-apply": (options) =>

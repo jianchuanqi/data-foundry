@@ -22,6 +22,7 @@ import { createPostWriteCloseoutCommands } from "./commands/post-write-closeout.
 import { createSupportCacheCommands } from "./commands/support-cache.mjs";
 import { createTaskCommands } from "./commands/tasks.mjs";
 import { createUslciBatchImportRunCommands } from "./commands/uslci-batch-import-run.mjs";
+import { createWorldsteelBatchImportRunCommands } from "./commands/worldsteel-batch-import-run.mjs";
 import { bundleRowTypes } from "./lib/bundle-row-types.mjs";
 import { createBundleSampleUtils } from "./lib/bundle-sample-utils.mjs";
 import { createCanonicalSupportRewriteUtils } from "./lib/canonical-support-rewrites.mjs";
@@ -603,6 +604,7 @@ const batchImportRunDeps = {
 };
 const bafuBatchImportRunCommands = createBafuBatchImportRunCommands(batchImportRunDeps);
 const uslciBatchImportRunCommands = createUslciBatchImportRunCommands(batchImportRunDeps);
+const worldsteelBatchImportRunCommands = createWorldsteelBatchImportRunCommands(batchImportRunDeps);
 const bafuLeafClassificationTaskCommands = createBafuLeafClassificationTaskCommands({
   asText: textValue,
   ensureArray,
@@ -878,6 +880,7 @@ runFoundryCli({
   commandDeps: {
     authoringPlanCommands,
     uslciBatchImportRunCommands,
+    worldsteelBatchImportRunCommands,
     bafuAutoAuthoringCommands,
     bafuBatchImportRunCommands,
     bafuLeafClassificationTaskCommands,

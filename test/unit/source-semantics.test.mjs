@@ -75,3 +75,22 @@ test("USLCI database fallback source cites the USLCI database, never BAFU", () =
     .sourceInformation.dataSetInformation["common:UUID"];
   assert.notEqual(di["common:UUID"], bafuId, "USLCI fallback id must not equal BAFU's");
 });
+
+test("worldsteel database fallback source cites worldsteel, never BAFU", () => {
+  const payload = utils().buildDatabaseFallbackSourcePayload({ profile: "worldsteel" });
+  const di = payload.sourceDataSet.sourceInformation.dataSetInformation;
+  assert.equal(di["common:shortName"]["#text"], "worldsteel LCI database");
+  assert.ok(/worldsteel/i.test(di.sourceCitation), "citation must name worldsteel");
+  assert.ok(!/BAFU/.test(JSON.stringify(payload)), "worldsteel fallback must contain no BAFU text");
+  assert.equal(
+    di.classificationInformation["common:classification"]["common:class"]["#text"],
+    "Databases",
+  );
+  // worldsteel id must differ from both the BAFU and USLCI fallback ids.
+  const bafuId = utils().buildDatabaseFallbackSourcePayload({ profile: "bafu" }).sourceDataSet
+    .sourceInformation.dataSetInformation["common:UUID"];
+  const uslciId = utils().buildDatabaseFallbackSourcePayload({ profile: "uslci" }).sourceDataSet
+    .sourceInformation.dataSetInformation["common:UUID"];
+  assert.notEqual(di["common:UUID"], bafuId, "worldsteel fallback id must not equal BAFU's");
+  assert.notEqual(di["common:UUID"], uslciId, "worldsteel fallback id must not equal USLCI's");
+});
