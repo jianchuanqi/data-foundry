@@ -6,7 +6,7 @@ status: draft
 owner: tiangong-lca-data-foundry
 related:
   - specs/import-profiles.json
-  - docs/worldsteel-import-plan.md
+  - docs/import-profiles/worldsteel/import-plan.md
   - docs/import-profiles/worldsteel/constraints.md
   - docs/foundry-task-contracts.md
   - inputs/CUP2025-2_2022b_v10_worldsteel_products_Tiangong_v1 EF3.1 2026_01_27
@@ -14,7 +14,7 @@ related:
 
 # worldsteel Import Profile
 
-Profile for the worldsteel EF3.1 native ILCD 1.1 package (`inputs/CUP2025-2_2022b_v10_worldsteel_products_Tiangong_v1 EF3.1 2026_01_27`). worldsteel stays data/profile configuration plus the small, reusable code touchpoints documented in `docs/worldsteel-import-plan.md` §5 — not a bespoke Foundry code path.
+Profile for the worldsteel EF3.1 native ILCD 1.1 package (`inputs/CUP2025-2_2022b_v10_worldsteel_products_Tiangong_v1 EF3.1 2026_01_27`). worldsteel stays data/profile configuration plus the small, reusable code touchpoints documented in `docs/import-profiles/worldsteel/import-plan.md` §5 — not a bespoke Foundry code path.
 
 ## Lane
 
@@ -28,7 +28,7 @@ Profile for the worldsteel EF3.1 native ILCD 1.1 package (`inputs/CUP2025-2_2022
 ## Resolved Decisions (2026-06-29)
 
 - **Account:** `data@worldsteel.org` (API key in the foundry `.env` active `WORLDSTEEL ACCOUNT` block). Writes are state_code=0 (My Data).
-- **Reuse by UUID:** the canonical DB already holds the EF3.1 flows under their original UUIDs, so the ~1,315 reference flows are reused deterministically by UUID (no semantic search). See `docs/worldsteel-import-plan.md` §7.
+- **Reuse by UUID:** the canonical DB already holds the EF3.1 flows under their original UUIDs, so the ~1,315 reference flows are reused deterministically by UUID (no semantic search). See `docs/import-profiles/worldsteel/import-plan.md` §7.
 - **Capped elementary mint:** `allow_account_local_support_and_elementary` is enabled **only** as a capped escape hatch for the ≤17 GaBi/Sphera pseudo-elementary flows (dataSetVersion 20.25.x) with no canonical match. These are NOT matched by UUID — the AI judges reuse-vs-mint from full context. FP/UG are reference-only (`mintUnmatchedFpUgSupport=false`). Final mint count is reviewed after the UUID-reuse pass.
 - **Library/attribution contact:** the package's own worldsteel contact `d5710976-d600-11da-a94d-0800200c9a66` (World Steel Association) is **reused** as the single shared library contact, not minted fresh. Threaded via the runner's `libraryContact.contactId`/`contactVersion`.
 - **Database fallback source:** worldsteel processes whose data source resolves to a placeholder cite the synthesized `worldsteel LCI database` source (`source-semantics.mjs` worldsteel branch), never the BAFU default.
@@ -48,5 +48,5 @@ Profile for the worldsteel EF3.1 native ILCD 1.1 package (`inputs/CUP2025-2_2022
 ## Open Decisions
 
 - The exact residual count of GaBi/Sphera pseudo-elementary flows that mint (≤17) — decided after the UUID-reuse pass; if zero, set `allow_account_local_support_and_elementary.enabled=false`.
-- Whether to land the finalize-trusts-resolution-rewrites speed-up before the full run (all 33 processes are ~2,000–2,543-exchange mega-scopes). See `docs/worldsteel-import-plan.md` §8.
+- Whether to land the finalize-trusts-resolution-rewrites speed-up before the full run (all 33 processes are ~2,000–2,543-exchange mega-scopes). See `docs/import-profiles/worldsteel/import-plan.md` §8.
 - `allow_remote_commit` stays human-gated until the pilot scope is verified.

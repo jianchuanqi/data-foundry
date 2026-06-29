@@ -6,7 +6,7 @@ status: draft
 owner: tiangong-lca-data-foundry
 related:
   - docs/import-profiles/worldsteel/profile.md
-  - docs/worldsteel-import-plan.md
+  - docs/import-profiles/worldsteel/import-plan.md
   - specs/import-profiles.json
 ---
 
