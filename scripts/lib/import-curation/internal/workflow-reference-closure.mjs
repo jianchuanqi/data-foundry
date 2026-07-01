@@ -673,6 +673,7 @@ export function buildWriteCandidateItem({
   cleanupContext = null,
   evidenceScopeBlockers = [],
   allowAccountLocalSupportAndElementary = false,
+  profile = null,
 }) {
   const key = identityKey(identity);
   const blockers = [];
@@ -706,6 +707,7 @@ export function buildWriteCandidateItem({
   blockers.push(
     ...prewriteIdentityBlockers(identity.payload, datasetType, repoRoot, {
       allowAccountLocalSupportAndElementary,
+      profile,
     }),
   );
 

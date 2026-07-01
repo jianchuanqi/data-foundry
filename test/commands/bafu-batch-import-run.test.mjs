@@ -1590,6 +1590,8 @@ test("BAFU authoring task filter removes rows already rewritten by identity appl
           entity_id: keepId,
           version: "00.00.001",
         },
+        action_item_count: 2,
+        action_items: [{ code: "semantic_name_treatment_placeholder" }, { code: "x" }],
       },
       {
         entity: {
@@ -1597,6 +1599,8 @@ test("BAFU authoring task filter removes rows already rewritten by identity appl
           entity_id: skippedId,
           version: "00.00.001",
         },
+        action_item_count: 1,
+        action_items: [{ code: "x" }],
       },
     ],
   });
@@ -1617,10 +1621,118 @@ test("BAFU authoring task filter removes rows already rewritten by identity appl
     assert.equal(report.counts.original_tasks, 2);
     assert.equal(report.counts.retained_tasks, 1);
     assert.equal(report.counts.skipped_tasks, 1);
+    assert.equal(report.counts.retained_action_items, 2);
     assert.equal(report.skipped_tasks[0].dataset_id, skippedId);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("BAFU authoring task filter reports ready_no_action_items when retained tasks are already authored", () => {
+  // Reuse-heavy scope (e.g. worldsteel): the current-rows filter drops all
+  // reuse rows and retains only new rows whose action items are already closed.
+  // Those retained tasks carry zero action items, so the filter must report
+  // ready_no_action_items and NOT force the autofill-off authoring block.
+  const root = path.join(fixtureRoot, "filter-authoring-clean");
+  fs.rmSync(root, { recursive: true, force: true });
+  const taskManifest = path.join(root, "authoring-task-manifest.json");
+  const rowsFile = path.join(root, "flows.identity-decisions-applied.jsonl");
+  const reportPath = path.join(root, "authoring-task-filter-report.json");
+  const keepId = "11111111-1111-1111-1111-811111111111";
+  writeJsonLines(rowsFile, [
+    {
+      flowDataSet: {
+        flowInformation: { dataSetInformation: { "common:UUID": keepId } },
+        administrativeInformation: {
+          publicationAndOwnership: { "common:dataSetVersion": "00.00.001" },
+        },
+      },
+    },
+  ]);
+  writeJson(taskManifest, {
+    schema_version: 1,
+    status: "ready_for_ai_authoring_batch",
+    tasks: [
+      {
+        status: "ready_no_action_items",
+        entity: { dataset_type: "flow", entity_id: keepId, version: "00.00.001" },
+        action_item_count: 0,
+        action_items: [],
+      },
+    ],
+  });
+  try {
+    const result = filterAuthoringTaskManifestToRows({
+      taskManifest,
+      rowsFile,
+      type: "flow",
+      reportPath,
+    });
+    assert.equal(result.status, "ready_no_action_items");
+    const report = readJson(reportPath);
+    assert.equal(report.counts.retained_tasks, 1);
+    assert.equal(report.counts.retained_action_items, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("commitFailuresAllAlreadyExist accepts idempotent same-id-version conflicts only", () => {
+  const root = path.join(fixtureRoot, "commit-idempotent");
+  fs.rmSync(root, { recursive: true, force: true });
+  const commitDir = path.join(root, "commit");
+  const summaryDir = path.join(commitDir, "contact-save-draft", "outputs", "dataset-save-draft");
+  const summaryPath = path.join(summaryDir, "summary.json");
+  const handoffPlan = { files: { expected_commit_report_dir: commitDir } };
+
+  // All failures are "same id and version already exists" -> accepted reuse.
+  writeJson(summaryPath, {
+    status: "completed_with_failures",
+    counts: { selected: 1, failed: 1 },
+    rows: [
+      {
+        id: "d5710976-d600-11da-a94d-0800200c9a66",
+        version: "20.20.002",
+        status: "failed",
+        error: {
+          message: "HTTP 409 returned from .../app_dataset_create",
+          details:
+            '{"ok":false,"code":"23505","message":"Dataset with the same id and version already exists"}',
+        },
+      },
+    ],
+  });
+  let result = bafuBatchImportRunTestHooks.commitFailuresAllAlreadyExist(handoffPlan);
+  assert.equal(result.accepted, true);
+  assert.equal(result.alreadyExists, 1);
+  assert.equal(result.otherFailures, 0);
+
+  // A non-idempotent failure must NOT be accepted.
+  writeJson(summaryPath, {
+    status: "completed_with_failures",
+    counts: { selected: 2, failed: 2 },
+    rows: [
+      {
+        id: "a",
+        status: "failed",
+        error: {
+          message: "HTTP 409",
+          details: '{"code":"23505","message":"same id and version already exists"}',
+        },
+      },
+      {
+        id: "b",
+        status: "failed",
+        error: { message: "HTTP 500 internal error", details: '{"code":"XX000","message":"boom"}' },
+      },
+    ],
+  });
+  result = bafuBatchImportRunTestHooks.commitFailuresAllAlreadyExist(handoffPlan);
+  assert.equal(result.accepted, false);
+  assert.equal(result.alreadyExists, 1);
+  assert.equal(result.otherFailures, 1);
+
+  fs.rmSync(root, { recursive: true, force: true });
 });
 
 test("BAFU batch flow verification filter keeps only flows not in ok flow ledger", () => {

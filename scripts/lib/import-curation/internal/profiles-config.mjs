@@ -9,6 +9,15 @@ export function normalizeProfile(rawProfile, profileId) {
     description: profile.description ?? "",
     docs: ensureArray(profile.docs),
     waivedQaCodesByType: profile.waivedQaCodesByType ?? profile.waived_qa_codes_by_type ?? {},
+    // Per-profile waivers for prewrite-content-policy rule codes (e.g.
+    // source_locator_in_dataset_name), keyed by dataset type. Distinct from
+    // waivedQaCodesByType (deterministic-QA findings): these silence a content-policy
+    // marker that is a FALSE POSITIVE for a profile's legitimate naming convention.
+    // worldsteel process names are "<product> <route> <geography> <data-year>" (e.g.
+    // "Steel rebar Global 2022"); the trailing "<Geo> <Year>" trips the latin-author-year
+    // marker even though it is reference metadata, not a citation locator.
+    waivedContentPolicyRulesByType:
+      profile.waivedContentPolicyRulesByType ?? profile.waived_content_policy_rules_by_type ?? {},
     waiverReasons: profile.waiverReasons ?? profile.waiver_reasons ?? {},
     fullContextAiCompletion: normalizeFullContextAiCompletion(
       profile.fullContextAiCompletion ?? profile.full_context_ai_completion,

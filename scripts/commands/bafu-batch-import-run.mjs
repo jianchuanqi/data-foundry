@@ -12,7 +12,10 @@ import {
   compactBafuFamilySignature,
   summarizeBafuFamilyScopes,
 } from "../lib/bafu-family-signatures.mjs";
-import { acceptTraceHashOnlyRemoteVerificationMismatch } from "../lib/remote-verification-accepted-diff.mjs";
+import {
+  acceptTraceHashOnlyRemoteVerificationMismatch,
+  acceptTrustedExternalReferenceMissingDataset,
+} from "../lib/remote-verification-accepted-diff.mjs";
 import { stageContract } from "../lib/stage-contract.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -20,6 +23,13 @@ const commandName = "dataset-bafu-batch-import-run";
 const coverageCommandName = "dataset-bafu-universe-coverage-report";
 let supportCommitQueue = Promise.resolve();
 const verifiedSupportIdentities = new Set();
+// Trusted external reference flows: `${table}\0${id}\0${version}` keys for datasets that
+// exist remotely but are invisible to the importing account through RLS (worldsteel
+// references to USLCI-account state_code=0 flows, verified present via the USLCI token and
+// reused by governance rule). The post-write verify's RLS-scoped readback falsely reports
+// these as missing_dataset; executeHandoff accepts that single blocker class for these
+// keys only. Empty for BAFU/USLCI, so their runs are unchanged.
+const trustedExternalReferenceFlows = new Set();
 const bafuBatchStageContract = {
   remote_write_mode: "explicit-commit-only",
   stage_pipeline: stageContract([
@@ -114,6 +124,15 @@ function installBafuBatchRuntime(deps, config = {}) {
   }
   bafuBatchRuntime = deps;
   bafuBatchConfig = config || {};
+  trustedExternalReferenceFlows.clear();
+  for (const ref of Array.isArray(bafuBatchConfig.trustedExternalReferenceFlows)
+    ? bafuBatchConfig.trustedExternalReferenceFlows
+    : []) {
+    const table = String(ref?.table || "flows");
+    const id = String(ref?.id || "");
+    const version = String(ref?.version || "00.00.001");
+    if (id) trustedExternalReferenceFlows.add(`${table} ${id} ${version}`);
+  }
 }
 
 function runtime() {
@@ -378,10 +397,27 @@ export function filterAuthoringTaskManifestToRows({ taskManifest, rowsFile, type
       },
     });
   }
+  // Status reflects whether the RETAINED tasks actually carry authoring action items,
+  // not merely how many tasks survived the current-rows filter. A reuse-heavy scope
+  // (e.g. worldsteel) can retain only already-authored new rows whose action items are
+  // all closed; those are `ready_no_action_items` tasks and must NOT force the
+  // autofill-off block. Count-based status wrongly reported ready_for_ai_authoring_batch
+  // for a scope with zero outstanding action items. BAFU/USLCI scopes whose retained
+  // tasks still carry action items are unaffected (count > 0 keeps the batch status).
+  const retainedActionItemCount = retainedTasks.reduce(
+    (sum, task) =>
+      sum +
+      (Number.isFinite(Number(task?.action_item_count))
+        ? Number(task.action_item_count)
+        : Array.isArray(task?.action_items)
+          ? task.action_items.length
+          : 0),
+    0,
+  );
   const report = {
     schema_version: 1,
     generated_at_utc: nowIso(),
-    status: retainedTasks.length > 0 ? "ready_for_ai_authoring_batch" : "ready_no_action_items",
+    status: retainedActionItemCount > 0 ? "ready_for_ai_authoring_batch" : "ready_no_action_items",
     task_manifest: repoRelative(resolvedTaskManifest),
     filtered_task_manifest: repoRelative(filtered),
     current_rows_file: repoRelative(resolvedRowsFile),
@@ -390,6 +426,7 @@ export function filterAuthoringTaskManifestToRows({ taskManifest, rowsFile, type
       current_rows: rows.length,
       original_tasks: tasks.length,
       retained_tasks: retainedTasks.length,
+      retained_action_items: retainedActionItemCount,
       skipped_tasks: skippedTasks.length,
     },
     skipped_tasks: skippedTasks.slice(0, 200),
@@ -978,6 +1015,49 @@ function commitReportForHandoffPlan(handoffPlan) {
   );
 }
 
+// A support commit whose only failures are "the dataset already exists with the same
+// id and version" is an idempotent no-op, not a real failure: the row is already present
+// remotely, so the referencing process/flow rows resolve against it. This is the normal
+// case for reference-reuse imports (e.g. worldsteel reuses the canonical World Steel
+// Association contact and other standard ILCD reference support) and for resuming a run
+// that already committed some support. Postgres unique-violation 23505 with the
+// "same id and version already exists" message is the authoritative signal. Any other
+// failure type is NOT accepted.
+function commitFailuresAllAlreadyExist(handoffPlan) {
+  const expectedDir = resolveRepoPath(handoffPlan?.files?.expected_commit_report_dir);
+  if (!expectedDir) return { accepted: false, alreadyExists: 0, otherFailures: 0 };
+  const summaries = findFiles(expectedDir, (filePath) =>
+    /(?:summary|sync_report)\.json$/u.test(path.basename(filePath)),
+  );
+  let failed = 0;
+  let alreadyExists = 0;
+  for (const summaryPath of summaries) {
+    let report;
+    try {
+      report = readJson(summaryPath);
+    } catch {
+      continue;
+    }
+    for (const row of asArray(report?.rows)) {
+      if (asText(row?.status) !== "failed") continue;
+      failed += 1;
+      const error = row?.error ?? {};
+      const haystack = `${asText(error.message)} ${asText(error.details)}`.toLowerCase();
+      if (
+        haystack.includes("same id and version already exists") ||
+        (haystack.includes("23505") && haystack.includes("already exists"))
+      ) {
+        alreadyExists += 1;
+      }
+    }
+  }
+  return {
+    accepted: failed > 0 && failed === alreadyExists,
+    alreadyExists,
+    otherFailures: failed - alreadyExists,
+  };
+}
+
 function verifyReportForHandoffPlan(handoffPlan) {
   const expectedDir = resolveRepoPath(handoffPlan?.files?.expected_post_write_verify_dir);
   return (
@@ -1039,14 +1119,27 @@ async function executeHandoff({ handoffPlanPath, ledgerDir, outDir, logDir, labe
   const commitReportPath = commitReportForHandoffPlan(handoffPlan);
   stages.push({ ...commitStage, report: repoRelative(commitReportPath) });
   if (commitStage.exit_code !== 0 || !commitReportPath) {
-    blockers.push({
-      code: "commit_handoff_command_failed",
-      message: `${label} commit handoff failed or did not emit the expected commit report.`,
-      handoff_plan: repoRelative(handoffPlanPath),
-      exit_code: commitStage.exit_code,
-      commit_report: repoRelative(commitReportPath),
+    // Accept the commit when its only failures are idempotent "already exists with the
+    // same id and version" rows: those datasets are present remotely and the references
+    // resolve, so the post-write verify below confirms them. Any other failure blocks.
+    const idempotent = commitReportPath ? commitFailuresAllAlreadyExist(handoffPlan) : null;
+    if (!idempotent?.accepted) {
+      blockers.push({
+        code: "commit_handoff_command_failed",
+        message: `${label} commit handoff failed or did not emit the expected commit report.`,
+        handoff_plan: repoRelative(handoffPlanPath),
+        exit_code: commitStage.exit_code,
+        commit_report: repoRelative(commitReportPath),
+      });
+      return { status: "failed", blockers, stages, handoffPlan };
+    }
+    stages.push({
+      stage: `${label}.commit.accepted_existing_support`,
+      status: "accepted",
+      report: repoRelative(commitReportPath),
+      reused_existing_rows: idempotent.alreadyExists,
+      message: `${label} commit reused ${idempotent.alreadyExists} support row(s) that already exist with the same id and version; references resolve to the present datasets and are confirmed by post-write verification.`,
     });
-    return { status: "failed", blockers, stages, handoffPlan };
   }
 
   let verifyReportPath = null;
@@ -1088,6 +1181,27 @@ async function executeHandoff({ handoffPlanPath, ledgerDir, outDir, logDir, labe
           status: "accepted",
           report: repoRelative(acceptedVerify.acceptanceReportPath),
           accepted_differences: acceptedVerify.evidence.length,
+        });
+      }
+    }
+    if (!verifyAccepted && verifyReportPath && trustedExternalReferenceFlows.size > 0) {
+      // Accept a readback whose ONLY blockers are missing_dataset on reference-role rows
+      // that point at pre-verified trusted external datasets (worldsteel -> USLCI
+      // state_code=0 flows, reused by reference and invisible to worldsteel via RLS).
+      const acceptedTrusted = acceptTrustedExternalReferenceMissingDataset({
+        verifyReportPath,
+        outDir,
+        repoRoot,
+        trustedReferenceKeys: trustedExternalReferenceFlows,
+      });
+      if (acceptedTrusted.accepted) {
+        verifyReportPath = acceptedTrusted.verifyReportPath;
+        verifyAccepted = true;
+        stages.push({
+          stage: `${label}.post_write_verify.accepted_trusted_reference`,
+          status: "accepted",
+          report: repoRelative(acceptedTrusted.acceptanceReportPath),
+          accepted_trusted_references: acceptedTrusted.evidence.length,
         });
       }
     }
@@ -5480,6 +5594,7 @@ export function createBafuBatchImportRunCommands(deps, config = {}) {
 }
 
 export const bafuBatchImportRunTestHooks = {
+  commitFailuresAllAlreadyExist,
   enforceSharedContextCacheCap,
   flowRowsPendingVerification,
   identityUnresolvedReferenceBlocker,

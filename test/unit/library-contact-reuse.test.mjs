@@ -61,3 +61,52 @@ test("buildLibraryContactPayload mints a deterministic id when none is supplied"
     "deterministic-minted-id",
   );
 });
+
+// A non-BAFU profile must NEVER inherit BAFU/FOEN contact details (email or the
+// "Governmental organisations" category) — those are filled from the importing
+// organisation's own metadata/research, not copied from BAFU.
+test("buildLibraryContactPayload does not leak BAFU email/category for non-bafu profiles", () => {
+  const di = utils().buildLibraryContactPayload({
+    profile: "worldsteel",
+    libraryName: "World Steel Association",
+    libraryShortName: "worldsteel",
+    libraryWebsite: "https://www.worldsteel.org",
+    email: "steel@worldsteel.org",
+    contactClassification: [
+      { "@level": "0", "@classId": "2", "#text": "Organisations" },
+      { "@level": "1", "@classId": "2.4", "#text": "Other organisations" },
+    ],
+    contactAddress: "worldsteel, Avenue de Tervueren 270, 1150 Brussels, Belgium",
+  }).contactDataSet.contactInformation.dataSetInformation;
+  assert.equal(di.email, "steel@worldsteel.org");
+  assert.notEqual(di.email, "info@bafu.admin.ch");
+  const classes = di.classificationInformation["common:classification"]["common:class"];
+  assert.equal(classes[1]["#text"], "Other organisations");
+  assert.equal(classes[1]["@classId"], "2.4");
+  assert.ok(!JSON.stringify(di).includes("Governmental organisations"));
+  assert.ok(!JSON.stringify(di).includes("bafu.admin.ch"));
+  assert.ok(!JSON.stringify(di).includes("Bern"));
+});
+
+// A non-bafu profile that supplies no email/classification must fall back to neutral,
+// non-BAFU values (empty email, generic "Other organisations"), never FOEN strings.
+test("buildLibraryContactPayload non-bafu fallback is neutral, not BAFU", () => {
+  const di = utils().buildLibraryContactPayload({
+    profile: "worldsteel",
+    libraryName: "X",
+    libraryWebsite: "https://x",
+  }).contactDataSet.contactInformation.dataSetInformation;
+  assert.equal(di.email, "");
+  const classes = di.classificationInformation["common:classification"]["common:class"];
+  assert.equal(classes[1]["#text"], "Other organisations");
+  assert.ok(!JSON.stringify(di).includes("bafu.admin.ch"));
+});
+
+// The BAFU profile keeps its FOEN defaults (unchanged behavior).
+test("buildLibraryContactPayload keeps FOEN defaults for the bafu profile", () => {
+  const di = utils().buildLibraryContactPayload({ profile: "bafu" }).contactDataSet
+    .contactInformation.dataSetInformation;
+  assert.equal(di.email, "info@bafu.admin.ch");
+  const classes = di.classificationInformation["common:classification"]["common:class"];
+  assert.equal(classes[1]["#text"], "Governmental organisations");
+});

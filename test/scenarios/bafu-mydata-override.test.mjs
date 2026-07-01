@@ -42,7 +42,16 @@ test("worldsteel profile registers the capped override and full-context proof", 
   const ws = normalizeProfile(profiles.worldsteel, "worldsteel");
   assert.equal(ws.allowAccountLocalSupportAndElementary, true);
   assert.ok(ws.accountLocalSupportOverride, "raw override object preserved for audit");
-  assert.equal(profiles.worldsteel.full_context_ai_completion.required, true);
+  // 2026-06-30 user decision: R3's full-context requirement is the reuse-vs-mint IDENTITY
+  // decision, satisfied off-line by the adversarially-verified elementary-match + capped-mint
+  // workflows plus full-context field authoring. worldsteel new entities are account-local
+  // My Data (state_code=0), not published canonical, so the strict per-mint identity
+  // authoring-package proof is relaxed (required=false) with a scoped_relaxation rationale.
+  assert.equal(profiles.worldsteel.full_context_ai_completion.required, false);
+  assert.ok(
+    profiles.worldsteel.full_context_ai_completion.scoped_relaxation,
+    "scoped_relaxation rationale recorded for the relaxed full-context gate",
+  );
   assert.deepEqual(profiles.worldsteel.full_context_ai_completion.dataset_types, [
     "flow",
     "process",
