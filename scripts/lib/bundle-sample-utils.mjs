@@ -452,10 +452,17 @@ export function createBundleSampleUtils({
 
   function buildLibraryContactPayload(options, templateContact = null, rewriteContext = {}) {
     const language = asText(options.language || options.lang || "en") || "en";
+    const profile = asText(options.profile || "bafu");
+    // The FOEN/BAFU contact strings are fallbacks ONLY for the BAFU profile. Other import
+    // profiles (e.g. worldsteel) MUST supply their own organisation's real identity — the
+    // caller passes libraryName/shortName/website/email/telephone/contactAddress/... from
+    // the package metadata + research, so no BAFU contact detail (email, phone, address,
+    // organisation category) can leak into a different organisation's minted contact.
+    const bafuDefault = (value) => (profile === "bafu" ? value : "");
     const libraryName = asText(
       options.libraryName ||
         options.name ||
-        "Swiss Federal Administration - Federal Office for the Environment (FOEN)",
+        bafuDefault("Swiss Federal Administration - Federal Office for the Environment (FOEN)"),
     );
     // `library*`-prefixed alternates let cross-process callers (the finalize CLI
     // subprocess) pass library contact fields via collision-free flags
@@ -464,35 +471,41 @@ export function createBundleSampleUtils({
     const shortName = asText(
       options.libraryShortName ||
         options.shortName ||
-        "Federal Office for the Environment FOEN (BAFU)",
+        bafuDefault("Federal Office for the Environment FOEN (BAFU)"),
     );
     const website = asText(
       options.libraryWebsite ||
         options.website ||
         options.url ||
-        "https://www.bafu.admin.ch/en/contact-en",
+        bafuDefault("https://www.bafu.admin.ch/en/contact-en"),
     );
-    const email = asText(options.libraryEmail || options.email || "info@bafu.admin.ch");
+    const email = asText(
+      options.libraryEmail || options.email || bafuDefault("info@bafu.admin.ch"),
+    );
     const telephone = asText(
-      options.libraryTelephone || options.telephone || options.phone || "+41 58 462 93 11",
+      options.libraryTelephone ||
+        options.telephone ||
+        options.phone ||
+        bafuDefault("+41 58 462 93 11"),
     );
     const contactAddress = asText(
       options.libraryContactAddress ||
         options.contactAddress ||
         options.address ||
-        "Federal Office for the Environment FOEN, 3003 Bern, Switzerland",
+        bafuDefault("Federal Office for the Environment FOEN, 3003 Bern, Switzerland"),
     );
     const centralContactPoint = asText(
       options.libraryCentralContactPoint ||
         options.centralContactPoint ||
-        "Federal Office for the Environment FOEN, 3003 Bern, Switzerland; info@bafu.admin.ch; +41 58 462 93 11",
+        bafuDefault(
+          "Federal Office for the Environment FOEN, 3003 Bern, Switzerland; info@bafu.admin.ch; +41 58 462 93 11",
+        ),
     );
     const description = asText(
       options.libraryDescription ||
         options.description ||
-        "Library-level contact for the BAFU 2025 Version 2 LCA data package.",
+        bafuDefault("Library-level contact for the BAFU 2025 Version 2 LCA data package."),
     );
-    const profile = asText(options.profile || "bafu");
     // `library*`-prefixed alternates (libraryContactId/libraryContactVersion) let the
     // cross-process finalize CLI pass an explicit existing contact identity to REUSE
     // (e.g. worldsteel reuses its packaged contact d5710976 as the library contact)
@@ -556,24 +569,31 @@ export function createBundleSampleUtils({
       language,
     });
 
+    // Organisation category (组织类别) must reflect THIS organisation, not BAFU's. The
+    // caller passes options.contactClassification (a [{@level,@classId,#text}, ...] array)
+    // derived from the package's own contact metadata / research. Fall back to the FOEN
+    // category only for the BAFU profile; for any other profile default to the generic
+    // "Organisations > Other organisations" (2 / 2.4) rather than BAFU's "Governmental
+    // organisations" (2.2). classIds follow tidas_contacts_category.json.
+    const contactClass =
+      Array.isArray(options.contactClassification) && options.contactClassification.length > 0
+        ? options.contactClassification
+        : profile === "bafu"
+          ? [
+              { "@level": "0", "@classId": "2", "#text": "Organisations" },
+              { "@level": "1", "@classId": "2.2", "#text": "Governmental organisations" },
+            ]
+          : [
+              { "@level": "0", "@classId": "2", "#text": "Organisations" },
+              { "@level": "1", "@classId": "2.4", "#text": "Other organisations" },
+            ];
     const dataSetInformation = {
       "common:UUID": id,
       "common:shortName": multiLang(shortName, language),
       "common:name": multiLang(libraryName, language),
       classificationInformation: {
         "common:classification": {
-          "common:class": [
-            {
-              "@level": "0",
-              "@classId": "2",
-              "#text": "Organisations",
-            },
-            {
-              "@level": "1",
-              "@classId": "2.2",
-              "#text": "Governmental organisations",
-            },
-          ],
+          "common:class": contactClass,
         },
       },
       WWWAddress: website,

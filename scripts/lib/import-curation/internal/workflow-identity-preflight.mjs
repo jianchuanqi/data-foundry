@@ -1027,15 +1027,23 @@ function policyLexiconEntries(policy, rule) {
   return ensureArray(policy?.lexicons?.[lexiconName]);
 }
 
-export function prewriteContentQualityBlockers({ repoRoot, payload, datasetType }) {
+export function prewriteContentQualityBlockers({ repoRoot, payload, datasetType, profile = null }) {
   if (!["flow", "process", "lifecyclemodel"].includes(datasetType)) return [];
   const policy = readPrewriteContentPolicy(repoRoot);
   if (!policy) return [];
+  // Per-profile content-policy waivers (e.g. worldsteel waives source_locator_in_dataset_name
+  // for process names, where "<Geography> <data-year>" is a false positive of the
+  // latin-author-year marker, not a citation locator). A waiver matches either the rule code
+  // or the rule id. Absent a profile (or waiver), every rule applies — BAFU/USLCI unchanged.
+  const waivedRuleCodes = new Set(
+    ensureArray(profile?.waivedContentPolicyRulesByType?.[datasetType]).map(asText),
+  );
   const leaves = payloadTextLeaves(payload);
   const blockers = [];
   for (const rule of ensureArray(policy.value?.rules)) {
     const allowedTypes = ensureArray(rule?.dataset_types).map(asText);
     if (allowedTypes.length > 0 && !allowedTypes.includes(datasetType)) continue;
+    if (waivedRuleCodes.has(asText(rule?.code)) || waivedRuleCodes.has(asText(rule?.id))) continue;
     const entries = policyLexiconEntries(policy.value, rule);
     for (const leaf of leaves) {
       if (!pathScopeMatches(leaf.path_segments, rule?.path_scope)) continue;
@@ -1066,12 +1074,12 @@ export function prewriteIdentityBlockers(
   payload,
   datasetType,
   repoRoot = null,
-  { allowAccountLocalSupportAndElementary = false } = {},
+  { allowAccountLocalSupportAndElementary = false, profile = null } = {},
 ) {
   return [
     ...sourcePrewriteIdentityBlockers(payload, datasetType),
     ...flowPrewriteIdentityBlockers(payload, datasetType, allowAccountLocalSupportAndElementary),
-    ...prewriteContentQualityBlockers({ repoRoot, payload, datasetType }),
+    ...prewriteContentQualityBlockers({ repoRoot, payload, datasetType, profile }),
   ];
 }
 

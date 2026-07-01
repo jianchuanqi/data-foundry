@@ -108,8 +108,12 @@
       "waived_qa_codes_by_type": {
         "process": ["process_material_balance_deviation"]
       },
+      "waived_content_policy_rules_by_type": {
+        "process": ["source_locator_in_dataset_name"]
+      },
       "waiver_reasons": {
-        "process_material_balance_deviation": "worldsteel profile treats process_material_balance_deviation as a source-data QA observation (warning), not a remote-write blocker, mirroring BAFU/USLCI. The 33 datasets are aggregated LCI_RESULT processes whose material balance is inherent to the source aggregation model. Other schema, placeholder, reference, unit, required-field, and trace blockers remain blocking."
+        "process_material_balance_deviation": "worldsteel profile treats process_material_balance_deviation as a source-data QA observation (warning), not a remote-write blocker, mirroring BAFU/USLCI. The 33 datasets are aggregated LCI_RESULT processes whose material balance is inherent to the source aggregation model. Other schema, placeholder, reference, unit, required-field, and trace blockers remain blocking.",
+        "source_locator_in_dataset_name": "worldsteel source process names follow the convention '<product> <route> <geography> <data-year>' (e.g. 'Steel rebar Global 2022', 'Steel sections EU 2019', 'Steel ECCS Global 2021 v2'). The trailing '<Geography> <Year>' is reference metadata describing WHICH worldsteel LCI release the model represents, NOT a source citation locator, but it matches the prewrite-content-policy 'latin-author-year' marker ('<Word> <YYYY>'). All 33 source baseNames carry this pattern (preserved verbatim per R4). This waiver scopes ONLY the source_locator_in_dataset_name rule for process names; every other content-policy rule (foundry-workflow language, etc.) and all flow/lifecyclemodel names remain enforced."
       },
       "allow_account_local_support_and_elementary": {
         "enabled": true,
@@ -124,7 +128,8 @@
         "note": "Unlike BAFU/USLCI (which mint reference support at scale because their FEDEFL/ecoSpold support has no public canonical equivalent), worldsteel's reference support and elementary flows ARE canonical and are reused by original UUID. This override exists only as a capped allowance for the <=17 unmatched GaBi/Sphera pseudo-elementary flows. Does NOT relax the unit-scale safety blocker (canonical_support_amount_scaling_required) or schema/curation/full-context proof gates. Account-local rows are written at state_code=0 (My Data) keeping their source units. Set enabled=false to forbid all minting (then the residual flows externalize to common:other traces instead)."
       },
       "full_context_ai_completion": {
-        "required": true,
+        "required": false,
+        "scoped_relaxation": "2026-06-30 user decision: R3's full-context requirement is the reuse-vs-mint IDENTITY DECISION, satisfied off-line by the adversarially-verified elementary-match + capped-mint workflows (decisions-v1/ai-elementary-match-result.json + ai-mint-flows.jsonl, per-flow evidence) plus full-context field authoring of the new product/waste flows, mints, and processes (treatmentStandardsRoutes / flowProperties / functionalUnitFlowProperties). worldsteel new entities are account-local My Data (state_code=0), NOT published canonical, so canonical-grade per-entity identity authoring-package binding (authoring_package_sha256) is not required. Set required=true to re-impose the strict per-mint identity authoring-package proof.",
         "dataset_types": ["flow", "process", "lifecyclemodel"],
         "required_context_kinds": [
           "schema",

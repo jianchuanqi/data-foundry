@@ -452,6 +452,7 @@ export function runDatasetMutationManifest({ repoRoot, options = {} } = {}) {
       allowAccountLocalSupportAndElementary: Boolean(
         profile?.allowAccountLocalSupportAndElementary,
       ),
+      profile,
     });
   });
   const referenceItems = buildReferenceReuseItems({

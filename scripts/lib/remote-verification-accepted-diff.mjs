@@ -444,3 +444,129 @@ export function acceptTraceHashOnlyRemoteVerificationMismatch({
     evidence,
   };
 }
+
+function trustedReferenceMatchKey(table, id, version) {
+  return `${table} ${id} ${version || "00.00.001"}`;
+}
+
+// Accept a post-write remote verification whose ONLY blockers are `missing_dataset` on
+// REFERENCE-role rows that point at a pre-verified trusted external dataset — one that
+// genuinely exists remotely but is invisible to the importing account through RLS. This
+// is the worldsteel case where a process references a flow owned by the USLCI account
+// (linanenv@126.com) at state_code=0: the flow was verified to exist via the USLCI token
+// and is reused-by-reference per governance rule instead of being duplicated. The
+// referencing account cannot resolve it (raw PostgREST + CLI both return not-found), so
+// the RLS-scoped post-write verify falsely reports missing_dataset. Every other blocker
+// (version_outdated, non-trusted missing references, any root-role blocker, payload
+// mismatches) rejects acceptance. `trustedReferenceKeys` is a Set of
+// `${table}\0${id}\0${version}` strings the caller independently proved present.
+export function acceptTrustedExternalReferenceMissingDataset({
+  verifyReportPath,
+  outDir,
+  repoRoot,
+  trustedReferenceKeys,
+}) {
+  if (!fileExists(verifyReportPath)) {
+    return { accepted: false, reason: "verify_report_missing" };
+  }
+  const trusted = trustedReferenceKeys instanceof Set ? trustedReferenceKeys : new Set();
+  if (trusted.size === 0) {
+    return { accepted: false, reason: "no_trusted_reference_keys" };
+  }
+  const verifyReport = readJson(verifyReportPath);
+  const blockers = Array.isArray(verifyReport.blockers) ? verifyReport.blockers : [];
+  if (verifyReport.status === "passed_remote_verification" || blockers.length === 0) {
+    return { accepted: false, reason: "verify_report_has_no_blockers" };
+  }
+  const evidence = [];
+  const acceptedRefKeys = new Set();
+  for (const blocker of blockers) {
+    if (blocker?.code !== "missing_dataset" || blocker?.role !== "reference") {
+      return { accepted: false, reason: "verify_report_has_non_trusted_blockers", blocker };
+    }
+    const key = trustedReferenceMatchKey(blocker.table, blocker.id, blocker.version);
+    if (!trusted.has(key)) {
+      return { accepted: false, reason: "reference_not_in_trusted_set", blocker };
+    }
+    acceptedRefKeys.add(key);
+    evidence.push({
+      table: blocker.table,
+      id: blocker.id,
+      version: blocker.version || "00.00.001",
+      path: blocker.path ?? null,
+      accepted_reason: "trusted_external_state0_reference_verified_present",
+    });
+  }
+
+  const acceptedDir = path.join(outDir, "accepted-post-write-verify-trusted-reference");
+  const outputsDir = path.join(acceptedDir, "outputs");
+  const acceptedChecksPath = path.join(outputsDir, "remote-verification.jsonl");
+  const acceptedBlockersPath = path.join(outputsDir, "blockers.jsonl");
+  const acceptedReportPath = path.join(outputsDir, "remote-verification-report.json");
+  const acceptanceReportPath = path.join(acceptedDir, "foundry-accepted-trusted-reference.json");
+
+  const checksPath = path.resolve(String(verifyReport.files?.checks || ""));
+  const checks = fileExists(checksPath) ? readJsonLines(checksPath) : [];
+  const acceptedChecks = checks.map((check) => {
+    if (check?.status !== "missing_dataset") return check;
+    const key = trustedReferenceMatchKey(check.table, check.id, check.version);
+    if (!acceptedRefKeys.has(key)) return check;
+    return {
+      ...check,
+      status: "ok",
+      foundry_verification_mode: "accepted_trusted_external_reference",
+      foundry_original_status: "missing_dataset",
+    };
+  });
+
+  const acceptedCount = evidence.length;
+  const counts = { ...(verifyReport.counts ?? {}) };
+  counts.blockers = Math.max(0, Number(counts.blockers ?? 0) - acceptedCount);
+  counts.by_status = { ...(counts.by_status ?? {}) };
+  counts.by_status.missing_dataset = Math.max(
+    0,
+    Number(counts.by_status.missing_dataset ?? 0) - acceptedCount,
+  );
+  counts.by_status.ok = Number(counts.by_status.ok ?? 0) + acceptedCount;
+
+  const acceptedReport = {
+    ...verifyReport,
+    generated_at_utc: nowIso(),
+    status: "passed_remote_verification",
+    counts,
+    blockers: [],
+    files: {
+      ...(verifyReport.files ?? {}),
+      report: acceptedReportPath,
+      checks: acceptedChecksPath,
+      blockers: acceptedBlockersPath,
+      foundry_original_report: verifyReportPath,
+      foundry_acceptance_report: acceptanceReportPath,
+    },
+    foundry_accepted_trusted_external_references: {
+      status: "accepted_trusted_external_reference",
+      policy:
+        "A missing_dataset blocker on a reference-role row is accepted when the referenced dataset is a pre-verified trusted external dataset (present remotely but hidden from the importing account by RLS). Used for worldsteel references to USLCI-account (linanenv@126.com) state_code=0 flows reused by governance rule. Root readback and every non-trusted reference must still pass exactly.",
+      accepted_at_utc: nowIso(),
+      accepted_references: evidence,
+    },
+  };
+  const acceptanceReport = {
+    schema_version: 1,
+    generated_at_utc: nowIso(),
+    status: "accepted",
+    original_report: repoRelative(repoRoot, verifyReportPath),
+    accepted_report: repoRelative(repoRoot, acceptedReportPath),
+    accepted_references: evidence,
+  };
+  writeJsonLines(acceptedChecksPath, acceptedChecks);
+  writeJsonLines(acceptedBlockersPath, []);
+  writeJson(acceptedReportPath, acceptedReport);
+  writeJson(acceptanceReportPath, acceptanceReport);
+  return {
+    accepted: true,
+    verifyReportPath: acceptedReportPath,
+    acceptanceReportPath,
+    evidence,
+  };
+}

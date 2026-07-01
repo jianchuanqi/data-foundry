@@ -919,7 +919,13 @@ export function createLibraryScopeWorkflowCommands({
       const flowId = asText(ref?.["@refObjectId"]);
       const flowVersion = asText(ref?.["@version"]) || "00.00.001";
       const rootFlow = rootEntityForRef(maps, "flow", flowId, flowVersion);
-      if (!rootFlow || !/^elementary flow$/iu.test(rootFlow.flow_type)) return;
+      if (!rootFlow) return;
+      // Reuse-by-reference is gated by an explicit reuse_existing_reference decision, NOT
+      // by flow type. BAFU/USLCI only mint product flows (no reuse decision -> not rewritten
+      // here), but a reference import like worldsteel can carry CANONICAL product/waste flows
+      // (e.g. Hydrogen, treated water, scrap) that exist under the same UUID and must be
+      // referenced, not minted as account-local duplicates. The decision check below is the
+      // authoritative gate, so this stays a no-op for any flow without a reuse decision.
       const decision = identityByKey.get(`flow:${flowId}:${flowVersion}`);
       if (asText(decision?.decision) !== "reuse_existing_reference") return;
       const target = canonicalTarget(decision, "flow data set");
