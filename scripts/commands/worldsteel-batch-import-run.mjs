@@ -26,12 +26,21 @@ export function createWorldsteelBatchImportRunCommands(deps) {
     // committed, the support-identity cache + precommit remote verify let every later
     // scope reuse it. BAFU does not need this (FOEN already remote).
     commitFlowSupportInline: true,
-    // Reference-only FP/UG: worldsteel's flow properties + unit groups are EF3.1/ILCD
-    // canonical and are reused by reference (the canonical-support cache + UUID reuse).
-    // Unlike USLCI's FEDEFL FP/UG, none need account-local minting, so this stays OFF.
-    // The capped <=17 pseudo-elementary mint is governed by the profile's
-    // allow_account_local_support_and_elementary flag, NOT by this FP/UG flag.
-    mintUnmatchedFpUgSupport: false,
+    // FP/UG are reused-by-reference wherever an EF3.1 canonical exists (the dominant case:
+    // Mass, Volume, and the standard indicator FPs all resolve by UUID). BUT the older EU
+    // 2019/2020-vintage worldsteel processes carry the EF3.1 LANCA land-use LCIA indicators
+    // (Erosion Resistance, Mechanical/Physicochemical Filtration, Biotic Production,
+    // Groundwater Replenishment/Regeneration — Occupation & Transformation variants): 10
+    // flow properties + 10 unit groups that were never published canonical in TianGong
+    // (verified absent under worldsteel, USLCI, and the main 2f478d92 account). Per the
+    // 2026-07-01 user decision, these genuinely-missing EF3.1 indicator FP/UG are minted as
+    // account-local My Data (state_code=0) so the 4 EU-vintage processes stay complete —
+    // the profile's allow_account_local_support_and_elementary.scope already authorizes
+    // flowproperty_write + unitgroup_write. Only unmatched FP/UG are minted; every FP/UG with
+    // a canonical match is still reused by reference (so the 28 already-verified processes,
+    // whose FP/UG are all canonical, are unaffected). USLCI still mints its FEDEFL FP/UG the
+    // same way; BAFU keeps this OFF (reference-only), so BAFU is unchanged.
+    mintUnmatchedFpUgSupport: true,
     // FIX A: apply the authoritative library-resolution exchange-reference-rewrites
     // deterministically at the flow-identity step. The worldsteel resolution is built
     // by UUID (the canonical DB already holds the EF3.1 flows under their original

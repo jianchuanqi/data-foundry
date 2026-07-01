@@ -253,10 +253,34 @@ export function createPostAuthoringFinalizeCommands({
     // and must NOT be written as account-local My Data @00.00.001 — doing so triggers a
     // remote `version_outdated` blocker (root role) because the database already
     // publishes it at a higher version.
-    const mintUnitGroups = ugRows.filter((row) => {
-      const id = datasetIdentity(row, "unitgroup").id;
-      return id && !index.unitGroupById.has(id);
-    });
+    // Account-local minted support is written as My Data at 00.00.001. The converter emits
+    // each minted FP/UG with its NATIVE EF3.1 own dataSetVersion (e.g. FP 33.00.000, UG
+    // 20.24.002 / 20.20.002) but leaves every reference TO it (FP->UG, flow->FP) at the
+    // @00.00.001 placeholder. Two consequences force the 00.00.001 normalization:
+    //   (a) those native (id, version) slots are already occupied by another account in this
+    //       DB, so committing at the native version fails with HTTP 409 / 23505; 00.00.001 is
+    //       free (verified) — the same My Data convention used for the account-local flows.
+    //   (b) plannedRootReferenceKeys keys the in-scope UG/FP root by its OWN version; the
+    //       references are already @00.00.001, so aligning the roots DOWN to 00.00.001 makes
+    //       the FP->UG (and flow->FP) edges prove in-scope with no remote/proof key needed.
+    // USLCI's minted FEDEFL FP/UG are already @00.00.001, so this is a no-op for it; the whole
+    // function is behind mintUnmatchedFpUgSupport (BAFU off) so BAFU is unchanged.
+    const ACCOUNT_LOCAL_MINT_VERSION = "00.00.001";
+    const setSupportOwnVersion = (row, rootKey) => {
+      const next = cloneJson(row);
+      const admin = next?.[rootKey]?.administrativeInformation;
+      if (admin) {
+        admin.publicationAndOwnership = admin.publicationAndOwnership || {};
+        admin.publicationAndOwnership["common:dataSetVersion"] = ACCOUNT_LOCAL_MINT_VERSION;
+      }
+      return next;
+    };
+    const mintUnitGroups = ugRows
+      .filter((row) => {
+        const id = datasetIdentity(row, "unitgroup").id;
+        return id && !index.unitGroupById.has(id);
+      })
+      .map((row) => setSupportOwnVersion(row, "unitGroupDataSet"));
     const mintFlowProperties = fpRows.filter((row) => {
       const id = datasetIdentity(row, "flowproperty").id;
       return id && !index.flowPropertyById.has(id);
@@ -277,28 +301,33 @@ export function createPostAuthoringFinalizeCommands({
     const canonicalUnitGroupProofKeys = [];
     const seenCanonicalProofKeys = new Set();
     const rewrittenFlowProperties = mintFlowProperties.map((fpRow) => {
-      const {
-        reference: referenceUnitGroup,
-        id: ugId,
-        version: currentVersion,
-      } = flowPropertyReferenceUnitGroup(fpRow);
+      const { id: ugId, version: currentVersion } = flowPropertyReferenceUnitGroup(fpRow);
       const canonicalUnitGroup = ugId ? index.unitGroupById.get(ugId) : null;
-      if (!canonicalUnitGroup) return fpRow;
-      const canonicalVersion = asText(canonicalUnitGroup.version);
-      if (!canonicalVersion) return fpRow;
-      const proofKey = `unitgroups:${ugId}@${canonicalVersion}`;
-      if (!seenCanonicalProofKeys.has(proofKey)) {
-        seenCanonicalProofKeys.add(proofKey);
-        canonicalUnitGroupProofKeys.push({ id: ugId, version: canonicalVersion });
+      let out = fpRow;
+      if (canonicalUnitGroup) {
+        // Case 2: the FP references a CANONICAL (published) Unit Group. Do NOT write that UG;
+        // rewrite the FP reference to the canonical published version and prove it as a
+        // reusable remote reference so closure passes without writing the UG.
+        const canonicalVersion = asText(canonicalUnitGroup.version);
+        if (canonicalVersion) {
+          const proofKey = `unitgroups:${ugId}@${canonicalVersion}`;
+          if (!seenCanonicalProofKeys.has(proofKey)) {
+            seenCanonicalProofKeys.add(proofKey);
+            canonicalUnitGroupProofKeys.push({ id: ugId, version: canonicalVersion });
+          }
+          if (currentVersion !== canonicalVersion) {
+            out = cloneJson(fpRow);
+            out.flowPropertyDataSet.flowPropertiesInformation.quantitativeReference.referenceToReferenceUnitGroup[
+              "@version"
+            ] = canonicalVersion;
+          }
+        }
       }
-      if (currentVersion === canonicalVersion) return fpRow;
-      // Bump the minted FP's reference to the canonical published version so the remote
-      // verify resolves it against the existing public UG instead of a stale @00.00.001.
-      const next = cloneJson(fpRow);
-      next.flowPropertyDataSet.flowPropertiesInformation.quantitativeReference.referenceToReferenceUnitGroup[
-        "@version"
-      ] = canonicalVersion;
-      return next;
+      // Case 1 (account-local reference UG): leave the FP->UG reference at its @00.00.001
+      // placeholder — it now matches the account-local UG minted at 00.00.001 above. In BOTH
+      // cases the minted FP itself is account-local My Data, so normalise its OWN version to
+      // 00.00.001 (its native version, e.g. 33.00.000, is likewise occupied -> 23505).
+      return setSupportOwnVersion(out, "flowPropertyDataSet");
     });
     return {
       rows: [...mintUnitGroups, ...rewrittenFlowProperties],
