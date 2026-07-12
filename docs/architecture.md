@@ -23,8 +23,8 @@ checkPaths:
   - docs/workspace-project-map.md
   - specs/capability-ownership-rules.json
   - specs/automated-lca-capability-registry.json
-lastReviewedAt: 2026-06-29
-lastReviewedCommit: d2a2207
+lastReviewedAt: 2026-07-12
+lastReviewedCommit: b6f97d5df48ab5e744e9c491ebf7e0c30cb7fc62
 ---
 
 # Architecture
