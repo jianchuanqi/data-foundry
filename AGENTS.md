@@ -25,8 +25,8 @@ checkPaths:
   - scripts/foundry.mjs
   - scripts/lib/foundry-command-metadata.mjs
   - specs/**
-lastReviewedAt: 2026-06-29
-lastReviewedCommit: d2a2207
+lastReviewedAt: 2026-07-12
+lastReviewedCommit: f7c2758cfc5b585bde43f112237e6047527c1a39
 ---
 
 # AGENTS.md - TianGong LCA Data Foundry
@@ -72,7 +72,7 @@ npx --yes @tiangong-lca/cli@latest dataset context-pack \
 10. Run `node scripts/foundry.mjs dataset-curation-gate` with the rows, schema report, QA report, profile, full contract context files, and any generated classification/location authoring queues.
 11. Use `$foundry-tidas-import` as the Foundry-local orchestration entrypoint for external package or source-document imports. Use `$foundry-tidas-authoring` only after curation-gate authoring tasks, classification decision tasks, or location decision tasks exist and only to produce structured evidence-backed decisions or patches for curation blockers. Apply classification decisions with `dataset-classification-decisions-apply`, apply location decisions with `dataset-location-decisions-apply`, collect field patches with `dataset-authoring-patch-collect`, then after deterministic apply rerun SDK validation, deterministic QA, and the Foundry curation gate on the final rows before mutation manifest.
 12. Run `node scripts/foundry.mjs dataset-curation-cleanup` after source trace has been captured in authoring packages and before remote write planning.
-13. Remote commit is policy-gated rather than manually supervised by default. A task may allow automated batch commit for scopes whose finalize report, mutation manifest, commit handoff, and post-write verification all pass; human input is required for policy changes, exceptional waivers, or blockers such as missing canonical unit groups, flow properties, elementary flows, or unresolved reference closure.
+13. Remote commit is policy-gated rather than manually supervised by default. A task may allow automated batch commit for scopes whose finalize report, mutation manifest, commit handoff, and post-write verification all pass; human input is required for policy changes, exceptional waivers, or unresolved reference closure. Missing public canonical unit groups, flow properties, or elementary flows remain blockers unless the frozen import profile explicitly authorizes an account-local `state_code=0` candidate path with owner, unit-scale, closure, audit, and readback gates.
 14. Do not treat historical `.foundry` artifacts as proof for a current task.
 
 `annualSupplyOrProductionVolume` is schema-required. If source data does not provide a real annual volume, Foundry must use the deterministic `9999 missing-data-sentinel/year` placeholder, not `common:other` deferral. The sentinel is deliberately non-physical and searchable; database-side curation owns replacing it later.

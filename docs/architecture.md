@@ -23,8 +23,8 @@ checkPaths:
   - docs/workspace-project-map.md
   - specs/capability-ownership-rules.json
   - specs/automated-lca-capability-registry.json
-lastReviewedAt: 2026-06-29
-lastReviewedCommit: d2a2207
+lastReviewedAt: 2026-07-12
+lastReviewedCommit: f7c2758cfc5b585bde43f112237e6047527c1a39
 ---
 
 # Architecture
@@ -106,6 +106,7 @@ The v0 runtime is intentionally small:
 - read-only workspace map diagnostic
 - no persistent database
 - no direct database commit from Foundry code; remote commit is allowed only through official CLI/platform commands when profile gates, write policy, commit handoff, and post-write verification are satisfied
+- profile-authorized owner-draft support maintenance remains a CLI/database responsibility: Foundry freezes the candidate registry and complete-plan evidence, while the CLI submits one database-atomic plan and records its audit/readback proof; Foundry must not split that plan into independently committed dimension batches
 - generated source/contact support rows may get Foundry-prepared finalize and commit-handoff artifacts, but dependent process/flow/lifecyclemodel scopes must wait for the CLI commit and readback verification of those support rows
 - published CLI invocation is the default command path: `npx --yes @tiangong-lca/cli@latest ...`
 - test execution is local and layered: `npm test` runs all behavior layers, while `npm run test:unit`, `npm run test:commands`, and `npm run test:scenarios` target specific Foundry-owned surfaces

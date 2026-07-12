@@ -514,12 +514,21 @@ export function createCanonicalSupportRewriteUtils({
       remote_write_mode: "read-only",
       rows_file: repoRelativePath(rowsFile),
       output_rows_file: repoRelativePath(resolvedOutFile),
-      policy: {
-        reference_only_support:
-          "Flow Properties and Unit Groups are reference-only support data for Foundry imports. Finalize must rewrite converted package-local flow property references to existing canonical database rows, or block before dry-run/remote write planning.",
-        no_account_local_support_rows:
-          "Foundry must not create account-local My Data rows for flowproperties or unitgroups.",
-      },
+      policy: allowAccountLocalSupportAndElementary
+        ? {
+            public_canonical_first:
+              "Flow Properties and Unit Groups must reuse defensible public canonical rows when available.",
+            account_local_support_rows:
+              "When the frozen profile authorizes the exception and no defensible public canonical row exists, same-owner state_code=0 FP/UG candidates may remain in a separate account-local registry and proceed only through the guarded owner-draft CLI/database plan, audit, and readback path.",
+            rewrite_command_boundary:
+              "This rewrite command does not mint or publish support rows and must not place account-local candidates in the public canonical cache or generic support writer.",
+          }
+        : {
+            reference_only_support:
+              "Flow Properties and Unit Groups are reference-only support data for Foundry imports. Finalize must rewrite converted package-local flow property references to existing canonical database rows, or block before dry-run/remote write planning.",
+            no_account_local_support_rows:
+              "Foundry must not create account-local My Data rows for flowproperties or unitgroups.",
+          },
       counts: {
         input_rows: rows.length,
         output_rows: writeOutputRows.length,

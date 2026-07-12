@@ -1,6 +1,8 @@
-# BAFU 2025 V2 收尾 Goal（agent 长期工作入口文档 · v2）
+# BAFU 2025 V2 收尾 Goal（历史归档 · v2）
 
-> 目标读者：接手 BAFU 收尾的任何 agent 会话。读完应能独立判断「现在该做哪条线、下一步具体命令、何时算完成」，无需重新逆向工程。本文是 **goal 模式**文档：state → 根因发现 → workstreams → execution rules → completion checks → references。每次推进后更新「§1 当前状态」。
+> **已被取代（2026-07-12）**：本文只保留 2026-06 收尾批次的历史状态、数据量和 artifact 路径，不再是 agent 执行入口。当前可执行规则以 `profile.md`、`constraints.md` 和 `specs/import-profiles.json` 为准；其中已明确 public-canonical-first，但允许 profile-authorized、同一 BAFU owner、`state_code=0` 的 account-local FP/UG 和 elementary candidate。本文 §3-C、§5.5、§8 等“必须先建 public canonical / 不得私有 support”的旧规则不得继续执行。
+>
+> 目标读者：需要追溯旧 BAFU 收尾批次的审计者。本文保留当时的 **goal 模式**记录：state → 根因发现 → workstreams → execution rules → completion checks → references；后续策略变化不再回写旧批次数字。
 >
 > 上游全量导入已闭环（coverage v7：**5,575 verified + 6,172 non-importable = 11,747, gap 0**）。本 goal 把 6,172 non-importable 逐步解锁、并修正两个已确认的既存数据缺陷，直到全部 11,747 是 _verified_ 或 _有据维持 non-importable_。
 >

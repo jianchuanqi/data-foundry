@@ -13,11 +13,22 @@ import { assert } from "../fixtures/foundry-core.mjs";
 // allow_account_local_support_and_elementary.enabled, and false otherwise.
 test("normalizeProfile surfaces the account-local override flag per profile", () => {
   const bafu = normalizeProfile(
-    { id: "bafu", allow_account_local_support_and_elementary: { enabled: true } },
+    {
+      id: "bafu",
+      allow_account_local_support_and_elementary: {
+        enabled: true,
+        report_policy:
+          "Reports must not emit an unconditional reference-only or no-My-Data policy.",
+      },
+    },
     "bafu",
   );
   assert.equal(bafu.allowAccountLocalSupportAndElementary, true);
   assert.ok(bafu.accountLocalSupportOverride, "raw override object preserved for audit");
+  assert.match(
+    bafu.accountLocalSupportOverride.report_policy,
+    /must not emit an unconditional reference-only or no-My-Data policy/u,
+  );
 
   const generic = normalizeProfile({ id: "generic" }, "generic");
   assert.equal(generic.allowAccountLocalSupportAndElementary, false);
@@ -37,6 +48,10 @@ test("worldsteel profile registers the capped override and full-context proof", 
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const { profiles } = JSON.parse(
     readFileSync(path.join(repoRoot, "specs/import-profiles.json"), "utf8"),
+  );
+  assert.match(
+    profiles.bafu.allow_account_local_support_and_elementary.report_policy,
+    /must not emit an unconditional reference-only or no-My-Data policy/u,
   );
   assert.ok(profiles.worldsteel, "worldsteel profile is registered");
   const ws = normalizeProfile(profiles.worldsteel, "worldsteel");

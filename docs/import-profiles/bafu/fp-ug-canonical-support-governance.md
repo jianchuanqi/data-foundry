@@ -2,7 +2,7 @@
 
 入口：本文档承接 5 组 non-importable FlowProperty/UnitGroup blocker 的去重治理方案，并记录核查中确认的一个**既存单位尺度问题**。两件事相关但独立。
 
-> agent 长期收尾入口在 **[`bafu-endgame-goal.md`](./bafu-endgame-goal.md)**（goal 模式，含本文档 + 转换器隔间污染 + 747 缺失流 + 重跑闭环的全景）。本文档是其中 FP/UG（workstream C）与单位尺度（workstream D）的详档。
+> 当前可执行入口是 [`profile.md`](./profile.md)、[`constraints.md`](./constraints.md) 与 `specs/import-profiles.json`。[`bafu-endgame-goal.md`](./bafu-endgame-goal.md) 仅保留旧收尾批次的历史全景，不得继续作为 agent 执行入口；本文档保留其中 FP/UG 与单位尺度的审计事实，并以当前 private-incubation 规则为准。
 
 代码侧已落地（本仓库）：
 
@@ -29,15 +29,15 @@
 - `my`/`kmy` 全是线性交通基础设施（`Tram track` / `Railway track on bridge`），同属 length×time。
 - `personkm` 全是客运周转，**不是** mass×distance（`kg*km`），零 freight 污染。
 - 三个目标量纲在 canonical 缓存中确实缺失（有 Area*time/Volume*time/Mass*time/mass*distance，无 Length*time/Time/Person*distance）。
-- 不复用 state_code=0 的 `Unit of working time (LCWE)`：public canonical（state_code=100）视图中根本不可见。
+- 不把 state_code=0 的 `Unit of working time (LCWE)` 当作 public canonical；如在 BAFU 账号内评估复用，仍须证明其量纲、单位和 owner-draft 闭包，且不能进入公共缓存。
 
 参考单位选择使换算最小化：Length*time 选 `m*a`（仅 13 个 kmy 需换算 < 19 个 my）、Time 选 `a`（仅 19 个 hr 需换算 < 87 个 a）、Person\*distance 单一单位零换算。全局仅 32 个 flow（kmy 13 + hr 19）需要数值换算。
 
 ---
 
-## 2. 上游 DB 治理待办（Foundry 不能做）
+## 2. Account-local 孵化与最终 canonical 决策
 
-必须由 canonical 数据库治理（**非 BAFU import 账号**）创建并以 state_code=100 发布：
+BAFU profile 已授权缺少 public canonical 时先使用本账号 `state_code=0` 的 FP/UG 候选。下列三对 support 在私有清洗阶段保持 account-local，Foundry 只维护证据、候选 registry 和执行门禁；是否进入 public canonical 必须由后续独立专家审批决定：
 
 **Length\*time**：FP `Length*time | 长度*时间`（classification: Technical flow properties）→ UG `Units of length*time | 长度*时间`（Technical unit groups），单位表至少 `m*a`(ref, 1.0)、`km*a`(1000)；建议 alias `my`=`m*a`、`kmy`=`km*a`。
 
@@ -45,14 +45,16 @@
 
 **Person\*distance**：FP `person*distance | 人*距离`（对齐既有 `mass*distance` 小写风格）→ UG `Unit of personkm`，参考单位 `personkm`(1.0)。
 
-### 激活步骤（DB 行就绪后）
+### 私有激活步骤
 
-1. 上游建好 3 对 FP/UG 并 publish（state_code=100）。
-2. `node scripts/foundry.mjs dataset-support-cache-refresh --out specs/canonical-support/flow-properties-unit-groups.json`（refresh 只拉 state_code=100；现有缓存非空 → 保留现有 `flow_property_mappings`）。
-3. 把 3 条 pending mapping 的 `canonical_flow_property_id`（当前 `null`）改成真实 FP UUID，去掉 `pending_canonical_support`，缓存 JSON 与 `.mjs` **双写**保持一致（rewrite 读缓存；refresh-on-empty 回退 .mjs）。校验新 canonical FP 的 `reference_unit_group.id` 也在缓存 `unit_groups` 中（否则触发 `canonical_flow_property_unit_group_unproven`）。
-4. 重跑受影响 BAFU flow 的 canonical-support rewrite + resolution；其中 kmy/hr（scale≠1）会被新逻辑标记 `amount_scaling_required`，须按 §3 的换算路径处理数值后再写。
+1. 在 account-local candidate registry 中冻结三对 FP/UG 的精确 ID/version、owner、`state_code=0`、payload/`modified_at` hash、reference unit 和单位表；不得写入 public canonical cache。
+2. 人工确认 Time 的 year 采用 365 还是 365.25 天；未确认前包含 `hr` 的完整 alias plan 保持阻塞。
+3. 通过 DB #233 / CLI #155 的 owner-draft 模式生成一个完整计划，其中包含 `hr -> Time` 与 `kmy -> Length*time` 两个逻辑 batch；数据库必须在同一事务中一次执行全部 52 个变更行和 59 条 exchange（118 个 amount 字段），任一 batch 的 owner/state、快照、引用闭包、换算因子、审计或回读证据漂移都回滚整个计划。source/target support、flow、process 全部必须是当前 owner 的 `state_code=0`，309 条无关 exchange 必须保持不变。
+4. 完成 comment/source/elementary mapping/LCIA coverage 等私有清洗和试算。`Person*distance` 与两条 Noise elementary flow 分开评审。
+5. 专家可分别批准三对 support；允许最终公开 0/2/4/6 条。批准记录绑定精确 ID/version、payload hash、plan SHA、reviewer role 和 LCIA cache version。
+6. 只有批准后才使用受控 promotion 工具改变状态；随后刷新 public canonical cache。若仍保持 private，则继续只在 account-local registry 中使用。
 
-> 在 DB 行存在前，5 个单位保持安全阻断（`canonical_support_pending_upstream` blocker，附参考单位与因子），不会污染数据。
+> FP/UG 是否值得公开取决于量纲、单位、命名、来源和复用价值；LCIA 是否命中取决于 elementary flow UUID + direction。两者是独立门禁，不能互相替代。
 
 ---
 

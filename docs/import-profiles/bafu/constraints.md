@@ -69,7 +69,7 @@ related:
 - 不得因为 TIDAS/ILCD schema 中存在 `complianceDeclarations`，就新建 BAFU 私有的 compliance system source。合规声明引用的是目标数据集按哪个合规体系被声明和评审，不是源 EcoSpold1 包自然具备的元数据。
 - 若 TianGong public canonical 的 `ILCD Data Network - Entry-level` compliance source 不存在或不可引用，应阻塞写入并先补公共支撑对象，不得在 BAFU 账号下临时新建占位 compliance system。
 - `referenceToDataSetFormat` 同样应优先引用 TianGong 公共库已有的 canonical data format source，例如平台标准的 TIDAS/ILCD format 记录；不得把转换包生成的临时 source 当作 BAFU-owned source 写入。
-- 本文件中的 `support` 是 workflow umbrella，不是一个单独 TIDAS dataset type。当前 BAFU 可写 support scope 只允许真实 `source` 和 canonical BAFU/FOEN `contact`；flow property、unit group、compliance system、data set format 属于 reference-only canonical reuse 或 provenance rewrite，除非另有公共库治理任务先把对应 canonical row 放入数据库。
+- 本文件中的 `support` 是 workflow umbrella，不是一个单独 TIDAS dataset type。普通 support writer 的 BAFU 可写 scope 只允许真实 `source` 和 canonical BAFU/FOEN `contact`；compliance system 与 data set format 始终属于 public canonical reference reuse / provenance rewrite。flow property 与 unit group 默认同样复用 public canonical，但在 profile lock 明确启用 `allow_account_local_support_and_elementary` 且公共库确无可辩护候选时，可以进入独立的 account-local candidate registry，并且只能通过 current-user owner-draft 专用路径维护，不能混入普通 support scope。
 - `source` 表只能写入真实文献、报告、出版物、数据库文档或可追溯来源记录。`ILCD format`、`Not specified`、compliance system、data format、`Created for EcoSpold 1 compatibility` 等转换/格式/兼容性占位不得作为真实 source 名称写库；这些只能作为 canonical reference rewrite/provenance trace 保留。若 source description 中包含 `Original title`、`First author`、`Year` 等报告元数据，应先修复 source shortName/sourceCitation，并同步修复 process `referenceToDataSource.common:shortDescription`。
 - 若 process `referenceToDataSource` 指向上述占位 support source，Foundry 必须先用完整 bundle context 查找同一 process scope 内可证明的真实报告、论文、数据库文档或数据来源；只有存在唯一且语义明确的 true source 时才自动改写到该 source。若没有任何来源线索，才允许改写到统一的 `BAFU 2025 Version 2 LCA database` database-level fallback source，并在 `source-reference-rewrites.jsonl` / `source-semantics.jsonl` 中记录 fallback 理由。不得因为原始转换 source 是占位就盲目写库，也不得在多个可能 true source 间无证据任选。
 - 若 process 的 `common:generalComment`、technology、data-source treatment 等上下文明确写出 `Original source`、DOI、标题、年份和作者，且该来源比转换出的 package-level true source 更具体，Foundry 必须生成或复用该 process-context source，并将 process `referenceToDataSource` 改写到该来源；原转换 source 若在当前 scope 内不再被 process 引用，不得进入 support 写入。
@@ -104,11 +104,12 @@ related:
   - `mapping.csv` 或配套分类证据必须记录 `source_classification`、`selected_tidas_classification`、`classification_basis`、`candidate_categories`、`decision_status`。若未生成这些证据，不得正式写入。
   - Flow schema 校验只证明 `classificationInformation` 字段结构可被解析，不代表分类语义正确，也不代表目标分类属于 TianGong/TIDAS 分类树中的合适位置。发布前必须额外通过 flow classification decision gate：没有分类决策证据、源分类未被保留为溯源、或把源分类无依据地复制成目标分类，均应阻塞写入。
 - Elementary flow：
-  - 必须使用 TianGong 数据库已有的 elementary flow，匹配顺序为：UUID/version 精确检索、CAS/name/category/synonym 确定性匹配、结构化语义检索、已评审的人工/规则化候选。
-  - 原因是 LCIA 因子依赖既有 elementary flow 身份；BAFU 导入不得在 BAFU 账号下新建 elementary flow，也不得以 `LCIA characterization pending` 为理由创建 BAFU-owned elementary exception。
+  - 默认必须使用 TianGong 数据库已有的 elementary flow，匹配顺序为：UUID/version 精确检索、CAS/name/category/synonym 确定性匹配、结构化语义检索、已评审的人工/规则化候选。
+  - LCIA 因子依赖既有 elementary flow 身份，因此“公共库没有候选”本身不能授权新建。只有 profile lock 明确启用 `allow_account_local_support_and_elementary`、完整候选检索证明不存在可辩护 public/existing canonical、且保留源 elementary identity、分类/compartment、CAS/name、方向、单位和 provenance 时，才允许把缺口保留为当前 BAFU owner 的 `state_code=0` account-local elementary candidate。
+  - account-local elementary candidate 只服务于同一 owner 的私有清洗、建模和试算；不得进入全局 LCIA flow cache，不得被 public 或其他 owner 的 process 引用，也不能因为标记了 `LCIA characterization pending` 就视为已完成专家评审或具备公开资格。
   - 有可采用候选的 source elementary flow，必须使用选定的 TianGong existing/public flow，并在 mapping/provenance 中保留候选等级、源 UUID/version、候选 UUID/version、选择理由和风险说明。
-  - 没有可辩护 existing/public 候选的 source elementary flow，不改成 product flow，不强行映射到不等价 public flow，也不写入 BAFU-owned elementary flow；必须保留在 elementary flow mapping/curation queue 中，并阻塞引用它的 process 写入。
-- 若历史已错误写入自建 elementary flow，应把 process exchange 引用改为公开 canonical flow；孤儿自建 elementary flow 只能列入待人工删除/退役清单，由人另行确认并执行。自动导入流程不得直接 delete，也不能把删除候选当作已清理。
+  - 没有可辩护 existing/public 候选且 profile override 未生效或证据不完整时，不改成 product flow、不强行映射到不等价 public flow，也不写入 BAFU-owned elementary flow；必须保留在 elementary flow mapping/curation queue 中，并阻塞引用它的 process 写入。override 与证据都有效时，可继续同 owner、全闭包 `state_code=0` 的私有流程，但公开发布仍被阻塞。
+- 历史 BAFU-owned elementary flow 必须逐条重新做 public reuse audit：有可辩护 canonical 候选时改写 process exchange；无候选但满足 profile-authorized account-local 条件时登记为私有候选；未登记、无引用或不满足条件的记录进入待人工删除/退役清单。自动导入流程不得直接 delete，也不能把删除候选当作已清理。
 - Generic `Carbon dioxide` / `Carbon monoxide` air-emission elementary flow 必须显式记录 fossil / biogenic / land-use-change 判定：
   - 当源 flow 名称正好是 generic `Carbon dioxide` 或 `Carbon monoxide`，且 trace category 是 air-emission compartment，而 TianGong public elementary library 没有同名不分型 air-emission flow 时，映射到同 air compartment 的 public `fossil` variant，作为保守的 impact-bearing 默认值。
   - `Carbon dioxide, land transformation` 等明确源名映射到 land-use-change variant；`Carbon dioxide, in air` 作为 resource 时映射到 public resource uptake candidate。
@@ -157,9 +158,9 @@ related:
 ## 单位、属性与参考单位约束
 
 - EcoSpold1 的单位不能直接等同于 TIDAS reference unit。必须映射到 TIDAS flow property、unit group、reference unit 的规范结构。
-- Flow property、unit group、reference unit 必须优先使用 TianGong 数据库已有的规范记录；不能因为保留或新建了 BAFU flow，就同步新建一套 BAFU 私有 flow property / unit group。
-- 如果 TianGong 数据库中没有合适的规范 flow property 或 unit group，本次 BAFU 导入必须阻塞并形成公共 canonical support / mapping 待办；不得为 BAFU 账号或 My Data 新建私有 flow property / unit group 来绕过。
-- 这是设计门禁，不是异常摩擦：unitgroup / flowproperty 与 elementary flow 一样不能由 BAFU 导入流程自行新建私有记录。Foundry/AI 只能识别缺口、产出 mapping 待办和受影响 scope；公共库或人工治理补齐数据库 canonical support 后，导入流程从 checkpoint/queue resume 并重新匹配。
+- Flow property、unit group、reference unit 必须优先复用 TianGong 数据库已有的 public canonical 记录。只有 profile lock 明确启用 `allow_account_local_support_and_elementary`，且公共库确无可辩护候选时，才允许把缺口物化为 BAFU 当前账号拥有的 `state_code=0` My Data 候选；这类候选不是 public canonical，也不能供其他账号隐式复用。
+- BAFU account-local FP/UG 必须保留源量纲、源单位、reference unit、换算口径和完整 mapping/provenance，使账号内 flow/process 闭包在清洗期间自洽。它们进入独立的 account-local candidate registry，不得写入或冒充 `specs/canonical-support/flow-properties-unit-groups.json` 的 public canonical cache。
+- account-local 例外只解除“必须等公共 support 才能继续”的治理墙，不解除 schema、单位尺度、内容饱和、引用闭包、owner/state、计划 hash、审计和 readback 门禁。任何 source/target/flow/process 跨 owner、非 `state_code=0` 或混合可见性批次都必须阻塞。
 - 已确认的单位/属性处理口径：
   - `p` 应映射为 `Number of items` / `Units of items`，参考单位使用 `Item(s)`；不能把 `p` 当作 TIDAS reference unit。
   - `kg` 映射到 Mass / Units of mass。
@@ -168,11 +169,11 @@ related:
   - `kWh` 映射为 Energy，换算到 `MJ` 时系数为 `3.6`。
   - `MJ` 映射为 Energy / MJ。
   - `Nm3` / `Amount in Nm3` 映射到 TianGong public `Volume` / volume unit group；`Nm3` 作为源单位证据保留在 mapping/provenance 中。不得为 `Nm3` 新建 BAFU 私有 flow property。若 public Volume unit group 暂缺 `Nm3` alias，应记录为公共库 unit alias 后续事项，而不是阻塞 BAFU 私有 property。
-- Flow property / unit group 只能引用现有数据库记录，不能为 BAFU 账号新增 My Data 记录。Foundry 必须使用 `specs/canonical-support/flow-properties-unit-groups.json` 中缓存的 TianGong public canonical support，或先刷新该缓存后再做引用重写；被选中的 flow property 必须在同一缓存中证明其 reference unit group 也来自现有数据库记录。
+- Flow property / unit group 引用必须解析到数据库中精确存在且当前账号可见的记录：优先使用 public canonical cache；无 public 候选且 profile override 生效时，可使用同一 BAFU owner 的 `state_code=0` account-local FP/UG 对。两者不得在同一 alias batch 中混合，且 private FP 的 reference unit group 必须是同一 owner/state 的精确版本。
 - 若源单位可以可靠映射到现有 public canonical support，必须重写 `referenceToFlowPropertyDataSet` / `referenceToReferenceUnitGroup` 到该公开记录，并把源单位、源属性名和映射理由保存在 mapping/provenance 中。
-- 若源单位或量纲没有可辩护的 public canonical support，例如 person transport、duration、length\*time 等当前公共库缺口，导入必须阻塞并形成公共库 support/mapping 待办；不得通过 BAFU 私有 flow property / unit group 绕过。
+- 若源单位或量纲没有可辩护的 public canonical support，例如 person transport、duration、length\*time，可先使用经 profile lock 授权的 BAFU account-local FP/UG 继续私有清洗和试算，同时保留公共库候选评审待办。能否最终公开由量纲、单位、命名、来源、复用价值和专家审批决定，不能用 LCIA 方法是否覆盖直接代替该判断。
 - Energy 类 `kWh` / `MJ` 当前可按现有 public `Net calorific value` legacy support 处理并记录 legacy note；后续若公共库新增 generic `Energy` support，再通过迁移映射重写引用。不得创建 BAFU 私有 Energy support。
-- `unitgroups.jsonl` 和 `flowproperties.jsonl` 只能作为转换审计/源包证据输出，不得进入 `support.jsonl`，不得生成 `dataset save-draft` / `publish-support` commit handoff。
+- `unitgroups.jsonl` 和 `flowproperties.jsonl` 仍与 source/contact `support.jsonl` 分离。profile override 生效时，它们可进入专用 account-local candidate/handoff，但只能通过 current-user、owner-draft、计划绑定的官方 CLI/数据库路径维护；不得由 generic support writer、Foundry 直写或 `publish-support` 作为私有清洗前置。
 
 ## Process 字段补齐约束
 
@@ -219,8 +220,8 @@ related:
 - BAFU 导入行应保持源语言内容。不得在数据库导入前生成额外多语言文本，也不得把缺少中文作为导入 blocker。
 - 不使用机器翻译 API，也不通过给某个 LLM key 的方式批量机翻。
 - 对 dataset `name` 这类结构化字段，必须把同一 `name` 组内的 `baseName`、`treatmentStandardsRoutes`、`mixAndLocationTypes`、`functionalUnitFlowProperties` 一起作为上下文进入 source-language name-plan 判断；输出仍按对应 `field_path` 写回单个字段。
-- 可写支撑数据集也必须使用同一套 source-language name-plan evidence 流程，不能回退到脚本词表翻译或正则拼接。当前 BAFU 导入中远端可写 support rows 只包括 `source` 和 `contact`；`unitgroup` / `flowproperty` 使用公开库 canonical cache 选择现有记录，不进入 name-plan 写入流程。
-- 远端写入 source/contact support rows 必须使用 `tiangong-lca dataset save-draft --type auto --commit` 或 profile 指定的官方 support commit handoff，且该命令的 schema validation、curation lineage gate 和平台 dataset command 写入报告都必须保留到 stage 8 checkpoint；不得再用 Foundry-local support publish 脚本或直接表写。远端写入不得包含 unitgroup/flowproperty rows。
+- 可写支撑数据集也必须使用同一套 source-language name-plan evidence 流程，不能回退到脚本词表翻译或正则拼接。`source` / `contact` 继续走普通 support curation；profile-authorized account-local `unitgroup` / `flowproperty` 走独立候选 registry、单位证据和 owner-draft 维护合同，不能冒充 public canonical cache。
+- 远端写入 source/contact support rows 必须使用 `tiangong-lca dataset save-draft --type auto --commit` 或 profile 指定的官方 support commit handoff。account-local unitgroup/flowproperty 只能使用专用 current-user owner-draft 命令；两类路径都必须保留 schema validation、curation lineage、计划 hash、数据库审计和 readback 到 stage 8 checkpoint。不得使用 Foundry-local writer 或直接表写。
 - 保留 LCA、TIDAS、ILCD、EcoSpold、化学式、CAS、标准号、UUID、单位、地理代码和技术边界等专业语义。若无法凭来源证据确定 source-language 字段内容，应形成 `manual_review` blocker，而不是生成猜测文本。
 - 若源数据没有单独声明地理或供应场景字段，只能在 generalComment、mapping 或其他 provenance 字段说明，不得写入 `name.mixAndLocationTypes` 或任何 `name.*` 字段。`name.mixAndLocationTypes` 必须是可得性/地点/组合类型的名称片段，例如 `at plant {RER}`、`at grid {ENTSO-E}`、`at user {CH}`、`production mix, Switzerland {CH}`；无法从证据拆出时应形成 review blocker。
 - process 正文中的通用字段缺失、补齐或代表性说明应使用“源数据”而不是反复写 “EcoSpold1”，例如 `源数据未声明...`、`基于源数据定量参考流...`、`源数据的 startDate/endDate...`。但用于溯源的具体证据必须保留原始格式名，例如 exchange generalComment 中的 `Source EcoSpold1 exchange number`、源包未声明 ILCD compliance system 的 dataEntryBy provenance、以及明确说明由 EcoSpold1 转换的 intended application。
@@ -236,7 +237,7 @@ related:
   - Codex 只基于 `name_plan_prompt` 和来源证据生成 `name-plan-draft.jsonl`；
   - `validate` 必须阻断分号、`xx/xxx`、trace-only、provenance 说明句和字段缺失说明句；
   - `apply` 必须生成 name-planned rows 和 `outputs/name-plan-evidence.json`；
-    - 对可写 support rows，`source_full_name` 不拆成 flow/process 四段；draft 只能填写该 unit 的 `target_name_fields`。当前 BAFU 导入的可写 support 字段口径如下：source 用 `sourceInformation.dataSetInformation.common:shortName`；contact 用 `contactInformation.dataSetInformation.common:name` 和 `common:shortName`。unit group / flow property 只引用现有 canonical rows，不做 BAFU 私有 name-plan 写入。
+    - 对可写 support rows，`source_full_name` 不拆成 flow/process 四段；draft 只能填写该 unit 的 `target_name_fields`。当前 BAFU 导入的可写 support 字段口径如下：source 用 `sourceInformation.dataSetInformation.common:shortName`；contact 用 `contactInformation.dataSetInformation.common:name` 和 `common:shortName`。unit group / flow property 默认只引用现有 public canonical rows；profile override 生效且公共库确无可辩护候选时，BAFU 私有 FP/UG 候选的名称只能在独立 account-local candidate registry 中依据单位/量纲/provenance 证据编写，并经专用 owner-draft 计划、审计与 readback 路径维护，不得进入 generic support name-plan/write 路径或 public canonical cache。
   - `baseName`：只保留核心产品/废物流/服务/过程名称和必要的基本加工层级；去除前缀 `xx` / `xxx`，并尽量不要混入地点可得性、市场/生产组合、地理代码、路线说明或功能单位属性。
   - `treatmentStandardsRoutes`：放处理方式、标准、质量等级、用途、生产路线、原料/educt、primary / secondary 等技术限定；例如废弃物去向或处理路线若是过程/流的技术路线，应放在此字段。
   - `mixAndLocationTypes`：放 production mix / consumption mix / market mix、location type of availability、origin / destination、`at plant` / `at user` / `at grid` / `to consumer` / `at regional storage` 等可得性和地点类型信息；`工厂端 {KR}` / `at plant {KR}` 这类内容应优先拆入此字段，同时地理代码仍应写入 geography/location 或等价结构。
@@ -250,7 +251,7 @@ related:
   - 必填字段是否结构和语义都完整；
   - 是否仍有 placeholder、trace-only 文本、本地路径；
   - flow 引用是否真实存在；
-  - elementary flow 是否优先复用公开数据库 flow；若属于 15 条 BAFU-owned elementary exception，是否已保留原始 elementary identity、写明 public 候选不可辩护理由和 LCIA characterization 待处理状态；
+  - elementary flow 是否优先复用公开数据库 flow；若属于 profile-authorized BAFU account-local candidate，是否已保留原始 elementary identity、完整候选检索、public 候选不可辩护理由、owner/state 闭包和 LCIA characterization 待处理状态；
   - product/intermediate flow 是否完成已有库检索和复用/新建理由；
   - flow 正式分类是否来自 TianGong/TIDAS 分类目录和语义决策证据，而不是仅复制源 EcoSpold1/转换包分类；
   - 源 flow 分类是否已保留在 generalComment、trace/provenance 或 mapping 中，且未被当作唯一目标分类依据；
@@ -259,7 +260,7 @@ related:
 - BAFU 账号级物料平衡处理口径：
   - CLI process QA 只产出 deterministic QA metrics/findings；Foundry 的 process curation gate 才负责 profile policy、AI authoring package、import-only trace cleanup、waiver 和最终 prewrite 状态。
   - AI authoring 只能输出结构化 identity decision、classification decision、location decision、patch 或 build-plan。identity blocker 必须先通过 `node scripts/foundry.mjs dataset-identity-decision-task-build --curation-gate-report <dataset-curation-gate-report.json> --out-dir <task-dir>` 转成明确的 AI decision task；分类 blocker 必须先通过 `node scripts/foundry.mjs dataset-classification-decision-task-build --classification-queue <classification-authoring-queue.jsonl> --schema-file <schema.json> --yaml-file <methodology.yaml> --ruleset-file <runtime-ruleset.json> --classification-schema <tidas_*_category.json> --location-schema <tidas_locations_category.json> --out-dir <task-dir>` 转成明确的 AI decision task；location blocker 必须先通过 `node scripts/foundry.mjs dataset-location-decision-task-build --location-queue <location-authoring-queue.jsonl> --schema-file <schema.json> --yaml-file <methodology.yaml> --ruleset-file <runtime-ruleset.json> --classification-schema <tidas_*_category.json> --location-schema <tidas_locations_category.json> --out-dir <task-dir>` 转成明确的 AI decision task。Decision task status 必须是 ready；若返回 `blocked_missing_full_context`，说明 schema、methodology YAML、runtime ruleset、分类/地点 schema、identity authoring package 或转换后的原始 row payload 不完整，必须先补齐，不能交给 AI 猜。非 identity/分类/location blocked authoring package 必须先通过 `node scripts/foundry.mjs dataset-authoring-task-build --authoring-package <package> --out-dir <task-dir>` 转成明确的 AI task、patch template 和 deterministic apply 命令；task manifest 必须是 `ready_for_ai_authoring_batch`，若是 `blocked_missing_full_context` 必须先补齐 context，不能让 Codex/skill 直接手工改 rows。
-  - Identity decision 输出必须先通过 `node scripts/foundry.mjs dataset-identity-decisions-apply --type <flow|process> --rows-file <rows.jsonl> --decisions <identity-decisions.jsonl> --out-dir <apply-dir>`，由 Foundry 按 AI 决策确定性拆分 write candidates、reference reuse rows 和 `identity-reference-rewrites.jsonl`。decision 必须保留 `decision_status=completed`、`authoring_package`、`authoring_package_sha256`、`used_context_kinds`、`basis`、结构化 evidence 和关闭的 identity action item；若 decision 留有 `__AI_FILL_*` 模板占位、缺 canonical reuse 目标、缺 evidence/context、或 elementary flow 试图 `create_new`，应返回 AI authoring 修复，不得进入 mutation manifest。
+  - Identity decision 输出必须先通过 `node scripts/foundry.mjs dataset-identity-decisions-apply --type <flow|process> --rows-file <rows.jsonl> --decisions <identity-decisions.jsonl> --out-dir <apply-dir>`，由 Foundry 按 AI 决策确定性拆分 write candidates、reference reuse rows 和 `identity-reference-rewrites.jsonl`。decision 必须保留 `decision_status=completed`、`authoring_package`、`authoring_package_sha256`、`used_context_kinds`、`basis`、结构化 evidence 和关闭的 identity action item；若 decision 留有 `__AI_FILL_*` 模板占位、缺 canonical reuse 目标或缺 evidence/context，应返回 AI authoring 修复。elementary flow 的 `create_new` 只有在 profile lock 授权且 decision 明确标记 account-local candidate、绑定候选检索与 owner/state/LCIA 缺口证据时才可进入 mutation manifest；其他 elementary `create_new` 一律阻塞。
   - 分类 decision 输出必须先通过 `node scripts/foundry.mjs dataset-classification-decisions-apply --classification-queue <classification-authoring-queue.jsonl> --decisions <classification-decisions.jsonl> --decision-task <classification-decision-task.json> --out-dir <apply-dir>`，由 CLI 根据 TIDAS 分类 schema 生成 canonical class path；decision 必须保留模板中的 `decision_status=completed` 和 `authoring_context.context_bundle_sha256`，且该 hash 必须来自对应 `classification-decision-task.json` 的 `context_bundle.sha256`，不得误用 shared context bundle hash；apply report 必须绑定 decision task/context bundle；apply report 未完成、decision 缺 completed 状态 / context bundle / evidence / basis、code 非法、或 queue item 未关闭时，应返回 AI authoring 修复。大队列可用 `--dataset-type`、`--bundle-id`/`--process-id`、`--limit`、`--offset`、`--chunk-label` 分块；若多个 chunk task 的决策合并应用到原始 queue，必须重复传入每个 `--decision-task`。
   - Location decision 输出必须先通过 `node scripts/foundry.mjs dataset-location-decisions-apply --location-queue <location-authoring-queue.jsonl> --decisions <location-decisions.jsonl> --decision-task <location-decision-task.json> --out-dir <apply-dir>`，由 CLI 根据 `tidas_locations_category.json` 写入 canonical location code；decision 必须保留模板中的 `decision_status=completed` 和 `authoring_context.context_bundle_sha256`，且该 hash 必须来自对应 `location-decision-task.json` 的 `context_bundle.sha256`，不得误用 shared context bundle hash；apply report 必须绑定 decision task/context bundle；apply report 未完成、decision 缺 completed 状态 / context bundle / target_path / evidence / basis、code 非法、或 queue item 未关闭时，应返回 AI authoring 修复。大队列可用 `--dataset-type`、`--bundle-id`/`--process-id`、`--limit`、`--offset`、`--chunk-label` 分块；若多个 chunk task 的决策合并应用到原始 queue，必须重复传入每个 `--decision-task`。
   - 批量 authoring task 的 AI patch 输出必须先通过 `node scripts/foundry.mjs dataset-authoring-patch-collect --task-manifest <authoring-task-manifest.json>` 收集成 batch patch；每个 AI patch 文件必须显式声明 `patch_status=completed`。collect 若发现缺 patch 文件、patch 状态缺失/非 completed、未完成模板、`__AI_FILL_*` 占位符、格式错误、authoring package 不匹配、缺 evidence、action item 未关闭，或 task/manifest 已失去完整 schema/YAML/ruleset/category/location/source-row context 证明，应返回 AI authoring 修复。
@@ -281,9 +282,9 @@ related:
 
 ## 整库写入约束
 
-- 完整写入前必须生成 mutation manifest，至少列出计划写入、更新、跳过、复用或引用的 `contacts`、`sources`、`unitgroups`、`flowproperties`、`flows`、`processes`，以及每条记录的 UUID、version、目标 owner、state_code、依赖关系和处理理由。`unitgroups` / `flowproperties` 必须标记为 reference-only canonical reuse，不得计划写入 BAFU 账号。
+- 完整写入前必须生成 mutation manifest，至少列出计划写入、更新、跳过、复用或引用的 `contacts`、`sources`、`unitgroups`、`flowproperties`、`flows`、`processes`，以及每条记录的 UUID、version、目标 owner、state_code、依赖关系和处理理由。`unitgroups` / `flowproperties` 默认标记为 reference-only public canonical reuse；profile override 生效时，确无可辩护 public 候选的记录可以标记为 account-local candidate，但必须绑定 profile-lock、独立 UUID/version、当前 owner、`state_code=0`、单位换算与引用闭包证据，并走专用 owner-draft handoff。
 - process / flow / lifecyclemodel 写入范围的 mutation manifest 必须由 `node scripts/foundry.mjs dataset-mutation-manifest --type <process|flow|lifecyclemodel>` 生成，并引用 schema validation、post-authoring Foundry curation gate、AI semantic evidence（identity 预检使用 identity decision apply report 且该 report 必须绑定 authoring package/sha/action item；分类队列使用 classification decision apply report 且该 report 必须绑定 classification decision task/context bundle；location 队列使用 location decision apply report 且该 report 必须绑定 location decision task/context bundle；其他字段修复使用 AI patch collect/apply report/evidence）、cleanup、dry-run、remote verification、target owner 和 reference-reuse 证据；这些证据必须对应同一 exact rows-file scope：schema / remote verification 的 `input_path` 指向 manifest rows，curation gate 的 `rows_file` 指向 manifest rows，curation gate 引用的 deterministic QA report 的 `rows_file` / `input_path` 指向 manifest rows，cleanup 的 `cleaned_rows_file` 指向 manifest rows，identity/classification/location decision apply 的 `files.output_rows` 或 AI patch apply 的输出必须链到 cleanup 输入。零散 dry-run 输出不能单独替代该 manifest。若 manifest 输出 unresolved/source-exchange trace queue，commit handoff 和 post-write closeout 都必须证明这些 queue 与最终 rows 的 `common:other` trace 逐条一致，作为后续数据库侧治理入口。
-- process / flow / lifecyclemodel 写库前必须在 mutation manifest 阶段证明引用闭包：当前 exact write scope 内的引用可以由本次 rows 证明；互相引用的可写 contact/source 必须先合并为 `support` scope，通过 `dataset-post-authoring-finalize --type support`、`tiangong-lca dataset save-draft --type auto --commit` 和 post-write verify/closeout；unitgroup/flowproperty 引用必须由 canonical support cache 和远端公开库验证证明；scope 外的 flow/source/contact 等可写引用，必须在上游 scope 已写入后通过 `tiangong-lca dataset verify-remote` 证明远端存在并匹配。否则 `dataset-post-authoring-finalize` 必须停在 `reference_closure_remote_verify_required`、`reference_closure_unproven` 或 `reference_only_support_type_write_blocked`，不得生成可执行 commit handoff。
+- process / flow / lifecyclemodel 写库前必须在 mutation manifest 阶段证明引用闭包：当前 exact write scope 内的引用可以由本次 rows 证明；互相引用的可写 contact/source 必须先合并为 `support` scope，通过 `dataset-post-authoring-finalize --type support`、`tiangong-lca dataset save-draft --type auto --commit` 和 post-write verify/closeout；unitgroup/flowproperty 引用必须由 public canonical support cache + 远端公开库验证，或由 profile-authorized account-local candidate registry + 同 owner/state 的远端精确回读证明；scope 外的 flow/source/contact 等可写引用，必须在上游 scope 已写入后通过 `tiangong-lca dataset verify-remote` 证明远端存在并匹配。否则 `dataset-post-authoring-finalize` 必须停在 `reference_closure_remote_verify_required`、`reference_closure_unproven` 或 `reference_only_support_type_write_blocked`，不得生成可执行 commit handoff。
 - 完整写入前必须锁定本文件 sha256 和原则快照；每条 row receipt、mutation manifest 和最终 mapping CSV/JSON 都必须记录该快照 hash。若本文件发生变化，必须重新生成 plan、row receipts、flow resolution 和 write plan，不得沿用旧产物。
 - mutation manifest 可以额外产出 `delete_candidates`，但该字段只表示“建议人工检查并删除”的候选清单，不得触发自动删除。
 - 写入范围必须以 process 实际引用闭包为准：
@@ -292,7 +293,7 @@ related:
   - source/contact 也应按实际引用闭包和必要的 provenance 引用确定。
 - 完整写入必须分阶段执行并留下 artifact：
   1. 远端 before snapshot；
-  2. source/contact 写入计划和 unitgroup/flowproperty canonical reuse 计划；
+  2. source/contact 写入计划，以及 unitgroup/flowproperty public canonical reuse 或 profile-authorized account-local candidate 计划；
   3. flow 映射和写入计划；
   4. process exchange reference rewrite 计划；
   5. dry-run 报告；
@@ -302,15 +303,15 @@ related:
 - 所有远端写入必须幂等：
   - 同 UUID/version 已存在于 BAFU 账号时使用 update/upsert_current_version；
   - 不得重复 create 同一 UUID/version；
-  - 若目标记录已经是 public 或其他 owner 的记录，不得直接覆盖，必须转为引用复用；unitgroup/flowproperty 不允许另建 BAFU source-specific 记录。
+  - 若目标记录已经是 public 或其他 owner 的记录，不得直接覆盖，必须转为引用复用；profile-authorized BAFU account-local unitgroup/flowproperty 必须使用独立 UUID/version、当前 owner 和 `state_code=0`，不得影子覆盖 public identity。
 - 完整写入流程不得执行物理删除。确认未被引用且属于 BAFU 账号的历史残留记录时，只能输出待人工删除清单，列明 UUID、version、entity type、owner、引用检查结果、建议删除原因和风险说明；真正删除动作由人另行确认并执行。
 - 所有引用必须在最终远端回读中可解析：
-  - process exchange 引用的 flow 要么是 TianGong public/existing elementary canonical，要么是本次 BAFU 账号写入闭包内的非 elementary flow；不得引用本次新增的 BAFU-owned elementary flow；
-  - flow 引用的 flow property / unit group 必须是 TianGong public canonical 或其他已存在且可见的数据库记录，并有 canonical support cache / remote verify 证据；
+  - process exchange 引用的 flow 要么是 TianGong public/existing canonical，要么是本次 BAFU owner-draft 闭包内、经 profile lock 授权并有 remote verify 的 flow（包括尚无公共候选的 account-local elementary flow）；任何 public process 不得引用 private flow；
+  - flow 引用的 flow property / unit group 必须是 TianGong public canonical，或同一 BAFU owner、同为 `state_code=0` 的精确 account-local FP/UG 对，并有 public cache 或 account-local registry + remote verify 证据；
   - contact/source/compliance/data format 引用必须真实存在，不能只在本地包里存在；compliance/data format 必须使用 TianGong public canonical 支撑对象。
 - 完整写入不得把 `lciamethods`、LCIA 因子或未评审的影响评价支撑对象顺带写入。若未来要导入 LCIA 相关数据，必须另设规则，因为 elementary flow identity 与 LCIA factor 对应关系是独立质量门禁。
 - 完整写入后必须检查 BAFU 账号内是否存在 orphan support records：
-  - 任何 BAFU-owned flow property / unit group 都应视为历史残留或错误写入候选；
+  - BAFU-owned flow property / unit group 必须能在 account-local candidate registry 中解释其量纲、单位、引用闭包和后续评审状态；未登记或无引用的记录进入人工处置候选；
   - 未被任何 process/flow/source/provenance 引用的 contact/source；
   - 已被 public canonical 替代但仍残留的旧私有 support。这些记录应进入待人工删除清单，不得混入“本次导入成功”口径。
 - 完整写入必须保留 source-to-target mapping CSV/JSON：
@@ -325,7 +326,7 @@ related:
   - 每个批次必须可重跑；
   - commit 报告必须列出成功、失败、跳过、更新和插入；
   - 远端写入必须按 exact write scope / process bundle closure 形成 dry-run、mutation manifest、commit handoff、commit report、readback verify 和 closeout；
-  - 任一 scope 出现引用不完整、schema invalid、前端必填校验失败、canonical unitgroup/flowproperty 缺失或 public elementary flow 未解析，应阻塞该 scope 及依赖它的闭包，并把 blocker 写入 blocked ledger；不得阻塞已经证明依赖独立且门禁通过的其他批次继续自动 commit/readback。
+  - 任一 scope 出现引用不完整、schema invalid、前端必填校验失败、unitgroup/flowproperty 既无 public canonical 又无合规的 profile-authorized account-local candidate，或 elementary flow 既未解析 public/existing canonical 又不满足 account-local candidate 门禁，应阻塞该 scope 及依赖它的闭包，并把 blocker 写入 blocked ledger；不得阻塞已经证明依赖独立且门禁通过的其他批次继续自动 commit/readback。
 
 ## Mapping Evidence And CSV Contract
 
@@ -337,6 +338,6 @@ related:
   - source value、normalized value、final value、change reason、evidence、confidence 或 decision status；
   - checkpoint stage、rule snapshot hash、command/report path、review status 和 residual blockers。
 - 对 flow classification，mapping 必须记录 `source_classification`、`selected_tidas_classification`、`classification_basis`、`candidate_categories`、`decision_status`。
-- 对 elementary flow，mapping 必须区分 public/existing canonical reuse、forced candidate 和 unresolved blocker；不得出现 BAFU-owned elementary exception 写入计划。
-- 对 support records，mapping 必须说明 source/contact 写入理由，以及 unitgroup/flowproperty public canonical reuse 的映射证据；任何 BAFU-owned unitgroup/flowproperty 只能作为历史残留或错误写入候选进入待人工清单。
+- 对 elementary flow，mapping 必须区分 public/existing canonical reuse、profile-authorized account-local candidate、forced candidate 和 unresolved blocker；account-local flow 不得进入全局 LCIA 正式缓存，试验因子只能走 BAFU staging overlay。
+- 对 support records，mapping 必须说明 source/contact 写入理由、unitgroup/flowproperty public canonical reuse 证据，或 account-local candidate 的 profile-lock、owner/state、单位尺度、引用闭包和专家评审状态。任何未登记的 BAFU-owned unitgroup/flowproperty 才视为历史残留或错误写入候选。
 - 执行顺序、checkpoint 和中断恢复机制不在本文重复维护；必须按 `docs/import-profiles/bafu/profile.md` 的九阶段 workflow 执行。

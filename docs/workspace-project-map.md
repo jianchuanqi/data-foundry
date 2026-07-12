@@ -20,8 +20,8 @@ checkPaths:
   - test/README.md
   - specs/capability-ownership-rules.json
   - specs/workspace-capability-adapters.md
-lastReviewedAt: 2026-06-29
-lastReviewedCommit: d2a2207
+lastReviewedAt: 2026-07-12
+lastReviewedCommit: c030ec6b8de1664d32d70fcaf01dc41ddec283ee
 ---
 
 # Workspace Project Map

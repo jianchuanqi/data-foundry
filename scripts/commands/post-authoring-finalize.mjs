@@ -174,7 +174,7 @@ export function createPostAuthoringFinalizeCommands({
     return fallbackType;
   }
 
-  // P1a (BAFU-cleanup backlog): under the USLCI-only --mint-unmatched-fp-ug-support
+  // P1a (historical BAFU-cleanup backlog): under the explicit --mint-unmatched-fp-ug-support
   // flag, lift the scope's UNMATCHED Unit Groups + Flow Properties into the support
   // commit set, so the existing source/contact "support" sub-finalize + handoff
   // mints them ONCE as account-local My Data and commits them BEFORE the flows that
@@ -182,8 +182,8 @@ export function createPostAuthoringFinalizeCommands({
   // "Unmatched" = a materialized FP/UG whose UUID is not already a canonical-cache
   // id; reusable canonical FP/UG (e.g. Mass 93a60a56) keep their public reference
   // and are never minted. UGs precede FPs so a minted FP's reference unit group is
-  // in scope. Gated on the flag (USLCI only) — BAFU never passes it, so its support
-  // set is unchanged.
+  // in scope. This generic support-mint flag is currently used by the USLCI route;
+  // BAFU private incubation uses its separate candidate registry and guarded owner-draft path.
   // Read a Flow Property row's referenceToReferenceUnitGroup id + version.
   function flowPropertyReferenceUnitGroup(fpRow) {
     const referenceUnitGroup =
@@ -210,7 +210,8 @@ export function createPostAuthoringFinalizeCommands({
   // mutation manifest — otherwise closure (verify-remote OFF) cannot prove the FP->UG
   // edge. Only UGs present in the canonical cache are surfaced; account-local UGs in the
   // same support set are written and proven via plannedRootKeys, never here. Empty unless
-  // the account-local override is active (USLCI), so BAFU is unchanged.
+  // the account-local override is active; the frozen profile determines which candidate
+  // path may consume the proof.
   function deriveCanonicalUnitGroupProofKeysFromSupportRows(supportRows, options) {
     const { index } = loadCanonicalSupportCache(options);
     const writtenUnitGroupIds = new Set(
@@ -263,8 +264,10 @@ export function createPostAuthoringFinalizeCommands({
     //   (b) plannedRootReferenceKeys keys the in-scope UG/FP root by its OWN version; the
     //       references are already @00.00.001, so aligning the roots DOWN to 00.00.001 makes
     //       the FP->UG (and flow->FP) edges prove in-scope with no remote/proof key needed.
-    // USLCI's minted FEDEFL FP/UG are already @00.00.001, so this is a no-op for it; the whole
-    // function is behind mintUnmatchedFpUgSupport (BAFU off) so BAFU is unchanged.
+    // USLCI's minted FEDEFL FP/UG are already @00.00.001, so this is a no-op for it. The
+    // function is behind the separate mintUnmatchedFpUgSupport flag; BAFU private
+    // incubation must use its profile-specific guarded owner-draft path unless that
+    // generic mint route is explicitly reviewed and enabled later.
     const ACCOUNT_LOCAL_MINT_VERSION = "00.00.001";
     const setSupportOwnVersion = (row, rootKey) => {
       const next = cloneJson(row);
@@ -297,7 +300,8 @@ export function createPostAuthoringFinalizeCommands({
     // Without (2) the FP keeps referencing the canonical UG @00.00.001, which the remote
     // verify reports as `version_outdated` (reference role); the earlier FIX D instead
     // force-wrote the canonical UG @00.00.001 and added a `version_outdated` (root role).
-    // Entirely within the mintUnmatchedFpUgSupport branch, so BAFU (flag off) is unchanged.
+    // Entirely within the separately gated mintUnmatchedFpUgSupport branch; enabling the
+    // broader account-local profile policy alone does not enter this generic mint path.
     const canonicalUnitGroupProofKeys = [];
     const seenCanonicalProofKeys = new Set();
     const rewrittenFlowProperties = mintFlowProperties.map((fpRow) => {
@@ -347,9 +351,9 @@ export function createPostAuthoringFinalizeCommands({
     // worldsteel attribution contact carried in its runner config.
     const supportedForProfile =
       profile === "bafu" || profile === "uslci" || profile === "worldsteel";
-    // Gate for every new mixed reuse+mint support-closure behavior in this stage. Only the
-    // USLCI profile sets allowAccountLocalSupportAndElementary; BAFU never does, so all
-    // gated paths below are no-ops for BAFU and its rewrite output stays byte-identical.
+    // Gate account-local closure evidence on the frozen profile. BAFU, USLCI, and
+    // worldsteel may enable this policy for different scoped candidate paths; this flag
+    // alone does not authorize the generic support-mint writer.
     const allowAccountLocalSupportAndElementary =
       typeof profileFor === "function"
         ? Boolean(profileFor(repoRoot, profile, options)?.allowAccountLocalSupportAndElementary)
@@ -372,8 +376,8 @@ export function createPostAuthoringFinalizeCommands({
       // sub-finalize's own mutation-manifest provenReferenceKeys. Re-derive the
       // canonical_support block from the exact support rows being finalized so the support
       // sub-finalize proves its own reused canonical UGs through the same channel the
-      // dependent finalize uses. Gated on the account-local override (USLCI profile),
-      // which BAFU never sets, so BAFU's skipped report is byte-identical.
+      // dependent finalize uses. This proof is gated on the account-local profile
+      // override and remains read-only; it does not mint or publish FP/UG rows.
       const skippedCanonicalUnitGroupProofKeys =
         allowAccountLocalSupportAndElementary && fileExists(rowsFile)
           ? deriveCanonicalUnitGroupProofKeysFromSupportRows(readRowsFile(rowsFile), options)
@@ -499,13 +503,14 @@ export function createPostAuthoringFinalizeCommands({
         stats,
         rewriteRows: sourceReferenceRewriteRows,
         datasetIdentityCache: datasetIdentity(payload, type),
-        // CLASS 2 fix (gated, USLCI only): also rewrite a format/compliance support source
+        // CLASS 2 fix (gated by the frozen account-local profile policy): also rewrite a
+        // format/compliance support source
         // referenced OUTSIDE its format/compliance slot (e.g. a process
         // modellingAndValidation/validation/review/common:referenceToCompleteReviewReport
         // pointing at an "ILCD format" source) to the public canonical source, using the
         // referenced source's semantic kind. Without the lookup the rewrite only fires on
         // path-relations, leaving the review-report ref stale and unprovable. Passing the
-        // lookup only under the override keeps BAFU's rewrite output byte-identical.
+        // lookup only under the override keeps default public-only profiles unchanged.
         sourceLookup:
           allowAccountLocalSupportAndElementary && sourceLookup.size > 0 ? sourceLookup : null,
       });
@@ -655,8 +660,8 @@ export function createPostAuthoringFinalizeCommands({
       // a public canonical UG are NOT written; the FP's referenceToReferenceUnitGroup is
       // rewritten to the canonical published version and the canonical UG id@version is
       // surfaced here so the mutation-manifest reference-closure proof can mark it as a
-      // reusable remote reference (proven, not written). Empty unless
-      // --mint-unmatched-fp-ug-support is set (USLCI only), so BAFU is unchanged.
+      // reusable remote reference (proven, not written). Empty unless the separate
+      // --mint-unmatched-fp-ug-support path is explicitly enabled.
       canonical_support: {
         canonical_unit_group_reference_keys: canonicalUnitGroupProofKeys,
       },
