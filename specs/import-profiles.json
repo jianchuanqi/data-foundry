@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at_utc": "2026-06-29T00:00:00Z",
+  "updated_at_utc": "2026-07-12T00:00:00Z",
   "default_profile": "generic",
   "profiles": {
     "generic": {
@@ -12,7 +12,7 @@
     },
     "bafu": {
       "id": "bafu",
-      "description": "BAFU / FOEN import profile for BAFU 2025 ecoSpold1 converted TIDAS rows, using root TIDAS library-level entity indexing plus the converted process-bundles index for process-level closure, queue-lock parallelism, reference-only canonical unitgroup/flowproperty reuse, true-source-or-BAFU-database source attribution, one canonical FOEN/BAFU contact, deterministic source-only-output exchange proof when source rows support it, and task-policy-gated batch commit.",
+      "description": "BAFU / FOEN import profile for BAFU 2025 ecoSpold1 converted TIDAS rows, using root TIDAS library-level entity indexing plus the converted process-bundles index for process-level closure, queue-lock parallelism, public-canonical-first support/elementary reuse with profile-authorized account-local state_code=0 candidates for defensible gaps, true-source-or-BAFU-database source attribution, one canonical FOEN/BAFU contact, deterministic source-only-output exchange proof when source rows support it, and task-policy-gated batch commit.",
       "docs": [
         "docs/import-profiles/bafu/profile.md",
         "docs/import-profiles/bafu/constraints.md",

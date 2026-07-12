@@ -19,8 +19,8 @@ checkPaths:
   - docs/runtime-skill-management.md
   - docs/foundry-task-contracts.md
   - specs/import-profiles.json
-lastReviewedAt: 2026-06-29
-lastReviewedCommit: d2a2207
+lastReviewedAt: 2026-07-12
+lastReviewedCommit: 47314f768c3babb25931adf0ef2eb7bc4d1aee99
 ---
 
 # TianGong LCA Data Foundry
