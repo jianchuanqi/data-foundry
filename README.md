@@ -20,7 +20,7 @@ checkPaths:
   - docs/foundry-task-contracts.md
   - specs/import-profiles.json
 lastReviewedAt: 2026-07-12
-lastReviewedCommit: c030ec6b8de1664d32d70fcaf01dc41ddec283ee
+lastReviewedCommit: f7c2758cfc5b585bde43f112237e6047527c1a39
 ---
 
 # TianGong LCA Data Foundry
