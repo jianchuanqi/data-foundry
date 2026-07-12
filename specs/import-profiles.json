@@ -34,7 +34,8 @@
           "unitgroup_write",
           "canonical_support_local_mint"
         ],
-        "note": "Set enabled=false to restore reference-only governance. Does NOT relax the unit-scale safety blocker (canonical_support_amount_scaling_required) or schema/curation/full-context proof gates — only the reference-only and elementary-create_new policy walls. Account-local rows are written at state_code=0 (My Data), keep their source units so amounts stay self-consistent, and remain in an account-local candidate registry outside the public canonical support cache until separately approved for promotion."
+        "note": "Set enabled=false to restore reference-only governance. Does NOT relax the unit-scale safety blocker (canonical_support_amount_scaling_required) or schema/curation/full-context proof gates — only the reference-only and elementary-create_new policy walls. Account-local rows are written at state_code=0 (My Data), keep their source units so amounts stay self-consistent, and remain in an account-local candidate registry outside the public canonical support cache until separately approved for promotion.",
+        "report_policy": "Canonical support and finalize reports must state public-canonical-first plus this scoped account-local exception when enabled; they must not emit an unconditional reference-only or no-My-Data policy."
       },
       "full_context_ai_completion": {
         "required": true,

@@ -220,6 +220,11 @@ test("override suppresses the pending-upstream blocker (mint account-local My Da
   );
   assert.notEqual(report.status, "blocked");
   assert.match(report.status, /^completed/u);
+  assert.equal(report.policy.no_account_local_support_rows, undefined);
+  assert.match(report.policy.public_canonical_first, /public canonical/u);
+  assert.match(report.policy.account_local_support_rows, /same-owner state_code=0/u);
+  assert.match(report.policy.account_local_support_rows, /guarded owner-draft/u);
+  assert.match(report.policy.rewrite_command_boundary, /does not mint or publish/u);
 });
 
 // A flow that ALREADY references the canonical FP UUID but at a stale version

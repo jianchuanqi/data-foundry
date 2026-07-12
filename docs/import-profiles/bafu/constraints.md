@@ -237,7 +237,7 @@ related:
   - Codex 只基于 `name_plan_prompt` 和来源证据生成 `name-plan-draft.jsonl`；
   - `validate` 必须阻断分号、`xx/xxx`、trace-only、provenance 说明句和字段缺失说明句；
   - `apply` 必须生成 name-planned rows 和 `outputs/name-plan-evidence.json`；
-    - 对可写 support rows，`source_full_name` 不拆成 flow/process 四段；draft 只能填写该 unit 的 `target_name_fields`。当前 BAFU 导入的可写 support 字段口径如下：source 用 `sourceInformation.dataSetInformation.common:shortName`；contact 用 `contactInformation.dataSetInformation.common:name` 和 `common:shortName`。unit group / flow property 只引用现有 canonical rows，不做 BAFU 私有 name-plan 写入。
+    - 对可写 support rows，`source_full_name` 不拆成 flow/process 四段；draft 只能填写该 unit 的 `target_name_fields`。当前 BAFU 导入的可写 support 字段口径如下：source 用 `sourceInformation.dataSetInformation.common:shortName`；contact 用 `contactInformation.dataSetInformation.common:name` 和 `common:shortName`。unit group / flow property 默认只引用现有 public canonical rows；profile override 生效且公共库确无可辩护候选时，BAFU 私有 FP/UG 候选的名称只能在独立 account-local candidate registry 中依据单位/量纲/provenance 证据编写，并经专用 owner-draft 计划、审计与 readback 路径维护，不得进入 generic support name-plan/write 路径或 public canonical cache。
   - `baseName`：只保留核心产品/废物流/服务/过程名称和必要的基本加工层级；去除前缀 `xx` / `xxx`，并尽量不要混入地点可得性、市场/生产组合、地理代码、路线说明或功能单位属性。
   - `treatmentStandardsRoutes`：放处理方式、标准、质量等级、用途、生产路线、原料/educt、primary / secondary 等技术限定；例如废弃物去向或处理路线若是过程/流的技术路线，应放在此字段。
   - `mixAndLocationTypes`：放 production mix / consumption mix / market mix、location type of availability、origin / destination、`at plant` / `at user` / `at grid` / `to consumer` / `at regional storage` 等可得性和地点类型信息；`工厂端 {KR}` / `at plant {KR}` 这类内容应优先拆入此字段，同时地理代码仍应写入 geography/location 或等价结构。

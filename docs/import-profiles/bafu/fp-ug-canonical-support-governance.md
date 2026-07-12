@@ -2,7 +2,7 @@
 
 入口：本文档承接 5 组 non-importable FlowProperty/UnitGroup blocker 的去重治理方案，并记录核查中确认的一个**既存单位尺度问题**。两件事相关但独立。
 
-> agent 长期收尾入口在 **[`bafu-endgame-goal.md`](./bafu-endgame-goal.md)**（goal 模式，含本文档 + 转换器隔间污染 + 747 缺失流 + 重跑闭环的全景）。本文档是其中 FP/UG（workstream C）与单位尺度（workstream D）的详档。
+> 当前可执行入口是 [`profile.md`](./profile.md)、[`constraints.md`](./constraints.md) 与 `specs/import-profiles.json`。[`bafu-endgame-goal.md`](./bafu-endgame-goal.md) 仅保留旧收尾批次的历史全景，不得继续作为 agent 执行入口；本文档保留其中 FP/UG 与单位尺度的审计事实，并以当前 private-incubation 规则为准。
 
 代码侧已落地（本仓库）：
 

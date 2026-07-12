@@ -144,7 +144,7 @@ test("review-report format source is rewritten to canonical when sourceLookup is
 });
 
 // BAFU path: no sourceLookup => the review-report reference is left byte-identical (the gate).
-test("review-report format source is left unchanged when no sourceLookup is supplied (BAFU)", () => {
+test("review-report format source is left unchanged when no sourceLookup is supplied", () => {
   const utils = makeUtils();
   const payload = processWithReviewReportReference(FORMAT_SOURCE_ID);
   const before = JSON.stringify(payload);
