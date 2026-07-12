@@ -48,8 +48,8 @@ BAFU profile 已授权缺少 public canonical 时先使用本账号 `state_code=
 ### 私有激活步骤
 
 1. 在 account-local candidate registry 中冻结三对 FP/UG 的精确 ID/version、owner、`state_code=0`、payload/`modified_at` hash、reference unit 和单位表；不得写入 public canonical cache。
-2. 人工确认 Time 的 year 采用 365 还是 365.25 天；未确认前 `hr` alias batch 保持阻塞。
-3. 通过 DB #233 / CLI #155 的 owner-draft 模式，把 `hr -> Time` 与 `kmy -> Length*time` 分别作为原子批次执行；source/target support、flow、process 全部必须是当前 owner 的 `state_code=0`。
+2. 人工确认 Time 的 year 采用 365 还是 365.25 天；未确认前包含 `hr` 的完整 alias plan 保持阻塞。
+3. 通过 DB #233 / CLI #155 的 owner-draft 模式生成一个完整计划，其中包含 `hr -> Time` 与 `kmy -> Length*time` 两个逻辑 batch；数据库必须在同一事务中一次执行全部 52 个变更行和 59 条 exchange（118 个 amount 字段），任一 batch 的 owner/state、快照、引用闭包、换算因子、审计或回读证据漂移都回滚整个计划。source/target support、flow、process 全部必须是当前 owner 的 `state_code=0`，309 条无关 exchange 必须保持不变。
 4. 完成 comment/source/elementary mapping/LCIA coverage 等私有清洗和试算。`Person*distance` 与两条 Noise elementary flow 分开评审。
 5. 专家可分别批准三对 support；允许最终公开 0/2/4/6 条。批准记录绑定精确 ID/version、payload hash、plan SHA、reviewer role 和 LCIA cache version。
 6. 只有批准后才使用受控 promotion 工具改变状态；随后刷新 public canonical cache。若仍保持 private，则继续只在 account-local registry 中使用。
