@@ -24,7 +24,7 @@ checkPaths:
   - specs/capability-ownership-rules.json
   - specs/automated-lca-capability-registry.json
 lastReviewedAt: 2026-07-12
-lastReviewedCommit: 47314f768c3babb25931adf0ef2eb7bc4d1aee99
+lastReviewedCommit: c030ec6b8de1664d32d70fcaf01dc41ddec283ee
 ---
 
 # Architecture
