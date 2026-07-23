@@ -27,12 +27,18 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+function compareText(left, right) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => compareText(left, right))
         .map(([key, child]) => [key, stableValue(child)]),
     );
   }
@@ -145,7 +151,7 @@ function dependencyCycle(leavesById) {
   return null;
 }
 
-function boundaryChecks(boundary, add) {
+function boundaryChecks(boundary, materializedLeafPaths, add) {
   const schemaOk = boundary?.schema_version === BOUNDARY_SCHEMA;
   add(
     "boundary_schema",
@@ -161,6 +167,34 @@ function boundaryChecks(boundary, add) {
     shapesOk ? "Required and observed boundary objects are present." : "Boundary objects missing.",
   );
   if (!shapesOk) return;
+
+  const materializedShapeOk = Boolean(
+    typeof required.cwd === "string" &&
+    required.cwd.length > 0 &&
+    Array.isArray(required.argv) &&
+    required.argv.length > 0 &&
+    required.argv.every((value) => typeof value === "string" && value.length > 0) &&
+    typeof required.program_path === "string" &&
+    required.program_path.length > 0 &&
+    Array.isArray(required.declared_fields) &&
+    required.declared_fields.length > 0 &&
+    required.declared_fields.every((value) => typeof value === "string" && value.length > 0) &&
+    new Set(required.declared_fields).size === required.declared_fields.length &&
+    isPlainObject(required.producer_outputs) &&
+    Object.keys(required.producer_outputs).length > 0 &&
+    Object.values(required.producer_outputs).every(
+      (value) => typeof value === "string" && value.length > 0,
+    ) &&
+    isPlainObject(required.consumer_inputs) &&
+    Object.values(required.consumer_inputs).every(
+      (value) => typeof value === "string" && value.length > 0,
+    ),
+  );
+  add(
+    "boundary_materialized_shape",
+    materializedShapeOk,
+    "The required boundary must fully type CWD, argv, program, declared fields, and materialized paths.",
+  );
 
   for (const field of [
     "cwd",
@@ -200,6 +234,17 @@ function boundaryChecks(boundary, add) {
       Object.keys(required.producer_outputs).length > 0 &&
       exactJson(required.producer_outputs, required.consumer_inputs),
     "Producer outputs and consumer inputs must bind the same named materialized paths.",
+  );
+  const boundaryPaths = [
+    required.program_path,
+    ...Object.values(required.producer_outputs ?? {}),
+    ...Object.values(required.consumer_inputs ?? {}),
+  ];
+  add(
+    "boundary_paths_content_addressed",
+    boundaryPaths.every((value) => materializedLeafPaths.has(value)),
+    "The consumer program and every producer/consumer path must resolve to a content-addressed stage leaf.",
+    { boundary_paths: boundaryPaths },
   );
   add(
     "boundary_argv_materialized",
@@ -288,7 +333,7 @@ export function modelExecutionAttemptDisposition(state) {
   };
 }
 
-function validateStage({ manifest, manifestPath, manifestRaw }) {
+function validateStage({ manifest, manifestPath, manifestRaw, predecessorOption, repoRoot }) {
   const { add, rows } = checkCollector();
   add(
     "stage_schema",
@@ -304,13 +349,65 @@ function validateStage({ manifest, manifestPath, manifestRaw }) {
     Number.isInteger(manifest?.revision) && manifest.revision >= 1,
     "Revision must be a positive integer.",
   );
-  add(
-    "stage_predecessor",
-    manifest?.revision === 1
-      ? manifest?.predecessor_stage_manifest_sha256 === null
-      : isSha256(manifest?.predecessor_stage_manifest_sha256),
-    "Revision 1 has a null predecessor; later revisions bind a predecessor SHA-256.",
-  );
+  const predecessorHash = manifest?.predecessor_stage_manifest_sha256;
+  if (manifest?.revision === 1) {
+    add(
+      "stage_predecessor_absent",
+      predecessorHash === null && !predecessorOption,
+      "Revision 1 has no predecessor manifest or predecessor CLI input.",
+    );
+  } else {
+    add(
+      "stage_predecessor_descriptor",
+      isSha256(predecessorHash),
+      "Later revisions require a predecessor SHA-256 descriptor.",
+    );
+    const predecessorPath = predecessorOption ? path.resolve(repoRoot, predecessorOption) : null;
+    const repoReal = fs.realpathSync(repoRoot);
+    let predecessorSafe = false;
+    let predecessorRaw = null;
+    if (
+      predecessorPath &&
+      pathIsInside(repoRoot, predecessorPath) &&
+      fs.existsSync(predecessorPath)
+    ) {
+      const predecessorStat = fs.lstatSync(predecessorPath);
+      predecessorSafe = predecessorStat.isFile() && !predecessorStat.isSymbolicLink();
+      if (predecessorSafe) {
+        predecessorSafe = pathIsInside(repoReal, fs.realpathSync(predecessorPath));
+      }
+      if (predecessorSafe) predecessorRaw = fs.readFileSync(predecessorPath);
+    }
+    add(
+      "stage_predecessor_file_safe",
+      predecessorSafe,
+      "Later revisions require a regular, non-symlink predecessor manifest inside the repository.",
+      { path: predecessorOption ?? null },
+    );
+    add(
+      "stage_predecessor_hash_exact",
+      Boolean(predecessorRaw && sha256(predecessorRaw) === predecessorHash),
+      "The predecessor manifest bytes must match the declared predecessor SHA-256.",
+    );
+    let predecessorManifest = null;
+    if (predecessorRaw) {
+      try {
+        predecessorManifest = JSON.parse(predecessorRaw.toString("utf8"));
+      } catch {
+        predecessorManifest = null;
+      }
+    }
+    add(
+      "stage_predecessor_lineage",
+      Boolean(
+        predecessorManifest?.schema_version === STAGE_SCHEMA &&
+        predecessorManifest?.stage_id === manifest?.stage_id &&
+        predecessorManifest?.producer_id === manifest?.producer_id &&
+        predecessorManifest?.revision === manifest?.revision - 1,
+      ),
+      "The predecessor must be the immediately prior revision for the same stage and producer.",
+    );
+  }
   add(
     "stage_offline_only",
     manifest?.admission_mode === "OFFLINE_ONLY" && manifest?.production_authority === false,
@@ -527,6 +624,13 @@ function validateStage({ manifest, manifestPath, manifestRaw }) {
     try {
       const reviewerReport = JSON.parse(leafBuffers.get(reviewerId)?.toString("utf8") ?? "");
       add(
+        `reviewer_report_coverage_shape:${reviewerId}`,
+        Array.isArray(reviewerReport?.reviewed_leaf_ids) &&
+          new Set(reviewerReport.reviewed_leaf_ids).size ===
+            reviewerReport.reviewed_leaf_ids.length,
+        "Reviewer coverage must be an explicit array of unique leaf IDs.",
+      );
+      add(
         `reviewer_report_pass:${reviewerId}`,
         Boolean(
           reviewerReport?.status === "PASS" &&
@@ -571,6 +675,7 @@ function validateStage({ manifest, manifestPath, manifestRaw }) {
     try {
       boundaryChecks(
         JSON.parse(leafBuffers.get(boundaryLeaf.leaf_id)?.toString("utf8") ?? ""),
+        leafPaths,
         add,
       );
     } catch (error) {
@@ -606,7 +711,7 @@ export function createExecutionCapsuleCommands({ repoRoot }) {
         status: "help",
         command: "execution-capsule-admit",
         usage:
-          "node scripts/foundry.mjs execution-capsule-admit --stage-manifest <revision.json> --out-dir <fresh-dir>",
+          "node scripts/foundry.mjs execution-capsule-admit --stage-manifest <revision.json> [--predecessor-stage-manifest <previous-revision.json>] --out-dir <fresh-dir>",
         effects: "local evidence files only; zero network, database, CLI dispatch, and mutation",
       };
     }
@@ -672,7 +777,13 @@ export function createExecutionCapsuleCommands({ repoRoot }) {
     }
     if (!validation) {
       try {
-        validation = validateStage({ manifest, manifestPath, manifestRaw });
+        validation = validateStage({
+          manifest,
+          manifestPath,
+          manifestRaw,
+          predecessorOption: options.predecessorStageManifest,
+          repoRoot,
+        });
       } catch (error) {
         validation = {
           rows: [
@@ -755,7 +866,7 @@ export function createExecutionCapsuleCommands({ repoRoot }) {
                 raw_sha256: leaf.raw_sha256,
                 semantic_sha256: leaf.semantic_sha256,
               }))
-              .sort((left, right) => left.leaf_id.localeCompare(right.leaf_id)),
+              .sort((left, right) => compareText(left.leaf_id, right.leaf_id)),
           ),
         ),
         evidence: {

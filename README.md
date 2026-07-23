@@ -185,7 +185,7 @@ Installed shared runtime skills such as `.agents/skills/tiangong-kb-sci-search/`
 - `specs/automated-lca-capability-registry.json`: capability routing registry.
 - `specs/import-profiles.json`: data-driven import profiles.
 - `docs/foundry-task-contracts.md`: minimal task, source, seed, checkpoint, and artifact ledger contracts.
-- `docs/execution-capsule-contract.md`: reusable offline stage, CAS evidence, boundary admission, and immutable seal contract.
+- `docs/execution-capsule-contract.md`: reusable offline stage, exact predecessor lineage, content-addressed boundary admission, CAS evidence, and immutable seal contract.
 - `docs/runtime-skill-management.md`: `npx skills` runtime dependency contract.
 - `docs/import-profiles/bafu/`: BAFU profile context and constraints.
 - `tasks/`: lightweight task queue and task templates.

@@ -24,7 +24,7 @@ checkPaths:
   - specs/capability-ownership-rules.json
   - test/README.md
 lastReviewedAt: 2026-07-23
-lastReviewedCommit: 2f1e80b02173fc20231f01ac9e6da62c16d63109
+lastReviewedCommit: f10932a864e54f3826afc0141f33fbcf9190344e
 tracker:
   kind: filesystem
   inbox: tasks/inbox

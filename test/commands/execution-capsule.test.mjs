@@ -25,7 +25,7 @@ function stableValue(value) {
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
         .map(([key, child]) => [key, stableValue(child)]),
     );
   }
@@ -59,6 +59,7 @@ function createFixture(name, mutate = () => {}) {
   fs.rmSync(root, { recursive: true, force: true });
 
   const payloadPath = path.join(stageDir, "desired-payload.json");
+  const consumerProgramPath = path.join(stageDir, "consumer.mjs");
   const boundaryPath = path.join(stageDir, "consumer-boundary.json");
   const reviewerPath = path.join(stageDir, "reviewer-report.json");
   const materializedBoundary = {
@@ -84,13 +85,14 @@ function createFixture(name, mutate = () => {}) {
     status: "PASS",
     reviewer_id: "independent-reviewer",
     scope_binding_sha256: scopeBinding,
-    reviewed_leaf_ids: ["desired-payload"],
+    reviewed_leaf_ids: ["desired-payload", "consumer-program"],
     findings: { p0: 0, p1: 0 },
   };
   writeJson(payloadPath, {
     schema_version: "generic-desired-payload.v1",
     actions: [{ action_id: "generic-action-1", desired_value: "ready" }],
   });
+  fs.writeFileSync(consumerProgramPath, "export const consume = (payload) => payload;\n");
   writeJson(boundaryPath, boundary);
   writeJson(reviewerPath, reviewer);
 
@@ -109,6 +111,22 @@ function createFixture(name, mutate = () => {}) {
       dependency_leaf_ids: [],
       freshness_class: "SEMANTIC_IMMUTABLE",
       freshness: {},
+      executable_input: true,
+    },
+    {
+      leaf_id: "consumer-program",
+      role: "consumer_program",
+      path: "consumer.mjs",
+      raw_hash: {},
+      semantic_hash: {
+        algorithm: "sha256",
+        domain: "generic-consumer-program.v1",
+        canonicalizer_id: "raw-bytes-v1",
+      },
+      scope_binding_sha256: scopeBinding,
+      dependency_leaf_ids: [],
+      freshness_class: "TOOLCHAIN_BOUND",
+      freshness: { toolchain_fingerprint_sha256: toolchainFingerprint },
       executable_input: true,
     },
     {
@@ -176,14 +194,18 @@ function createFixture(name, mutate = () => {}) {
   return { manifestPath, outDir, root, stageDir };
 }
 
-function admit(fixture) {
-  return runFoundry([
+function admit(fixture, predecessorManifestPath = null) {
+  const args = [
     "execution-capsule-admit",
     "--stage-manifest",
     rel(fixture.manifestPath),
     "--out-dir",
     rel(fixture.outDir),
-  ]);
+  ];
+  if (predecessorManifestPath) {
+    args.push("--predecessor-stage-manifest", rel(predecessorManifestPath));
+  }
+  return runFoundry(args);
 }
 
 test("execution capsule command has no network, database, or subprocess dispatch surface", () => {
@@ -236,6 +258,41 @@ test("execution capsule admission seals exact offline evidence", () => {
   );
 });
 
+test("execution capsule admission verifies exact predecessor revision lineage", () => {
+  const predecessor = createFixture("lineage-predecessor", ({ manifest }) => {
+    manifest.stage_id = "generic-lineage";
+  });
+  const successor = createFixture("lineage-successor", ({ manifest }) => {
+    manifest.stage_id = "generic-lineage";
+    manifest.revision = 2;
+    manifest.predecessor_stage_manifest_sha256 = hashBuffer(
+      fs.readFileSync(predecessor.manifestPath),
+    );
+  });
+
+  const result = admit(successor, predecessor.manifestPath);
+  assert.equal(result.code, 0);
+  assert.equal(result.json.status, "sealed");
+});
+
+test("execution capsule admission rejects an unproven predecessor hash", () => {
+  const predecessor = createFixture("lineage-wrong-predecessor", ({ manifest }) => {
+    manifest.stage_id = "generic-lineage-wrong";
+  });
+  const successor = createFixture("lineage-wrong-successor", ({ manifest }) => {
+    manifest.stage_id = "generic-lineage-wrong";
+    manifest.revision = 2;
+    manifest.predecessor_stage_manifest_sha256 = toolchainFingerprint;
+  });
+
+  const result = admit(successor, predecessor.manifestPath);
+  assert.equal(result.code, 1);
+  assert.equal(result.json.status, "rejected");
+  const report = readJson(path.join(successor.outDir, "execution-capsule-admission-report.json"));
+  assert.ok(report.failed_checks.includes("stage_predecessor_hash_exact"));
+  assert.equal(fs.existsSync(path.join(successor.outDir, "execution-capsule-seal.json")), false);
+});
+
 const mutationVectors = [
   {
     name: "tampered-raw-bytes",
@@ -253,6 +310,35 @@ const mutationVectors = [
       refreshLeaf(
         stageDir,
         leaves.find((leaf) => leaf.leaf_id === "consumer-boundary"),
+      );
+    },
+  },
+  {
+    name: "missing-materialized-boundary-fields",
+    expected: "boundary_materialized_shape",
+    mutate({ boundary, leaves, stageDir }) {
+      delete boundary.required.cwd;
+      delete boundary.required.program_path;
+      delete boundary.required.declared_fields;
+      delete boundary.observed.cwd;
+      delete boundary.observed.program_path;
+      delete boundary.observed.declared_fields;
+      writeJson(path.join(stageDir, "consumer-boundary.json"), boundary);
+      refreshLeaf(
+        stageDir,
+        leaves.find((leaf) => leaf.leaf_id === "consumer-boundary"),
+      );
+    },
+  },
+  {
+    name: "reviewer-coverage-not-an-array",
+    expected: "reviewer_report_coverage_shape:reviewer-report",
+    mutate({ leaves, reviewer, stageDir }) {
+      reviewer.reviewed_leaf_ids = "desired-payload consumer-program";
+      writeJson(path.join(stageDir, "reviewer-report.json"), reviewer);
+      refreshLeaf(
+        stageDir,
+        leaves.find((leaf) => leaf.leaf_id === "reviewer-report"),
       );
     },
   },

@@ -35,6 +35,8 @@ node scripts/foundry.mjs execution-capsule-admit \
   --out-dir .foundry/workspaces/<task-id>/admissions/revision-0001
 ```
 
+For revision 2 and later, also pass the exact prior revision manifest with `--predecessor-stage-manifest`. The command reads that regular, non-symlink repository file and requires its raw SHA-256, stage ID, producer ID, and immediately preceding revision number to match the current manifest before a seal can be emitted.
+
 The output directory must not already exist. A correction is a new stage revision or a new admission directory; prior snapshots, ledgers, reports, and seals are never overwritten.
 
 ## Admission requirements
@@ -47,7 +49,7 @@ The command checks all of these in one deterministic pass:
 - confined, regular, non-symlink leaf files and unique leaf IDs and paths;
 - complete, acyclic leaf dependencies and explicit freshness classes;
 - at least one independent reviewer report;
-- a materialized producer/consumer boundary with exact CWD, argv, program path, declared fields, filenames, and disabled network/database dispatch;
+- a materialized producer/consumer boundary with exact CWD, argv, program path, declared fields, filenames, and disabled network/database dispatch; the consumer program and every named input/output path must also be a content-addressed stage leaf;
 - stage-declared and validator-observed `P0=0` and `P1=0`.
 
 Supported semantic canonicalizers are `raw-bytes-v1`, `utf8-lf-v1`, and `canonical-json-v1`. Semantic SHA-256 values are domain-separated as `SHA-256(UTF8(domain) || NUL || canonical_bytes)`, so a leaf cannot be relabeled into another semantic domain without invalidating admission. Supported freshness classes are `SEMANTIC_IMMUTABLE`, `TOOLCHAIN_BOUND`, `LIVE_RECONCILIATION`, `OWNER_SESSION`, and `DERIVED_REPORT`; the two live classes require explicit capture and no-known-mutation attestations.
