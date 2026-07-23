@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import {
   conversionHashSets,
   mergeThreeWay,
+  readJsonLinesWithMeta,
   sha256Json,
   stableJson,
   valueSha256,
@@ -13,6 +17,26 @@ import {
   fixtureSha256Json,
   fixtureValueSha256,
 } from "../fixtures/incremental-change-set-fixtures.mjs";
+
+test("incremental JSONL reader preserves line numbers and hashes without whole-file strings", (t) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "foundry-incremental-jsonl-"));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const filePath = path.join(tempDir, "rows.jsonl");
+  fs.writeFileSync(filePath, '{"id":1}\r\n\n{"id":2}', "utf8");
+
+  assert.deepEqual(readJsonLinesWithMeta(filePath), [
+    {
+      value: { id: 1 },
+      line: 1,
+      raw_sha256: crypto.createHash("sha256").update('{"id":1}').digest("hex"),
+    },
+    {
+      value: { id: 2 },
+      line: 3,
+      raw_sha256: crypto.createHash("sha256").update('{"id":2}').digest("hex"),
+    },
+  ]);
+});
 
 function tablePolicy(overrides = {}) {
   return {

@@ -614,13 +614,24 @@ function assertSchema(schemaRuntime, name, value, label) {
   }
 }
 
-function readJsonLinesWithMeta(filePath) {
-  return fs
-    .readFileSync(filePath, "utf8")
-    .split(/\r?\n/u)
-    .map((raw, index) => ({ raw, line: index + 1 }))
-    .filter(({ raw }) => raw.trim())
-    .map(({ raw, line }) => ({ value: JSON.parse(raw), line, raw_sha256: sha256Bytes(raw) }));
+export function readJsonLinesWithMeta(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  const rows = [];
+  let line = 1;
+  let start = 0;
+  while (start <= buffer.length) {
+    const newline = buffer.indexOf(0x0a, start);
+    let end = newline === -1 ? buffer.length : newline;
+    if (end > start && buffer[end - 1] === 0x0d) end -= 1;
+    const raw = buffer.toString("utf8", start, end);
+    if (raw.trim()) {
+      rows.push({ value: JSON.parse(raw), line, raw_sha256: sha256Bytes(raw) });
+    }
+    if (newline === -1) break;
+    start = newline + 1;
+    line += 1;
+  }
+  return rows;
 }
 
 function artifactFacts(filePath, rows = null, schemaVersion = null) {
