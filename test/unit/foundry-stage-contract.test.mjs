@@ -21,6 +21,7 @@ test("complex workflow commands publish AI-readable stage contracts", () => {
     "dataset-post-authoring-finalize",
     "dataset-authoring-plan",
     "dataset-identity-preflight-run",
+    "dataset-incremental-change-set-compose",
   ];
   for (const command of commands) {
     const help = runFoundryJson([command, "--help"]);

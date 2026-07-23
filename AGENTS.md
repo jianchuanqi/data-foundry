@@ -21,13 +21,14 @@ checkPaths:
   - docs/runtime-skill-management.md
   - docs/foundry-task-contracts.md
   - docs/execution-capsule-contract.md
+  - docs/incremental-change-set-contract.md
   - docs/import-profiles/bafu/leaf-process-classification-authoring.md
   - package.json
   - scripts/foundry.mjs
   - scripts/lib/foundry-command-metadata.mjs
   - specs/**
 lastReviewedAt: 2026-07-23
-lastReviewedCommit: f10932a864e54f3826afc0141f33fbcf9190344e
+lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
 ---
 
 # AGENTS.md - TianGong LCA Data Foundry
@@ -75,6 +76,7 @@ npx --yes @tiangong-lca/cli@latest dataset context-pack \
 12. Run `node scripts/foundry.mjs dataset-curation-cleanup` after source trace has been captured in authoring packages and before remote write planning.
 13. Remote commit is policy-gated rather than manually supervised by default. A task may allow automated batch commit for scopes whose finalize report, mutation manifest, commit handoff, and post-write verification all pass; human input is required for policy changes, exceptional waivers, or unresolved reference closure. Missing public canonical unit groups, flow properties, or elementary flows remain blockers unless the frozen import profile explicitly authorizes an account-local `state_code=0` candidate path with owner, unit-scale, closure, audit, and readback gates.
 14. Do not treat historical `.foundry` artifacts as proof for a current task.
+15. For a new package release over existing owner drafts, use `dataset-incremental-change-set-compose` with a SHA-bound old/candidate/current request and owner-snapshot receipt. It may emit candidate INSERT/UPDATE/NOOP/HOLD artifacts and exactly one terminal conversion event per schema-valid input row. Preservation/noise/array rules must bind the exact entity, pointer, old/candidate/current value hashes, and evidence; update scope must use non-root request pointers. A fresh SELECT-only reconciliation, owner session, independent review, capsule seal, and separately authorized published CLI execution remain mandatory.
 
 `annualSupplyOrProductionVolume` is schema-required. If source data does not provide a real annual volume, Foundry must use the deterministic `9999 missing-data-sentinel/year` placeholder, not `common:other` deferral. The sentinel is deliberately non-physical and searchable; database-side curation owns replacing it later.
 
@@ -102,6 +104,7 @@ These rules are mandatory for code changes in this repository:
 - Do not retain empty compatibility or deprecation scaffolding. Remove old aliases, unused command categories, and orphaned draft docs once command metadata, tests, docs, and docpact show no remaining consumer.
 - Tests must follow the repository test layout in `test/README.md`: pure logic in `test/unit`, command contracts in `test/commands`, multi-command workflows in `test/scenarios`, and shared row/report/command helpers in `test/fixtures`. Do not add numbered regression buckets such as `full-context-gate-07.test.mjs`; name scenario files after the behavior surface they cover.
 - Every command that can block or defer scopes must write both a complete machine ledger and a reader-facing run report. The ledger is the row-level source of truth; the report must summarize concrete blocker reasons, affected scopes, blocking dependency types or examples, required human action, and the rerun path.
+- Incremental imports must not fall back to full owner-draft rewrites. The composer may preserve current values only through entity/path/value/evidence-bound policy, must hold unstable arrays and absent dependencies, must emit no delete or empty CLI contract, and must log every schema-valid input conversion exactly once with input hashes, evidence, outcome, duration, and output row binding.
 - `dataset-bundle-sample-rows` row files are authoring inputs, not commit-ready payloads. Its report must make the stage order explicit: raw context/validate/QA/curation gate first, then AI/deterministic apply, then `dataset-curation-cleanup`, final validation, dry-run, commit, and readback. Generated dry-run/commit commands must point to cleanup output rows, not raw materialized rows.
 - Batch imports must preserve ready-only execution: blocked scopes are recorded and excluded from write queues, while independent ready scopes continue through dry-run/write/verify when their gates pass.
 

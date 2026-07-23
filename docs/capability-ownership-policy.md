@@ -22,8 +22,9 @@ checkPaths:
   - specs/automated-lca-capability-registry.json
   - specs/workspace-capability-adapters.md
   - docs/safety-policy.md
+  - docs/incremental-change-set-contract.md
 lastReviewedAt: 2026-07-23
-lastReviewedCommit: f10932a864e54f3826afc0141f33fbcf9190344e
+lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
 ---
 
 # Capability Ownership Policy
@@ -43,6 +44,7 @@ Foundry owns:
 - deterministic source-only-output exchange proof from explicit source rows when the final process row preserves the non-flow-reference exchange signature;
 - remote-write policy checks, execution policy records, blocked-scope ledgers and reports, and commit/readback handoff aggregation;
 - support dependency finalize/handoff aggregation for profile-generated writable contact/source rows, without directly mutating the database;
+- offline old/candidate/current change-set composition, strict machine validation, entity/path/value/evidence-bound preservation, stable-identity array handling, absent-dependency isolation, immutable artifact manifests, and per-conversion terminal logs, without remote dispatch;
 - acceptance checks and Stop-hook feedback loops;
 - local test structure for Foundry-owned metadata, command contracts, scenario orchestration, and shared fixtures;
 - thin adapters that call existing CLI or skill entrypoints.
@@ -58,6 +60,8 @@ Foundry does not own:
 - user RLS-scoped dataset delete, retirement, redo, repair execution, or database mutation semantics.
 
 Profile-gated batch commit does not change ownership: Foundry may decide that an exact scope has passed policy and handoff gates, but the actual mutation command remains an official CLI/platform command executed under an account guard. Foundry's default platform invocation is the published CLI package, `npx --yes @tiangong-lca/cli@latest ...`; local binary overrides are only explicit operator/test state, not the workflow contract.
+
+Incremental composition follows the same boundary. Foundry may minimize the write set and emit a syntactically compatible CLI execution contract, but current-state reconciliation, authenticated dispatch, transaction semantics, attempt/no-replay state, and readback remain CLI/database responsibilities.
 
 ## Decision Rule
 

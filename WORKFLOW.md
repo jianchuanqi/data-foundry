@@ -20,11 +20,12 @@ checkPaths:
   - docs/foundry-command-surface.md
   - docs/runtime-skill-management.md
   - docs/foundry-task-contracts.md
+  - docs/incremental-change-set-contract.md
   - specs/automated-lca-capability-registry.json
   - specs/capability-ownership-rules.json
   - test/README.md
 lastReviewedAt: 2026-07-23
-lastReviewedCommit: f10932a864e54f3826afc0141f33fbcf9190344e
+lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
 tracker:
   kind: filesystem
   inbox: tasks/inbox
@@ -177,6 +178,19 @@ Use `--source-rows-file` for process scopes when the import source row may itsel
 22. Move `tasks/active/<task>.md` to `tasks/done/` only through `task-complete --completion-report <dataset-import-completion-report.json>`, so the task id, closeout scope, and profile-required full schema/YAML/context AI completion proof are checked before the file state changes.
 
 Rows remain source-language before import. Bilingual completion is a separate post-import task only when requested.
+
+## Incremental Release Lane
+
+When the task imports a newer release over existing owner-draft rows, do not restart the whole authoring/write path by default:
+
+1. Project the old release and new release into one SHA-bound comparison row per canonical target; keep UUID/crosswalk decisions outside the composer and auditable.
+2. Capture one SELECT-only owner snapshot plus receipt and bind project, owner, `state_code=0`, exact target set, non-root field allowlists, query/deployment fingerprints, CLI version, and evidence-bound policy hashes in `foundry-incremental-change-set-request.v1`.
+3. Run `dataset-incremental-change-set-compose` once into a fresh directory. Review its INSERT/UPDATE/NOOP/HOLD algebra and verify that conversion-event rows equal schema-valid input rows, event/decision/output hashes and chain pass, all dispatch counts are zero, absent dependencies are held, and every emitted action dependency points backward.
+4. Keep ordinary conflicts or missing dependencies on HOLD while independent actions remain eligible. Any owner/state/scope/hash trust-boundary finding rejects activation globally.
+5. Perform a fresh SELECT-only reconciliation and fresh owner session, obtain independent review, and admit the exact manifest/rows/contract with `execution-capsule-admit`.
+6. Only after separate execution authorization, pass `dataset-save-draft-input.jsonl` and `dataset-save-draft-execution-contract.json` to the published CLI. The CLI owns transactions, attempt records, no-replay recovery, and exact owner readback.
+
+Every valid comparison row must have one terminal event even when its outcome is NOOP or HOLD. A full rewrite is not a recovery mechanism for incremental conflicts.
 
 ## Maintainer Validation
 

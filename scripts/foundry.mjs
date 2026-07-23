@@ -17,6 +17,7 @@ import { createIdentityPreflightRunCommands } from "./commands/identity-prefligh
 import { createIdentityReferenceRewriteCommands } from "./commands/identity-reference-rewrites.mjs";
 import { createImportCompletionCommands } from "./commands/import-completion.mjs";
 import { createImportLedgerCommands } from "./commands/import-ledger.mjs";
+import { createIncrementalChangeSetCommands } from "./commands/incremental-change-set.mjs";
 import { createLibraryScopeWorkflowCommands } from "./commands/library-scope-workflow.mjs";
 import { createPostAuthoringFinalizeCommands } from "./commands/post-authoring-finalize.mjs";
 import { createPostWriteCloseoutCommands } from "./commands/post-write-closeout.mjs";
@@ -295,6 +296,7 @@ const taskCommands = createTaskCommands({
 });
 
 const executionCapsuleCommands = createExecutionCapsuleCommands({ repoRoot });
+const incrementalChangeSetCommands = createIncrementalChangeSetCommands({ repoRoot });
 
 const cliWrapperCommands = createCliWrapperCommands({
   appendOption,
@@ -897,6 +899,7 @@ runFoundryCli({
     identityDecisionTaskCommands,
     identityPreflightCommands,
     identityReferenceRewriteCommands,
+    incrementalChangeSetCommands,
     importCompletionCommands,
     importLedgerCommands,
     libraryScopeWorkflowCommands,

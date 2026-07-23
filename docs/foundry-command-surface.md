@@ -17,9 +17,10 @@ checkPaths:
   - test/README.md
   - scripts/lib/foundry-command-registry.mjs
   - scripts/lib/foundry-command-metadata.mjs
+  - docs/incremental-change-set-contract.md
   - test/unit/foundry-command-metadata.test.mjs
 lastReviewedAt: 2026-07-23
-lastReviewedCommit: 2f1e80b02173fc20231f01ac9e6da62c16d63109
+lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
 ---
 
 # Foundry Command Surface
@@ -40,6 +41,8 @@ The metadata module must cover every command returned by `node scripts/foundry.m
 Every command must have `workflowEntry.status: "active"` and at least one key behavior check, so unused surface area cannot hide as an unreviewed command. `surface-audit` is the read-only guard for hidden command aliases, empty metadata categories, unregistered orphan docs, and script modules with no inbound imports; `doctor` and `acceptance-check` include it.
 
 `execution-capsule-admit` is a `workflow-internal` offline evidence gate. Its contract lives in `docs/execution-capsule-contract.md`; it may snapshot, validate, report, and seal local evidence, but it cannot execute the consumer or grant production authority.
+
+`dataset-incremental-change-set-compose` is a `workflow-internal` offline planner. Its contract lives in `docs/incremental-change-set-contract.md`; it strictly validates old/candidate/current plus owner-receipt evidence, applies only entity/path/value/evidence-bound merge rules, isolates absent/held dependency closures, and emits one hash-chained terminal log event per schema-valid conversion plus a non-empty CLI-compatible candidate contract when actions exist. It has no network, database, CLI, or DML dispatch and never grants production authority.
 
 ## Navigation Contract
 

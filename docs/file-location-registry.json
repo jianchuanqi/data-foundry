@@ -209,6 +209,40 @@
       "notes": "Machine-readable input schema for foundry-execution-capsule-stage.v1."
     },
     {
+      "id": "incremental-change-set-contract",
+      "status": "active",
+      "classification": "offline-incremental-planning-contract",
+      "current_path": "docs/incremental-change-set-contract.md",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "AGENTS.md",
+        "README.md",
+        "WORKFLOW.md",
+        "docs/foundry-command-surface.md",
+        "scripts/commands/incremental-change-set.mjs"
+      ],
+      "sensitivity": "non-sensitive local planning contract; private payloads remain in ignored workspaces",
+      "tracked": true,
+      "notes": "Defines SHA-bound three-way planning, dependency isolation, per-conversion logs, output algebra, and the no-authority CLI handoff boundary."
+    },
+    {
+      "id": "incremental-change-set-schema",
+      "status": "active",
+      "classification": "machine-readable-incremental-planning-schema",
+      "current_path": "specs/schemas/incremental-change-set.schema.json",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "docs/incremental-change-set-contract.md",
+        "scripts/commands/incremental-change-set.mjs",
+        "test/commands/incremental-change-set.test.mjs"
+      ],
+      "sensitivity": "non-sensitive schema; no credentials or private payloads",
+      "tracked": true,
+      "notes": "Machine-readable request, comparison, owner snapshot, preservation policy, and conversion-event shapes for the offline composer."
+    },
+    {
       "id": "uslci-source-package",
       "status": "active",
       "classification": "external-source-package",

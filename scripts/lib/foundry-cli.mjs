@@ -28,6 +28,7 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
     identityDecisionTaskCommands,
     identityPreflightCommands,
     identityReferenceRewriteCommands,
+    incrementalChangeSetCommands,
     importCompletionCommands,
     importLedgerCommands,
     libraryScopeWorkflowCommands,
@@ -136,6 +137,8 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
       bafuBatchImportRunCommands.runDatasetBafuUniverseCoverageReport(options),
     "dataset-identity-reference-rewrites-apply": (options) =>
       identityReferenceRewriteCommands.runDatasetIdentityReferenceRewritesApply(options),
+    "dataset-incremental-change-set-compose": (options) =>
+      incrementalChangeSetCommands.runDatasetIncrementalChangeSetCompose(options),
     "dataset-identity-decisions-apply": (options) =>
       identityDecisionCommands.runDatasetIdentityDecisionsApply(options),
     "dataset-post-authoring-finalize": (options) =>
