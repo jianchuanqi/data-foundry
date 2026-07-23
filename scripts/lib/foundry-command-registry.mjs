@@ -16,6 +16,7 @@ export const publicCommands = [
 ];
 
 export const datasetPolicyCommands = [
+  "execution-capsule-admit",
   "dataset-curation-queue-build",
   "dataset-curation-gate",
   "dataset-authoring-plan",
@@ -102,6 +103,8 @@ export function exitCodeForCommand(command, result) {
     case "dataset-curation-queue-build":
     case "dataset-patch-apply":
       return result?.foundry_wrapper?.exit_code ?? 1;
+    case "execution-capsule-admit":
+      return statusIs(result, ["help", "sealed"]) ? 0 : 1;
     case "dataset-curation-gate":
       return statusIs(result, ["help", "ready", "ready_with_profile_waivers"]) ? 0 : 1;
     case "dataset-authoring-plan":

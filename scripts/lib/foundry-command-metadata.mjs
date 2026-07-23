@@ -186,6 +186,32 @@ export const commandMetadata = {
     outputs: ["tasks/done/<task-id>.md", "task completion JSON report"],
     keyTests: [commandSmoke("task-complete")],
   }),
+  "execution-capsule-admit": metadata({
+    category: "workflow-internal",
+    ownerModule: "scripts/commands/execution-capsule.mjs",
+    ownerExport: "createExecutionCapsuleCommands().runExecutionCapsuleAdmit",
+    inputs: [
+      "foundry-execution-capsule-stage.v1 manifest",
+      "content-addressed stage leaves",
+      "materialized consumer boundary contract",
+    ],
+    outputs: [
+      "execution-capsule-stage-revision.json",
+      "execution-capsule-admission-ledger.jsonl",
+      "execution-capsule-admission-report.json",
+      "execution-capsule-seal.json when all checks pass",
+    ],
+    keyTests: [
+      nodeTest(
+        "test/commands/execution-capsule.test.mjs",
+        "execution capsule admission seals exact offline evidence and rejects mutation vectors",
+      ),
+      nodeTest(
+        "test/unit/execution-capsule-attempt-state.test.mjs",
+        "attempt dispositions distinguish unattempted, recovered success, and unknown no-replay states",
+      ),
+    ],
+  }),
   "dataset-curation-queue-build": metadata({
     category: "cli-wrapper",
     ownerModule: "scripts/commands/cli-wrappers.mjs",

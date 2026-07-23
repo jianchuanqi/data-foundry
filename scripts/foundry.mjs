@@ -10,6 +10,7 @@ import { createBundleSampleRowsCommands } from "./commands/bundle-sample-rows.mj
 import { createCliWrapperCommands } from "./commands/cli-wrappers.mjs";
 import { createCommitHandoffCommands } from "./commands/commit-handoff.mjs";
 import { createCoreCommands } from "./commands/core.mjs";
+import { createExecutionCapsuleCommands } from "./commands/execution-capsule.mjs";
 import { createIdentityDecisionTaskCommands } from "./commands/identity-decision-task.mjs";
 import { createIdentityDecisionCommands } from "./commands/identity-decisions.mjs";
 import { createIdentityPreflightRunCommands } from "./commands/identity-preflight-run.mjs";
@@ -292,6 +293,8 @@ const taskCommands = createTaskCommands({
   taskMetaFromFile,
   writeText,
 });
+
+const executionCapsuleCommands = createExecutionCapsuleCommands({ repoRoot });
 
 const cliWrapperCommands = createCliWrapperCommands({
   appendOption,
@@ -889,6 +892,7 @@ runFoundryCli({
     cliWrapperCommands,
     commitHandoffCommands,
     coreCommands,
+    executionCapsuleCommands,
     identityDecisionCommands,
     identityDecisionTaskCommands,
     identityPreflightCommands,

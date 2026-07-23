@@ -1,7 +1,7 @@
 {
   "$schema": "../specs/schemas/file-location-registry.schema.json",
   "schema_version": 1,
-  "updated_at_utc": "2026-06-12T00:00:00Z",
+  "updated_at_utc": "2026-07-23T00:00:00Z",
   "policy_doc": "docs/file-organization.md",
   "entries": [
     {
@@ -175,6 +175,38 @@
       "sensitivity": "non-sensitive remote-write gate and human-approval policy; contains no credentials and no private payloads",
       "tracked": true,
       "notes": "Defines when a Foundry import scope may move from dry-run to policy-gated CLI commit and how blocked scopes are isolated for recovery."
+    },
+    {
+      "id": "execution-capsule-contract",
+      "status": "active",
+      "classification": "offline-admission-contract",
+      "current_path": "docs/execution-capsule-contract.md",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "README.md",
+        "docs/foundry-command-surface.md",
+        "scripts/commands/execution-capsule.mjs"
+      ],
+      "sensitivity": "non-sensitive local evidence contract; no credentials or private payloads",
+      "tracked": true,
+      "notes": "Defines the package-agnostic staged CAS evidence, materialized boundary, zero-attempt admission, and immutable local seal contract."
+    },
+    {
+      "id": "execution-capsule-stage-schema",
+      "status": "active",
+      "classification": "machine-readable-offline-admission-schema",
+      "current_path": "specs/schemas/execution-capsule-stage.schema.json",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "docs/execution-capsule-contract.md",
+        "scripts/commands/execution-capsule.mjs",
+        "test/commands/execution-capsule.test.mjs"
+      ],
+      "sensitivity": "non-sensitive schema; no credentials or private payloads",
+      "tracked": true,
+      "notes": "Machine-readable input schema for foundry-execution-capsule-stage.v1."
     },
     {
       "id": "uslci-source-package",

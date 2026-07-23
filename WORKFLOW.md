@@ -23,8 +23,8 @@ checkPaths:
   - specs/automated-lca-capability-registry.json
   - specs/capability-ownership-rules.json
   - test/README.md
-lastReviewedAt: 2026-07-12
-lastReviewedCommit: f7c2758cfc5b585bde43f112237e6047527c1a39
+lastReviewedAt: 2026-07-23
+lastReviewedCommit: f10932a864e54f3826afc0141f33fbcf9190344e
 tracker:
   kind: filesystem
   inbox: tasks/inbox

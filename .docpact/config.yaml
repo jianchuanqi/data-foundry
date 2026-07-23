@@ -1,8 +1,8 @@
 version: 1
 layout: repo
 # Review note, 2026-06-04: first-pass docpact onboarding for Foundry thin-control-plane refactor.
-lastReviewedAt: "2026-06-04"
-lastReviewedCommit: "77dfa0de95629e228759e2fe84ea96f23d08623c"
+lastReviewedAt: "2026-07-23"
+lastReviewedCommit: "f10932a864e54f3826afc0141f33fbcf9190344e"
 
 catalog:
   repos:
@@ -152,6 +152,7 @@ docInventory:
     - docs/safety-policy.md
     - docs/foundry-ai-navigation.md
     - docs/foundry-command-surface.md
+    - docs/execution-capsule-contract.md
     - test/README.md
     - docs/account-context-policy.md
     - docs/countable-product-functional-unit-design.md
@@ -251,6 +252,24 @@ rules:
       - path: docs/architecture.md
         mode: review_or_update
     reason: Import profile constraints must remain generic profile contracts, not Foundry code paths.
+  - id: foundry-execution-capsule-contract
+    scope: repo
+    repo: data-foundry
+    triggers:
+      - path: docs/execution-capsule-contract.md
+        kind: execution-capsule-contract
+      - path: specs/schemas/execution-capsule-stage.schema.json
+        kind: execution-capsule-schema
+      - path: scripts/commands/execution-capsule.mjs
+        kind: execution-capsule-command
+      - path: test/commands/execution-capsule.test.mjs
+        kind: execution-capsule-command-test
+      - path: test/unit/execution-capsule-attempt-state.test.mjs
+        kind: execution-capsule-state-test
+    requiredDocs:
+      - path: docs/execution-capsule-contract.md
+        mode: review_or_update
+    reason: Execution capsule lineage, boundary, schema, and admission behavior must remain synchronized with the authoritative contract.
   - id: foundry-test-layout-contract
     scope: repo
     repo: data-foundry

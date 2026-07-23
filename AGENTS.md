@@ -20,13 +20,14 @@ checkPaths:
   - docs/capability-ownership-policy.md
   - docs/runtime-skill-management.md
   - docs/foundry-task-contracts.md
+  - docs/execution-capsule-contract.md
   - docs/import-profiles/bafu/leaf-process-classification-authoring.md
   - package.json
   - scripts/foundry.mjs
   - scripts/lib/foundry-command-metadata.mjs
   - specs/**
-lastReviewedAt: 2026-07-12
-lastReviewedCommit: f7c2758cfc5b585bde43f112237e6047527c1a39
+lastReviewedAt: 2026-07-23
+lastReviewedCommit: f10932a864e54f3826afc0141f33fbcf9190344e
 ---
 
 # AGENTS.md - TianGong LCA Data Foundry
