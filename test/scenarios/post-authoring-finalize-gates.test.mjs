@@ -256,32 +256,205 @@ test("post-authoring finalize auto-builds curation queue context from sibling pr
       name: "Natural gas",
     },
   ]);
+  const fakeCli = path.join(root, "bin", "fake-identity-preflight.cjs");
+  writeText(
+    fakeCli,
+    String.raw`#!/usr/bin/env node
+const fs = require("fs");
+const path = require("path");
+const args = process.argv.slice(2);
+function opt(name) {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : null;
+}
+function writeJson(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2) + "\n");
+}
+function readRows(filePath) {
+  return fs.readFileSync(filePath, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+}
+if (args[0] === "dataset" && args[1] === "curation-queue" && args[2] === "build") {
+  const outDir = opt("--out-dir");
+  const processRows = readRows(opt("--processes"));
+  const flowRows = readRows(opt("--flows"));
+  function identity(row, kind) {
+    const root = row[kind + "DataSet"];
+    const info = root[kind + "Information"].dataSetInformation;
+    return {
+      id: info["common:UUID"],
+      version: root.administrativeInformation?.publicationAndOwnership?.["common:dataSetVersion"] || "00.00.001",
+    };
+  }
+  const processIdentity = identity(processRows[0], "process");
+  const flow = identity(flowRows[0], "flow");
+  const processInput = path.join(outDir, "inputs", "process.jsonl");
+  const flowInput = path.join(outDir, "inputs", "flow.jsonl");
+  fs.mkdirSync(path.dirname(processInput), { recursive: true });
+  fs.writeFileSync(processInput, processRows.map(JSON.stringify).join("\n") + "\n");
+  fs.writeFileSync(flowInput, flowRows.map(JSON.stringify).join("\n") + "\n");
+  const processClosure = path.join(outDir, "closures", "process.json");
+  const flowClosure = path.join(outDir, "closures", "flow.json");
+  writeJson(processClosure, {
+    dependencies: {
+      local_tasks: [{ task_id: "flow-task", ref: flow.id, ref_path: "processDataSet.exchanges" }],
+    },
+  });
+  writeJson(flowClosure, { dependencies: { local_tasks: [] } });
+  const manifestFile = path.join(outDir, "outputs", "curation-queue-manifest.json");
+  const report = {
+    status: "ready",
+    counts: { process_rows: processRows.length, flow_rows: flowRows.length },
+    blockers: [],
+    tasks: [
+      {
+        schema_version: 1,
+        entity_type: "process",
+        task_id: "process-task",
+        entity_id: processIdentity.id,
+        version: processIdentity.version,
+        lock_key: "process:" + processIdentity.id,
+        depends_on: ["flow-task"],
+        input_rows_file: "inputs/process.jsonl",
+        closure_file: "closures/process.json",
+        run_plan_file: null,
+      },
+      {
+        schema_version: 1,
+        entity_type: "flow",
+        task_id: "flow-task",
+        entity_id: flow.id,
+        version: flow.version,
+        lock_key: "flow:" + flow.id,
+        depends_on: [],
+        input_rows_file: "inputs/flow.jsonl",
+        closure_file: "closures/flow.json",
+        run_plan_file: null,
+      },
+    ],
+    files: { manifest: manifestFile },
+  };
+  writeJson(manifestFile, report);
+  process.stdout.write(JSON.stringify(report));
+  process.exit(0);
+}
+if (args[0] === "dataset" && args[1] === "validate") {
+  const input = opt("--input");
+  const outDir = opt("--out-dir");
+  const reportFile = path.join(outDir, "outputs", "validation-report.json");
+  const rows = readRows(input).map((row, index) => ({
+    index,
+    id: row.processDataSet.processInformation.dataSetInformation["common:UUID"],
+    version: row.processDataSet.administrativeInformation?.publicationAndOwnership?.["common:dataSetVersion"] || "00.00.001",
+    type: "process",
+    status: "valid",
+    issues: [],
+  }));
+  const report = { status: "completed", input_path: input, rows, files: { report: reportFile } };
+  writeJson(reportFile, report);
+  process.stdout.write(JSON.stringify(report));
+  process.exit(0);
+}
+if (args[0] === "qa" && args[1] === "process") {
+  const rowsFile = opt("--rows-file");
+  const reportFile = path.join(opt("--out-dir"), "process-qa-report.json");
+  const report = {
+    status: "completed_local_process_qa",
+    rows_file: rowsFile,
+    blockers: [],
+    findings: [],
+    counts: { blockers: 0 },
+    files: { report: reportFile },
+  };
+  writeJson(reportFile, report);
+  process.stdout.write(JSON.stringify(report));
+  process.exit(0);
+}
+if (args[0] === "dataset" && args[1] === "classification" && args[2] === "audit") {
+  const input = opt("--input");
+  const reportFile = path.join(opt("--out-dir"), "outputs", "location-audit-report.json");
+  const report = {
+    status: "completed",
+    input_path: input,
+    blockers: [],
+    findings: [],
+    counts: { invalid: 0, blockers: 0 },
+    files: { report: reportFile },
+  };
+  writeJson(reportFile, report);
+  process.stdout.write(JSON.stringify(report));
+  process.exit(0);
+}
+const kind = args[0];
+if (!(["flow", "process"].includes(kind)) || args[1] !== "identity-preflight") {
+  process.stderr.write("unexpected fake identity-preflight args\n");
+  process.exit(2);
+}
+const request = JSON.parse(fs.readFileSync(opt("--input"), "utf8"));
+const target = request.target;
+const rootKey = kind + "DataSet";
+const informationKey = kind + "Information";
+const root = target[rootKey];
+const information = root[informationKey].dataSetInformation;
+const id = information["common:UUID"];
+const version = root.administrativeInformation?.publicationAndOwnership?.["common:dataSetVersion"] || "00.00.001";
+const report = {
+  schema_version: 1,
+  kind,
+  status: "passed",
+  decision: "create_new",
+  confidence: "medium",
+  target: {
+    id,
+    version,
+    names: [id],
+    fields: {},
+    exchange_signature: [],
+    schema_validation: { status: "passed", issue_count: 0, issues: [] },
+  },
+  candidates: [],
+  candidate_sources: [],
+  findings: [],
+  blockers: [],
+  next_action: "materialize_new_payload",
+  files: {},
+};
+const reportFile = path.join(opt("--out-dir"), "outputs", "identity-decision.json");
+fs.mkdirSync(path.dirname(reportFile), { recursive: true });
+fs.writeFileSync(reportFile, JSON.stringify(report, null, 2) + "\n");
+process.stdout.write(JSON.stringify(report));
+`,
+  );
+  fs.chmodSync(fakeCli, 0o755);
 
   try {
-    const finalize = runFoundry([
-      "dataset-post-authoring-finalize",
-      "--type",
-      "process",
-      "--profile",
-      "bafu",
-      "--rows-file",
-      rel(rowsFile),
-      "--identity-preflight-index",
-      rel(identityPreflightIndex),
-      "--run-identity-preflight",
-      "--refresh-identity-preflight",
-      "false",
-      "--schema-file",
-      rel(context.schemaFile),
-      "--yaml-file",
-      rel(context.yamlFile),
-      "--ruleset-file",
-      rel(context.rulesetFile),
-      "--target-user-id",
-      targetUserId,
-      "--out-dir",
-      rel(path.join(root, "finalize")),
-    ]);
+    const finalize = runFoundry(
+      [
+        "dataset-post-authoring-finalize",
+        "--type",
+        "process",
+        "--profile",
+        "bafu",
+        "--rows-file",
+        rel(rowsFile),
+        "--identity-preflight-index",
+        rel(identityPreflightIndex),
+        "--run-identity-preflight",
+        "--refresh-identity-preflight",
+        "false",
+        "--schema-file",
+        rel(context.schemaFile),
+        "--yaml-file",
+        rel(context.yamlFile),
+        "--ruleset-file",
+        rel(context.rulesetFile),
+        "--target-user-id",
+        targetUserId,
+        "--out-dir",
+        rel(path.join(root, "finalize")),
+      ],
+      { env: { TIANGONG_LCA_CLI_BIN: fakeCli } },
+    );
 
     assert.equal(finalize.code, 1);
     assert.equal(finalize.json.status, "blocked");
@@ -307,7 +480,11 @@ test("post-authoring finalize auto-builds curation queue context from sibling pr
         (stage) => stage.stage === "identity_preflight_run" && stage.duration_ms >= 0,
       ),
     );
-    assert.equal(finalize.json.counts.curation_queue_status, "ready");
+    assert.equal(
+      finalize.json.counts.curation_queue_status,
+      "ready",
+      JSON.stringify(finalize.json, null, 2),
+    );
     assert.equal(finalize.json.counts.curation_queue_process_rows, 1);
     assert.equal(finalize.json.counts.curation_queue_flow_rows, 1);
     assert.ok(finalize.json.files.curation_queue_report);

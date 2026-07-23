@@ -19,10 +19,11 @@ checkPaths:
   - scripts/foundry.mjs
   - scripts/lib/foundry-cli.mjs
   - scripts/lib/foundry-command-metadata.mjs
+  - scripts/commands/incremental-change-set.mjs
   - scripts/lib/import-curation/**
   - test/unit/foundry-command-metadata.test.mjs
-lastReviewedAt: 2026-06-05
-lastReviewedCommit: dabd3c9b9841641668caee6fe37cda37d3140739
+lastReviewedAt: 2026-07-23
+lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
 ---
 
 # Foundry AI Navigation
@@ -50,6 +51,8 @@ The checked source of truth for command ownership is `scripts/lib/foundry-comman
 
 `test/unit/foundry-command-metadata.test.mjs` enforces that the metadata covers all registered commands and that public commands remain reachable within two jumps from `scripts/foundry.mjs`.
 
+The incremental lane is owned by `scripts/commands/incremental-change-set.mjs`, with its authoritative artifact and activation boundary in `docs/incremental-change-set-contract.md`. It composes Foundry-owned task evidence and stops before the CLI-owned mutation boundary.
+
 ## Import-Curation Modules
 
 Use these semantic modules as the import-curation navigation surface:
@@ -72,6 +75,7 @@ Complex workflow commands should also publish an AI-readable `stage_pipeline` co
 - `dataset-post-authoring-finalize`
 - `dataset-authoring-plan`
 - `dataset-identity-preflight-run`
+- `dataset-incremental-change-set-compose`
 
 ## Internal Layers
 

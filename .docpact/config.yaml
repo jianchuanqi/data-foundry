@@ -1,8 +1,9 @@
 version: 1
 layout: repo
 # Review note, 2026-06-04: first-pass docpact onboarding for Foundry thin-control-plane refactor.
+# Review note, 2026-07-23: Issue #42 adds the generic offline incremental change-set composer, exact per-conversion event ledger, and CLI candidate contract. Strict Draft 2020-12 validation uses the exact Ajv 8.20.0 runtime dependency; evidence-bound entity/path/value rules, stable-identity array handling, snapshot receipts, terminal pairs, and non-root field allowlists add no remote access or mutation authority.
 lastReviewedAt: "2026-07-23"
-lastReviewedCommit: "f10932a864e54f3826afc0141f33fbcf9190344e"
+lastReviewedCommit: "849d6ac14d357bd445a9fa75a9c18dc16a2a411a"
 
 catalog:
   repos:
@@ -21,6 +22,7 @@ catalog:
         - docs/safety-policy.md
         - docs/foundry-ai-navigation.md
         - docs/foundry-command-surface.md
+        - docs/incremental-change-set-contract.md
       workspaceIntegrationRequired: true
 
 ownership:
@@ -153,6 +155,7 @@ docInventory:
     - docs/foundry-ai-navigation.md
     - docs/foundry-command-surface.md
     - docs/execution-capsule-contract.md
+    - docs/incremental-change-set-contract.md
     - test/README.md
     - docs/account-context-policy.md
     - docs/countable-product-functional-unit-design.md
@@ -270,6 +273,30 @@ rules:
       - path: docs/execution-capsule-contract.md
         mode: review_or_update
     reason: Execution capsule lineage, boundary, schema, and admission behavior must remain synchronized with the authoritative contract.
+  - id: foundry-incremental-change-set-contract
+    scope: repo
+    repo: data-foundry
+    triggers:
+      - path: docs/incremental-change-set-contract.md
+        kind: incremental-change-set-contract
+      - path: specs/schemas/incremental-change-set.schema.json
+        kind: incremental-change-set-schema
+      - path: scripts/commands/incremental-change-set.mjs
+        kind: incremental-change-set-command
+      - path: test/unit/incremental-change-set.test.mjs
+        kind: incremental-change-set-unit-test
+      - path: test/commands/incremental-change-set.test.mjs
+        kind: incremental-change-set-command-test
+      - path: test/scenarios/incremental-change-set-handoff.test.mjs
+        kind: incremental-change-set-scenario-test
+    requiredDocs:
+      - path: docs/incremental-change-set-contract.md
+        mode: review_or_update
+      - path: docs/execution-capsule-contract.md
+        mode: must_exist
+      - path: docs/foundry-command-surface.md
+        mode: must_exist
+    reason: Three-way merge, per-conversion logging, CLI compatibility, and activation boundaries must remain synchronized.
   - id: foundry-test-layout-contract
     scope: repo
     repo: data-foundry

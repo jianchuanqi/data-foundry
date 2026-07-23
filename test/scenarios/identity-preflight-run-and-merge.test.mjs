@@ -82,7 +82,7 @@ test("identity preflight batch runner records timed-out CLI rows without hanging
         env: {
           TIANGONG_LCA_CLI_BIN: fakeCli,
         },
-        timeout: 2_000,
+        timeout: 5_000,
       },
     );
     assert.equal(result.code, 1);

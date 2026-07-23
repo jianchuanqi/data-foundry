@@ -212,6 +212,40 @@ export const commandMetadata = {
       ),
     ],
   }),
+  "dataset-incremental-change-set-compose": metadata({
+    category: "workflow-internal",
+    ownerModule: "scripts/commands/incremental-change-set.mjs",
+    ownerExport: "createIncrementalChangeSetCommands().runDatasetIncrementalChangeSetCompose",
+    inputs: [
+      "SHA-bound incremental change-set request",
+      "old/candidate comparison JSONL",
+      "owner-draft SELECT-only snapshot JSONL",
+      "explicit JSON Pointer preservation policy",
+      "optional terminal action exclusions",
+    ],
+    outputs: [
+      "incremental-change-set-request.snapshot.json",
+      "incremental-change-set-conversion-events.jsonl",
+      "incremental-change-set-delta.jsonl",
+      "incremental-change-set-no-write.jsonl",
+      "incremental-change-set-holds.jsonl",
+      "incremental-change-set-dependency-closure.json",
+      "dataset-save-draft-input.jsonl",
+      "dataset-save-draft-execution-contract.json",
+      "incremental-change-set-report.json",
+      "incremental-change-set-manifest.json",
+    ],
+    keyTests: [
+      nodeTest(
+        "test/unit/incremental-change-set.test.mjs",
+        "three-way merge and canonical CLI hashes preserve owner changes only through explicit policy",
+      ),
+      nodeTest(
+        "test/commands/incremental-change-set.test.mjs",
+        "every conversion receives one terminal event and outputs satisfy action/no-write/hold algebra",
+      ),
+    ],
+  }),
   "dataset-curation-queue-build": metadata({
     category: "cli-wrapper",
     ownerModule: "scripts/commands/cli-wrappers.mjs",

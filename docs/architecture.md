@@ -23,8 +23,9 @@ checkPaths:
   - docs/workspace-project-map.md
   - specs/capability-ownership-rules.json
   - specs/automated-lca-capability-registry.json
+  - docs/incremental-change-set-contract.md
 lastReviewedAt: 2026-07-23
-lastReviewedCommit: f10932a864e54f3826afc0141f33fbcf9190344e
+lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
 ---
 
 # Architecture
@@ -88,11 +89,16 @@ profiles
    - resolve bundle manifest and `tidas_dir` paths relative to `process-bundles/index.json`
    - record ready scope checkpoints, blocked-scope ledgers, and reader-facing blocked-scope reports without turning blocked scopes into write candidates
 
-7. Local behavior test structure
+7. Incremental release planning
+   - compare old source semantics, new candidate semantics, and a current owner-draft snapshot under one SHA-bound request
+   - enforce strict Draft 2020-12 inputs/outputs and entity/path/value/evidence-bound three-way rules, then emit minimal INSERT/UPDATE candidates, complete NOOP/HOLD evidence, stable dependency order, and one hash-chained terminal log event per schema-valid conversion
+   - stop at an offline `production_authority=false` CLI candidate contract; fresh reconciliation, owner session, capsule admission, mutation, and readback remain outside Foundry
+
+8. Local behavior test structure
    - keep unit tests, command contract tests, multi-command scenarios, and shared fixtures in the `test/README.md` layout
    - protect Foundry orchestration and artifact contracts locally without absorbing reusable CLI, skill, SDK, database, or Edge behavior
 
-8. Surface cleanup
+9. Surface cleanup
    - remove compatibility aliases, empty command categories, and draft orchestration references once current commands, metadata, tests, docs, and docpact show no remaining consumer
    - keep historical or dataset-specific guidance only when it has an active route, profile, task, or retained reference role
 

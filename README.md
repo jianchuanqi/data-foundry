@@ -18,9 +18,10 @@ checkPaths:
   - docs/architecture.md
   - docs/runtime-skill-management.md
   - docs/foundry-task-contracts.md
+  - docs/incremental-change-set-contract.md
   - specs/import-profiles.json
-lastReviewedAt: 2026-07-12
-lastReviewedCommit: f7c2758cfc5b585bde43f112237e6047527c1a39
+lastReviewedAt: 2026-07-23
+lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
 ---
 
 # TianGong LCA Data Foundry
@@ -35,6 +36,8 @@ Foundry is intentionally thin. It owns task routing, local workspaces, import pr
 - `source-evidence-dataset-development`: PDF, Excel, web exports, images, markdown, or free text extracted through CLI/skills, authored into candidate TIDAS rows with source evidence, then sent through the same validation and curation gates.
 
 Raw rows may preserve source-language text, but final import/write-ready rows must include English for TIDAS-required multilingual fields while preserving non-English source-language variants.
+
+For a newer release over an existing owner-draft import, use the incremental lane instead of rebuilding or rewriting every row. `dataset-incremental-change-set-compose` strictly validates a SHA-bound old/candidate/current request plus owner-snapshot receipt, then emits only INSERT/UPDATE candidates, explicit NOOP/HOLD ledgers, dependency order, a non-empty CLI execution contract when actions exist, and exactly one terminal JSONL log event per schema-valid conversion. Entity/path/value/evidence-bound rules preserve reviewed work without opening whole rows; unstable arrays and absent dependencies hold only their closure. The command is offline and non-authoritative; fresh reconciliation and capsule admission remain separate gates. See `docs/incremental-change-set-contract.md`.
 
 ## Core Commands
 
@@ -58,6 +61,7 @@ npm run task:route -- --kind external-dataset-curated-import --dataset-type proc
 npm run task:route -- --kind source-evidence-dataset-development --dataset-type process --required-gates context,schema,qa,curation
 npm run skills:source-evidence:use:document
 npm run skills:source-evidence:use:sci
+node scripts/foundry.mjs dataset-incremental-change-set-compose --request <request.json> --out-dir <fresh-output-dir>
 ```
 
 Tests are organized by behavior layer in `test/README.md`. Use `npm test` for the full suite and `npm run test:unit|test:commands|test:scenarios` for targeted checks; old incident-numbered test aliases are not part of the maintained surface.
