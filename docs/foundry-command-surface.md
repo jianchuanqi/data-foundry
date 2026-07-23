@@ -18,8 +18,8 @@ checkPaths:
   - scripts/lib/foundry-command-registry.mjs
   - scripts/lib/foundry-command-metadata.mjs
   - test/unit/foundry-command-metadata.test.mjs
-lastReviewedAt: 2026-06-05
-lastReviewedCommit: dabd3c9b9841641668caee6fe37cda37d3140739
+lastReviewedAt: 2026-07-23
+lastReviewedCommit: 2f1e80b02173fc20231f01ac9e6da62c16d63109
 ---
 
 # Foundry Command Surface
@@ -38,6 +38,8 @@ The metadata module must cover every command returned by `node scripts/foundry.m
 - `cli-wrapper`: compatibility wrappers over sibling `tiangong-lca` CLI behavior that Foundry does not own.
 
 Every command must have `workflowEntry.status: "active"` and at least one key behavior check, so unused surface area cannot hide as an unreviewed command. `surface-audit` is the read-only guard for hidden command aliases, empty metadata categories, unregistered orphan docs, and script modules with no inbound imports; `doctor` and `acceptance-check` include it.
+
+`execution-capsule-admit` is a `workflow-internal` offline evidence gate. Its contract lives in `docs/execution-capsule-contract.md`; it may snapshot, validate, report, and seal local evidence, but it cannot execute the consumer or grant production authority.
 
 ## Navigation Contract
 

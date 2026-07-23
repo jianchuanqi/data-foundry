@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tiangong-lca.local/foundry/execution-capsule-stage.schema.json",
+  "title": "Foundry Execution Capsule Stage",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "stage_id",
+    "producer_id",
+    "revision",
+    "predecessor_stage_manifest_sha256",
+    "stage_root",
+    "admission_mode",
+    "production_authority",
+    "scope_binding_sha256",
+    "attempt_state",
+    "findings",
+    "leaves",
+    "boundary_contract_leaf_id",
+    "reviewer_report_leaf_ids"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "foundry-execution-capsule-stage.v1" },
+    "stage_id": { "type": "string", "minLength": 1 },
+    "producer_id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "predecessor_stage_manifest_sha256": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sha256" }]
+    },
+    "stage_root": { "type": "string", "minLength": 1 },
+    "admission_mode": { "const": "OFFLINE_ONLY" },
+    "production_authority": { "const": false },
+    "scope_binding_sha256": { "$ref": "#/$defs/sha256" },
+    "attempt_state": {
+      "type": "object",
+      "required": [
+        "status",
+        "attempt_count",
+        "primary_attempt_count",
+        "dispatch_state",
+        "mutation_state",
+        "readback_state"
+      ],
+      "properties": {
+        "status": { "const": "UNATTEMPTED" },
+        "attempt_count": { "const": 0 },
+        "primary_attempt_count": { "const": 0 },
+        "dispatch_state": { "const": "NOT_DISPATCHED" },
+        "mutation_state": { "const": "NONE" },
+        "readback_state": { "const": "NOT_STARTED" }
+      }
+    },
+    "findings": {
+      "type": "object",
+      "required": ["p0", "p1"],
+      "properties": {
+        "p0": { "const": 0 },
+        "p1": { "const": 0 }
+      }
+    },
+    "leaves": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/leaf" }
+    },
+    "boundary_contract_leaf_id": { "type": "string", "minLength": 1 },
+    "reviewer_report_leaf_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "hashDescriptor": {
+      "type": "object",
+      "required": ["algorithm", "sha256"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "leaf": {
+      "type": "object",
+      "required": [
+        "leaf_id",
+        "role",
+        "path",
+        "raw_hash",
+        "semantic_hash",
+        "scope_binding_sha256",
+        "dependency_leaf_ids",
+        "freshness_class",
+        "executable_input"
+      ],
+      "properties": {
+        "leaf_id": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "raw_hash": {
+          "allOf": [
+            { "$ref": "#/$defs/hashDescriptor" },
+            {
+              "type": "object",
+              "required": ["bytes"],
+              "properties": { "bytes": { "type": "integer", "minimum": 0 } }
+            }
+          ]
+        },
+        "semantic_hash": {
+          "allOf": [
+            { "$ref": "#/$defs/hashDescriptor" },
+            {
+              "type": "object",
+              "required": ["domain", "canonicalizer_id"],
+              "properties": {
+                "domain": { "type": "string", "minLength": 1 },
+                "canonicalizer_id": {
+                  "enum": ["raw-bytes-v1", "utf8-lf-v1", "canonical-json-v1"]
+                }
+              }
+            }
+          ]
+        },
+        "scope_binding_sha256": { "$ref": "#/$defs/sha256" },
+        "dependency_leaf_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "freshness_class": {
+          "enum": [
+            "SEMANTIC_IMMUTABLE",
+            "TOOLCHAIN_BOUND",
+            "LIVE_RECONCILIATION",
+            "OWNER_SESSION",
+            "DERIVED_REPORT"
+          ]
+        },
+        "freshness": { "type": "object" },
+        "executable_input": { "type": "boolean" }
+      }
+    }
+  }
+}
