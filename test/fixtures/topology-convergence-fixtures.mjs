@@ -223,6 +223,13 @@ export function createTopologyConvergenceFixture(name, mutate = () => {}) {
     ],
     { name: "Owner-authored name", german: germanA },
   );
+  for (const currentExchange of currentProcessA.processDataSet.exchanges.exchange) {
+    delete currentExchange["common:other"];
+    currentExchange.generalComment = {
+      "@xml:lang": "en",
+      "#text": `Source EcoSpold1 exchange number: ${currentExchange["@dataSetInternalID"]}. Preserved production trace.`,
+    };
+  }
 
   const state = {
     root,

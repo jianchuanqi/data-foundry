@@ -25,7 +25,7 @@ checkPaths:
   - specs/automated-lca-capability-registry.json
   - docs/incremental-change-set-contract.md
 lastReviewedAt: 2026-07-24
-lastReviewedCommit: 669ca59a21b0c637c7cb36530643945e255b137a
+lastReviewedCommit: a6354830ae4369ce2c959878865ebfe6791bab57
 ---
 
 # Architecture

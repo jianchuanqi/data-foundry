@@ -77,7 +77,7 @@ Public and foreign rows can never become actions. Classification conflicts requi
 
 ## Occurrence-aware process reconstruction
 
-Exchange identity is the tuple `(process UUID, EcoSpold source exchange number, 1-based occurrence in document order)`. The source number must be present in retained conversion trace. A global `old_flow_id -> new_flow_id` replacement is never used.
+Exchange identity is the tuple `(process UUID, EcoSpold source exchange number, 1-based occurrence in document order)`. Candidate payloads bind the source number through retained conversion trace. Fresh production snapshots may bind it through the preserved `generalComment` marker after import-metadata cleanup; if both forms exist they must agree exactly. Missing, ambiguous, or conflicting evidence fails closed. A global `old_flow_id -> new_flow_id` replacement is never used.
 
 For an existing process, the current owner payload is the base so all non-exchange content remains byte-semantically preserved. The candidate ordered exchange array supplies only the authorized topology fields:
 

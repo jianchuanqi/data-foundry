@@ -423,12 +423,52 @@ function candidateExchanges(payload) {
   return Array.isArray(value) ? value : [value];
 }
 
-function sourceExchangeNumber(exchange) {
+function textFragments(value, output = []) {
+  if (typeof value === "string") output.push(value);
+  else if (Array.isArray(value)) {
+    for (const child of value) textFragments(child, output);
+  } else if (value && typeof value === "object") {
+    if (typeof value["#text"] === "string") output.push(value["#text"]);
+    else for (const child of Object.values(value)) textFragments(child, output);
+  }
+  return output;
+}
+
+function sourceExchangeNumber(exchange, processId, exchangeIndex) {
   const attributes =
     exchange?.["common:other"]?.["tidasimport:sourceTrace"]?.payload?.sourceTrace?.exchange
       ?.attributes;
   const array = Array.isArray(attributes) ? attributes : attributes ? [attributes] : [];
-  return asToken(array.find((attribute) => attribute?.name === "number")?.value);
+  const traceNumbers = [
+    ...new Set(
+      array
+        .filter((attribute) => attribute?.name === "number")
+        .map((attribute) => asToken(attribute?.value))
+        .filter(Boolean),
+    ),
+  ];
+  const commentNumbers = [
+    ...new Set(
+      textFragments(exchange?.generalComment).flatMap((fragment) =>
+        [...fragment.matchAll(/Source EcoSpold1 exchange number:\s*([0-9]+)(?:\.|\b)/giu)].map(
+          (match) => match[1],
+        ),
+      ),
+    ),
+  ];
+  if (traceNumbers.length > 1 || commentNumbers.length > 1) {
+    throw new Error(
+      `Process ${processId} exchange ${exchangeIndex + 1} has ambiguous source numbers.`,
+    );
+  }
+  const traceNumber = traceNumbers[0] ?? "";
+  const commentNumber = commentNumbers[0] ?? "";
+  if (traceNumber && commentNumber && traceNumber !== commentNumber) {
+    throw new Error(
+      `Process ${processId} exchange ${exchangeIndex + 1} sourceTrace/generalComment number mismatch.`,
+    );
+  }
+  return traceNumber || commentNumber;
 }
 
 export function occurrenceKeyedExchanges(exchanges, processId) {
@@ -436,7 +476,7 @@ export function occurrenceKeyedExchanges(exchanges, processId) {
   const ordered = [];
   for (let index = 0; index < exchanges.length; index += 1) {
     const exchange = exchanges[index];
-    const number = sourceExchangeNumber(exchange);
+    const number = sourceExchangeNumber(exchange, processId, index);
     if (!number)
       throw new Error(`Process ${processId} exchange ${index + 1} has no source number.`);
     const occurrence = (occurrences.get(number) ?? 0) + 1;

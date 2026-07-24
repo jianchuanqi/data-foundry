@@ -28,8 +28,8 @@ checkPaths:
   - scripts/foundry.mjs
   - scripts/lib/foundry-command-metadata.mjs
   - specs/**
-lastReviewedAt: 2026-07-23
-lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
+lastReviewedAt: 2026-07-24
+lastReviewedCommit: a6354830ae4369ce2c959878865ebfe6791bab57
 ---
 
 # AGENTS.md - TianGong LCA Data Foundry
