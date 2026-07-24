@@ -22,6 +22,16 @@ function exchange(number, flow) {
   };
 }
 
+function traceFreeExchange(number, flow) {
+  return {
+    referenceToFlowDataSet: { "@refObjectId": flow, "@version": "00.00.001" },
+    generalComment: {
+      "@xml:lang": "en",
+      "#text": `Source EcoSpold1 exchange number: ${number}. Preserved production trace.`,
+    },
+  };
+}
+
 test("exchange identity is process-local source number plus document-order occurrence", () => {
   const keyed = occurrenceKeyedExchanges(
     [exchange("42", "flow-a"), exchange("7", "flow-b"), exchange("42", "flow-c")],
@@ -41,6 +51,34 @@ test("occurrence identity rejects exchanges without immutable source numbers", (
   assert.throws(
     () => occurrenceKeyedExchanges([{ referenceToFlowDataSet: {} }], "process-a"),
     /has no source number/u,
+  );
+});
+
+test("exchange identity accepts the preserved generalComment when sourceTrace was cleaned", () => {
+  const keyed = occurrenceKeyedExchanges(
+    [traceFreeExchange("42", "flow-a"), traceFreeExchange("42", "flow-b")],
+    "process-a",
+  );
+  assert.deepEqual(
+    keyed.map(({ number, occurrence, token }) => ({ number, occurrence, token })),
+    [
+      { number: "42", occurrence: 1, token: "42\u00001" },
+      { number: "42", occurrence: 2, token: "42\u00002" },
+    ],
+  );
+});
+
+test("exchange identity rejects conflicting sourceTrace and generalComment numbers", () => {
+  const conflicting = {
+    ...exchange("42", "flow-a"),
+    generalComment: {
+      "@xml:lang": "en",
+      "#text": "Source EcoSpold1 exchange number: 7. Conflicting evidence.",
+    },
+  };
+  assert.throws(
+    () => occurrenceKeyedExchanges([conflicting], "process-a"),
+    /sourceTrace\/generalComment number mismatch/u,
   );
 });
 
