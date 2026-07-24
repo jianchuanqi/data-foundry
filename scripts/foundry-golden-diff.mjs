@@ -385,10 +385,18 @@ function linkWorkspaceSiblings() {
   symlinkSync(cliRoot, linkedCliRoot, "dir");
 }
 
-function foundryCommand(root, args, outFile, env = {}) {
+function linkInstalledDependencies(root) {
+  const installed = path.join(repoRoot, "node_modules");
+  const target = path.join(root, "node_modules");
+  if (!existsSync(installed) || existsSync(target)) return;
+  symlinkSync(installed, target, "dir");
+}
+
+function foundryCommand(root, args, outFile, env = {}, expectedStatus = 0) {
   const result = run(process.execPath, ["scripts/foundry.mjs", ...args], {
     cwd: root,
     env: { ...process.env, ...env },
+    expectedStatus,
   });
   writeFileSync(outFile, result.stdout);
   return JSON.parse(result.stdout);
@@ -401,7 +409,7 @@ function runSide(label, root, fixture, cliPath) {
   foundryCommand(root, ["init"], path.join(commandOut, "setup-init.json"));
   const commonEnv = { TIANGONG_LCA_CLI_BIN: cliPath };
   foundryCommand(root, ["help"], path.join(commandOut, "help.json"), commonEnv);
-  foundryCommand(root, ["doctor"], path.join(commandOut, "doctor.json"), commonEnv);
+  foundryCommand(root, ["doctor"], path.join(commandOut, "doctor.json"), commonEnv, 1);
   foundryCommand(root, ["profiles-list"], path.join(commandOut, "profiles-list.json"), commonEnv);
   foundryCommand(
     root,
@@ -518,14 +526,18 @@ function runSide(label, root, fixture, cliPath) {
 function normalize(value) {
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === "object") {
+    const volatileValues = {
+      generated_at_utc: "<generated_at_utc>",
+      started_at_utc: "<started_at_utc>",
+      finished_at_utc: "<finished_at_utc>",
+      duration_ms: 0,
+      finalize_duration_ms: 0,
+      authoring_package_sha256: "<authoring_package_sha256>",
+    };
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [
         key,
-        key === "generated_at_utc"
-          ? "<generated_at_utc>"
-          : key === "authoring_package_sha256"
-            ? "<authoring_package_sha256>"
-            : normalize(item),
+        Object.hasOwn(volatileValues, key) ? volatileValues[key] : normalize(item),
       ]),
     );
   }
@@ -596,6 +608,7 @@ try {
     cwd: repoRoot,
   });
   linkWorkspaceSiblings();
+  linkInstalledDependencies(beforeRoot);
   runSide("before", beforeRoot, fixture, cliPath);
   runSide("after", repoRoot, fixture, cliPath);
   normalizeOutputs();

@@ -19,6 +19,7 @@ checkPaths:
   - docs/runtime-skill-management.md
   - docs/foundry-task-contracts.md
   - docs/incremental-change-set-contract.md
+  - docs/topology-convergence-contract.md
   - specs/import-profiles.json
 lastReviewedAt: 2026-07-23
 lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
@@ -38,6 +39,8 @@ Foundry is intentionally thin. It owns task routing, local workspaces, import pr
 Raw rows may preserve source-language text, but final import/write-ready rows must include English for TIDAS-required multilingual fields while preserving non-English source-language variants.
 
 For a newer release over an existing owner-draft import, use the incremental lane instead of rebuilding or rewriting every row. `dataset-incremental-change-set-compose` strictly validates a SHA-bound old/candidate/current request plus owner-snapshot receipt, then emits only INSERT/UPDATE candidates, explicit NOOP/HOLD ledgers, dependency order, a non-empty CLI execution contract when actions exist, and exactly one terminal JSONL log event per schema-valid conversion. Entity/path/value/evidence-bound rules preserve reviewed work without opening whole rows; unstable arrays and absent dependencies hold only their closure. The command is offline and non-authoritative; fresh reconciliation and capsule admission remain separate gates. See `docs/incremental-change-set-contract.md`.
+
+When the release changes flow identities or ordered process exchanges, use `dataset-topology-convergence-compose` after a fresh SELECT-only census. It keys exchanges by process UUID, source exchange number, and occurrence; preserves owner non-exchange content plus approved German/Chinese nodes; emits separate F flow-create and P process-save contracts; and leaves D as zero-inbound delete candidates for the CLI maintenance barrier. See `docs/topology-convergence-contract.md`.
 
 ## Core Commands
 
@@ -62,6 +65,7 @@ npm run task:route -- --kind source-evidence-dataset-development --dataset-type 
 npm run skills:source-evidence:use:document
 npm run skills:source-evidence:use:sci
 node scripts/foundry.mjs dataset-incremental-change-set-compose --request <request.json> --out-dir <fresh-output-dir>
+node scripts/foundry.mjs dataset-topology-convergence-compose --request <request.json> --out-dir <fresh-output-dir>
 ```
 
 Tests are organized by behavior layer in `test/README.md`. Use `npm test` for the full suite and `npm run test:unit|test:commands|test:scenarios` for targeted checks; old incident-numbered test aliases are not part of the maintained surface.

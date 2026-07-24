@@ -29,6 +29,7 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
     identityPreflightCommands,
     identityReferenceRewriteCommands,
     incrementalChangeSetCommands,
+    topologyConvergenceCommands,
     importCompletionCommands,
     importLedgerCommands,
     libraryScopeWorkflowCommands,
@@ -139,6 +140,8 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
       identityReferenceRewriteCommands.runDatasetIdentityReferenceRewritesApply(options),
     "dataset-incremental-change-set-compose": (options) =>
       incrementalChangeSetCommands.runDatasetIncrementalChangeSetCompose(options),
+    "dataset-topology-convergence-compose": (options) =>
+      topologyConvergenceCommands.runDatasetTopologyConvergenceCompose(options),
     "dataset-identity-decisions-apply": (options) =>
       identityDecisionCommands.runDatasetIdentityDecisionsApply(options),
     "dataset-post-authoring-finalize": (options) =>

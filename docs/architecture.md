@@ -24,8 +24,8 @@ checkPaths:
   - specs/capability-ownership-rules.json
   - specs/automated-lca-capability-registry.json
   - docs/incremental-change-set-contract.md
-lastReviewedAt: 2026-07-23
-lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
+lastReviewedAt: 2026-07-24
+lastReviewedCommit: 669ca59a21b0c637c7cb36530643945e255b137a
 ---
 
 # Architecture
@@ -94,13 +94,19 @@ profiles
    - enforce strict Draft 2020-12 inputs/outputs and entity/path/value/evidence-bound three-way rules, then emit minimal INSERT/UPDATE candidates, complete NOOP/HOLD evidence, stable dependency order, and one hash-chained terminal log event per schema-valid conversion
    - stop at an offline `production_authority=false` CLI candidate contract; fresh reconciliation, owner session, capsule admission, mutation, and readback remain outside Foundry
 
-8. Local behavior test structure
+8. Topology convergence planning
+   - bind a complete candidate flow/process closure to one package digest and one fresh owner/public/foreign SELECT-only census
+   - classify target flows without overwriting public or foreign rows, reconstruct ordered process exchanges by process-local source number plus occurrence, and preserve only explicitly audited multilingual overlays
+   - emit separate F flow-create and P process-save contracts while keeping D as zero-inbound delete candidates; protected transactions, attempt state, post-P inbound proof, and delete execution remain CLI/database responsibilities
+
+9. Local behavior test structure
    - keep unit tests, command contract tests, multi-command scenarios, and shared fixtures in the `test/README.md` layout
    - protect Foundry orchestration and artifact contracts locally without absorbing reusable CLI, skill, SDK, database, or Edge behavior
 
-9. Surface cleanup
-   - remove compatibility aliases, empty command categories, and draft orchestration references once current commands, metadata, tests, docs, and docpact show no remaining consumer
-   - keep historical or dataset-specific guidance only when it has an active route, profile, task, or retained reference role
+10. Surface cleanup
+
+- remove compatibility aliases, empty command categories, and draft orchestration references once current commands, metadata, tests, docs, and docpact show no remaining consumer
+- keep historical or dataset-specific guidance only when it has an active route, profile, task, or retained reference role
 
 ## v0 Runtime
 

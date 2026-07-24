@@ -243,6 +243,40 @@
       "notes": "Machine-readable request, comparison, owner snapshot, preservation policy, and conversion-event shapes for the offline composer."
     },
     {
+      "id": "topology-convergence-contract",
+      "status": "active",
+      "classification": "offline-topology-convergence-contract",
+      "current_path": "docs/topology-convergence-contract.md",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "AGENTS.md",
+        "README.md",
+        "WORKFLOW.md",
+        "docs/foundry-command-surface.md",
+        "scripts/commands/topology-convergence.mjs"
+      ],
+      "sensitivity": "non-sensitive planning contract; private candidate and owner payloads remain in ignored workspaces",
+      "tracked": true,
+      "notes": "Defines occurrence-aware F/P/D composition, multilingual preservation, zero-inbound deletion barriers, exact logs, and the no-authority handoff boundary."
+    },
+    {
+      "id": "topology-convergence-schema",
+      "status": "active",
+      "classification": "machine-readable-topology-convergence-schema",
+      "current_path": "specs/schemas/topology-convergence.schema.json",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "docs/topology-convergence-contract.md",
+        "scripts/commands/topology-convergence.mjs",
+        "test/commands/topology-convergence.test.mjs"
+      ],
+      "sensitivity": "non-sensitive schema; no credentials or private payloads",
+      "tracked": true,
+      "notes": "Machine-readable request, candidate index, audited classification, conversion event, report, and manifest shapes for topology convergence."
+    },
+    {
       "id": "uslci-source-package",
       "status": "active",
       "classification": "external-source-package",
