@@ -23,6 +23,7 @@ import { createPostAuthoringFinalizeCommands } from "./commands/post-authoring-f
 import { createPostWriteCloseoutCommands } from "./commands/post-write-closeout.mjs";
 import { createSupportCacheCommands } from "./commands/support-cache.mjs";
 import { createTaskCommands } from "./commands/tasks.mjs";
+import { createTopologyConvergenceCommands } from "./commands/topology-convergence.mjs";
 import { createUslciBatchImportRunCommands } from "./commands/uslci-batch-import-run.mjs";
 import { createWorldsteelBatchImportRunCommands } from "./commands/worldsteel-batch-import-run.mjs";
 import { bundleRowTypes } from "./lib/bundle-row-types.mjs";
@@ -297,6 +298,7 @@ const taskCommands = createTaskCommands({
 
 const executionCapsuleCommands = createExecutionCapsuleCommands({ repoRoot });
 const incrementalChangeSetCommands = createIncrementalChangeSetCommands({ repoRoot });
+const topologyConvergenceCommands = createTopologyConvergenceCommands({ repoRoot });
 
 const cliWrapperCommands = createCliWrapperCommands({
   appendOption,
@@ -914,6 +916,7 @@ runFoundryCli({
     runDatasetMutationManifest,
     supportCacheCommands,
     taskCommands,
+    topologyConvergenceCommands,
   },
   decisionDeps: {
     asText,

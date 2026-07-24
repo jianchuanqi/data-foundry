@@ -44,6 +44,8 @@ Every command must have `workflowEntry.status: "active"` and at least one key be
 
 `dataset-incremental-change-set-compose` is a `workflow-internal` offline planner. Its contract lives in `docs/incremental-change-set-contract.md`; it strictly validates old/candidate/current plus owner-receipt evidence, applies only entity/path/value/evidence-bound merge rules, isolates absent/held dependency closures, and emits one hash-chained terminal log event per schema-valid conversion plus a non-empty CLI-compatible candidate contract when actions exist. It has no network, database, CLI, or DML dispatch and never grants production authority.
 
+`dataset-topology-convergence-compose` is a `workflow-internal` offline F/P/D planner. Its contract lives in `docs/topology-convergence-contract.md`; it validates a fresh census and exact candidate closure, reconstructs exchanges by source number plus occurrence, preserves approved multilingual nodes, emits separate flow-create/process-save contracts, and leaves obsolete flows behind a later all-visible zero-inbound delete barrier. It has no network, database, CLI, or DML dispatch and never grants production authority.
+
 ## Navigation Contract
 
 Every command must be reachable through this path:

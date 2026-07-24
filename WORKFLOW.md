@@ -192,6 +192,19 @@ When the task imports a newer release over existing owner-draft rows, do not res
 
 Every valid comparison row must have one terminal event even when its outcome is NOOP or HOLD. A full rewrite is not a recovery mechanism for incremental conflicts.
 
+## Topology Convergence Lane
+
+Use this lane when the candidate release merges, splits, adds, or retires flow identities:
+
+1. Bind candidate flow/process file indexes, audited target classifications, exact flow mappings, approved language overlays, and canonical support identities to the candidate package SHA.
+2. Capture one fresh owner-session SELECT-only census for all owner processes/flows plus visible public and foreign target flows. Bind the census, zero guards, deployment/RPC/query fingerprints, and fixed published CLI fingerprint in the admission receipt.
+3. Run `dataset-topology-convergence-compose` into a fresh directory. Require exact candidate-flow/process/exchange and change-count algebra, complete target reference closure, independent audit PASS, and P0=P1=0.
+4. Admit and execute F first. Exact-read the complete target flow closure before admitting P. P reconstructs exchanges only by `(process UUID, source exchange number, occurrence)` while preserving current non-exchange content and approved languages.
+5. After P exact readback, recapture all visible process inbound references. Convert only unique owner/state-zero, zero-inbound D candidates into a delete-only maintenance plan. Public, foreign, nonzero, or unknown targets never enter that plan.
+6. Seal every conversion/no-write/execution/readback event and final full-graph audit. Foundry stays offline; protected transactions, attempt consumption, ambiguity recovery, and no-replay behavior belong to the fixed CLI.
+
+The complete contract is `docs/topology-convergence-contract.md`.
+
 ## Maintainer Validation
 
 Foundry tests are organized by behavior layer, not by historical incident number:

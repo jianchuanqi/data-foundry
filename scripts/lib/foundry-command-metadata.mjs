@@ -246,6 +246,35 @@ export const commandMetadata = {
       ),
     ],
   }),
+  "dataset-topology-convergence-compose": metadata({
+    category: "workflow-internal",
+    ownerModule: "scripts/commands/topology-convergence.mjs",
+    ownerExport: "createTopologyConvergenceCommands().runDatasetTopologyConvergenceCompose",
+    inputs: [
+      "SHA-bound topology convergence request",
+      "candidate flow/process file indexes",
+      "fresh owner/public/foreign SELECT-only census",
+      "audited target classifications and multilingual overlays",
+      "fresh admission receipt with fixed CLI fingerprint",
+    ],
+    outputs: [
+      "F flow-create input and execution contract",
+      "P process save-draft input and execution contract",
+      "D zero-inbound delete candidate scope",
+      "append-only conversion events and no-write/hold ledgers",
+      "dependency closure, independent audit, report, and manifest",
+    ],
+    keyTests: [
+      nodeTest(
+        "test/unit/topology-convergence.test.mjs",
+        "occurrence keys and language overlays prevent global flow-id replacement",
+      ),
+      nodeTest(
+        "test/commands/topology-convergence.test.mjs",
+        "F/P/D artifacts satisfy exact topology algebra and trust boundaries",
+      ),
+    ],
+  }),
   "dataset-curation-queue-build": metadata({
     category: "cli-wrapper",
     ownerModule: "scripts/commands/cli-wrappers.mjs",

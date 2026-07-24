@@ -23,8 +23,8 @@ checkPaths:
   - specs/workspace-capability-adapters.md
   - docs/safety-policy.md
   - docs/incremental-change-set-contract.md
-lastReviewedAt: 2026-07-23
-lastReviewedCommit: 849d6ac14d357bd445a9fa75a9c18dc16a2a411a
+lastReviewedAt: 2026-07-24
+lastReviewedCommit: 669ca59a21b0c637c7cb36530643945e255b137a
 ---
 
 # Capability Ownership Policy
@@ -45,6 +45,7 @@ Foundry owns:
 - remote-write policy checks, execution policy records, blocked-scope ledgers and reports, and commit/readback handoff aggregation;
 - support dependency finalize/handoff aggregation for profile-generated writable contact/source rows, without directly mutating the database;
 - offline old/candidate/current change-set composition, strict machine validation, entity/path/value/evidence-bound preservation, stable-identity array handling, absent-dependency isolation, immutable artifact manifests, and per-conversion terminal logs, without remote dispatch;
+- offline candidate-topology convergence composition, including fresh-census binding, owner/public/foreign target classification, process-local occurrence mapping, approved multilingual preservation, phased F/P/D artifacts, and zero-inbound delete candidates, without remote dispatch or delete authority;
 - acceptance checks and Stop-hook feedback loops;
 - local test structure for Foundry-owned metadata, command contracts, scenario orchestration, and shared fixtures;
 - thin adapters that call existing CLI or skill entrypoints.
@@ -62,6 +63,8 @@ Foundry does not own:
 Profile-gated batch commit does not change ownership: Foundry may decide that an exact scope has passed policy and handoff gates, but the actual mutation command remains an official CLI/platform command executed under an account guard. Foundry's default platform invocation is the published CLI package, `npx --yes @tiangong-lca/cli@latest ...`; local binary overrides are only explicit operator/test state, not the workflow contract.
 
 Incremental composition follows the same boundary. Foundry may minimize the write set and emit a syntactically compatible CLI execution contract, but current-state reconciliation, authenticated dispatch, transaction semantics, attempt/no-replay state, and readback remain CLI/database responsibilities.
+
+Topology convergence follows that boundary as well. Foundry may compose the exact F flow-create and P process-save actions and identify owner/state-zero D candidates, but only the fixed published CLI may dispatch protected transactions. D cannot activate until a post-P, all-visible-process census proves a unique owner target and zero inbound references.
 
 ## Decision Rule
 

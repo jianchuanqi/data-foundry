@@ -22,6 +22,7 @@ checkPaths:
   - docs/foundry-task-contracts.md
   - docs/execution-capsule-contract.md
   - docs/incremental-change-set-contract.md
+  - docs/topology-convergence-contract.md
   - docs/import-profiles/bafu/leaf-process-classification-authoring.md
   - package.json
   - scripts/foundry.mjs
@@ -77,6 +78,7 @@ npx --yes @tiangong-lca/cli@latest dataset context-pack \
 13. Remote commit is policy-gated rather than manually supervised by default. A task may allow automated batch commit for scopes whose finalize report, mutation manifest, commit handoff, and post-write verification all pass; human input is required for policy changes, exceptional waivers, or unresolved reference closure. Missing public canonical unit groups, flow properties, or elementary flows remain blockers unless the frozen import profile explicitly authorizes an account-local `state_code=0` candidate path with owner, unit-scale, closure, audit, and readback gates.
 14. Do not treat historical `.foundry` artifacts as proof for a current task.
 15. For a new package release over existing owner drafts, use `dataset-incremental-change-set-compose` with a SHA-bound old/candidate/current request and owner-snapshot receipt. It may emit candidate INSERT/UPDATE/NOOP/HOLD artifacts and exactly one terminal conversion event per schema-valid input row. Preservation/noise/array rules must bind the exact entity, pointer, old/candidate/current value hashes, and evidence; update scope must use non-root request pointers. A fresh SELECT-only reconciliation, owner session, independent review, capsule seal, and separately authorized published CLI execution remain mandatory.
+16. If the release changes flow identity cardinality or ordered process exchanges, use `dataset-topology-convergence-compose`; never simulate mergers with a global flow-id replacement. The request must bind the complete candidate closure, fresh owner/public/foreign census, audited target classifications, occurrence-keyed language overlays, canonical support allowlists, and fixed CLI fingerprint. F flow creates must close before P process saves; D remains a candidate set until a post-P all-visible zero-inbound proof. Foundry emits no DML and never authorizes public/foreign or support writes.
 
 `annualSupplyOrProductionVolume` is schema-required. If source data does not provide a real annual volume, Foundry must use the deterministic `9999 missing-data-sentinel/year` placeholder, not `common:other` deferral. The sentinel is deliberately non-physical and searchable; database-side curation owns replacing it later.
 

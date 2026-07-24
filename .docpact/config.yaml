@@ -2,8 +2,9 @@ version: 1
 layout: repo
 # Review note, 2026-06-04: first-pass docpact onboarding for Foundry thin-control-plane refactor.
 # Review note, 2026-07-23: Issue #42 adds the generic offline incremental change-set composer, exact per-conversion event ledger, and CLI candidate contract. Strict Draft 2020-12 validation uses the exact Ajv 8.20.0 runtime dependency; evidence-bound entity/path/value rules, stable-identity array handling, snapshot receipts, terminal pairs, and non-root field allowlists add no remote access or mutation authority.
-lastReviewedAt: "2026-07-23"
-lastReviewedCommit: "849d6ac14d357bd445a9fa75a9c18dc16a2a411a"
+# Review note, 2026-07-24: Issue #47 adds the offline topology-convergence F/P/D composer. Candidate topology, fresh owner/public/foreign census, audited classifications, occurrence-keyed multilingual preservation, fixed CLI fingerprint, zero-inbound delete candidates, and hash-chained logs remain local planning evidence with no DML authority.
+lastReviewedAt: "2026-07-24"
+lastReviewedCommit: "669ca59a21b0c637c7cb36530643945e255b137a"
 
 catalog:
   repos:
@@ -23,6 +24,7 @@ catalog:
         - docs/foundry-ai-navigation.md
         - docs/foundry-command-surface.md
         - docs/incremental-change-set-contract.md
+        - docs/topology-convergence-contract.md
       workspaceIntegrationRequired: true
 
 ownership:
@@ -156,6 +158,7 @@ docInventory:
     - docs/foundry-command-surface.md
     - docs/execution-capsule-contract.md
     - docs/incremental-change-set-contract.md
+    - docs/topology-convergence-contract.md
     - test/README.md
     - docs/account-context-policy.md
     - docs/countable-product-functional-unit-design.md
@@ -297,6 +300,32 @@ rules:
       - path: docs/foundry-command-surface.md
         mode: must_exist
     reason: Three-way merge, per-conversion logging, CLI compatibility, and activation boundaries must remain synchronized.
+  - id: foundry-topology-convergence-contract
+    scope: repo
+    repo: data-foundry
+    triggers:
+      - path: docs/topology-convergence-contract.md
+        kind: topology-convergence-contract
+      - path: specs/schemas/topology-convergence.schema.json
+        kind: topology-convergence-schema
+      - path: scripts/commands/topology-convergence.mjs
+        kind: topology-convergence-command
+      - path: test/fixtures/topology-convergence-fixtures.mjs
+        kind: topology-convergence-fixture
+      - path: test/unit/topology-convergence.test.mjs
+        kind: topology-convergence-unit-test
+      - path: test/commands/topology-convergence.test.mjs
+        kind: topology-convergence-command-test
+      - path: test/scenarios/topology-convergence-handoff.test.mjs
+        kind: topology-convergence-scenario-test
+    requiredDocs:
+      - path: docs/topology-convergence-contract.md
+        mode: review_or_update
+      - path: docs/execution-capsule-contract.md
+        mode: must_exist
+      - path: docs/foundry-command-surface.md
+        mode: must_exist
+    reason: Occurrence identity, F/P/D artifacts, language preservation, delete barriers, and activation boundaries must remain synchronized.
   - id: foundry-test-layout-contract
     scope: repo
     repo: data-foundry

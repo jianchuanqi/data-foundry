@@ -18,6 +18,7 @@ export const publicCommands = [
 export const datasetPolicyCommands = [
   "execution-capsule-admit",
   "dataset-incremental-change-set-compose",
+  "dataset-topology-convergence-compose",
   "dataset-curation-queue-build",
   "dataset-curation-gate",
   "dataset-authoring-plan",
@@ -110,6 +111,8 @@ export function exitCodeForCommand(command, result) {
       return statusIs(result, ["help", "completed", "completed_with_holds", "completed_no_actions"])
         ? 0
         : 1;
+    case "dataset-topology-convergence-compose":
+      return statusIs(result, ["help", "ready_for_admission"]) ? 0 : 1;
     case "dataset-curation-gate":
       return statusIs(result, ["help", "ready", "ready_with_profile_waivers"]) ? 0 : 1;
     case "dataset-authoring-plan":
