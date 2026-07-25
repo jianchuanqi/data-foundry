@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { normalizeProfile } from "../../scripts/lib/import-curation/internal/profiles-config.mjs";
+import {
+  listImportProfiles,
+  normalizeProfile,
+} from "../../scripts/lib/import-curation/internal/profiles-config.mjs";
 import {
   flowPrewriteIdentityBlockers,
   prewriteIdentityBlockers,
@@ -75,6 +78,17 @@ test("worldsteel profile registers the capped override and full-context proof", 
   assert.deepEqual(profiles.worldsteel.waived_qa_codes_by_type, {
     process: ["process_material_balance_deviation"],
   });
+});
+
+test("profiles-list exposes enterprise account-local authorization and waiver rationale", () => {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const listing = listImportProfiles({ repoRoot });
+  const enterprise = listing.profiles["enterprise-process-from-files"];
+
+  assert.ok(enterprise, "enterprise-process-from-files profile is listed");
+  assert.equal(enterprise.allow_account_local_support_and_elementary.enabled, true);
+  assert.match(enterprise.allow_account_local_support_and_elementary.authorized_by, /2026-07-18/u);
+  assert.match(enterprise.waiver_reasons.process_material_balance_deviation, /warning/u);
 });
 
 function elementaryFlowPayload() {

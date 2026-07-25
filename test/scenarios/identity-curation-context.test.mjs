@@ -157,6 +157,104 @@ test("identity decision task deduplicates repeated targets and keeps source evid
   }
 });
 
+test("identity decision task makes elementary create-new guidance profile-aware", () => {
+  const root = testTmpRoot("elementary-identity-profile-policy-test");
+  fs.rmSync(root, { recursive: true, force: true });
+  const flowId = "aaaaaaaa-bbbb-4ccc-8ddd-000000000064";
+
+  function buildForProfile(profile) {
+    const profileRoot = path.join(root, profile);
+    const authoringPackage = path.join(profileRoot, "flow.authoring-package.json");
+    writeJson(authoringPackage, {
+      schema_version: 2,
+      profile,
+      dataset_type: "flow",
+      entity_id: flowId,
+      version: "00.00.001",
+      contract_context_files: fullContextKinds.map((kind) => ({
+        kind,
+        path: `${kind}.fixture`,
+        text: `${kind} context`,
+      })),
+      missing_context_files: [],
+      full_context_ai_completion: {
+        required_context_kinds: fullContextKinds,
+      },
+      action_items: [
+        {
+          code: "elementary_flow_identity_manual_review",
+          dependency_type: "flow",
+          dependency_id: flowId,
+          dependency_version: "00.00.001",
+          relation: "current",
+          evidence: {
+            target: { dataset_type: "flow", id: flowId, name: "Fixture emission" },
+            remote_search: { candidate_count: 0 },
+            top_candidates: [],
+          },
+        },
+      ],
+    });
+    const report = path.join(profileRoot, "dataset-curation-gate-report.json");
+    writeJson(report, {
+      schema_version: 2,
+      status: "blocked_needs_foundry_ai_authoring",
+      profile,
+      entities: [
+        {
+          dataset_type: "flow",
+          entity_id: flowId,
+          version: "00.00.001",
+          authoring_package: rel(authoringPackage),
+          authoring_package_sha256: sha256Text(fs.readFileSync(authoringPackage, "utf8")),
+        },
+      ],
+    });
+    const result = runFoundry([
+      "dataset-identity-decision-task-build",
+      "--curation-gate-report",
+      rel(report),
+      "--out-dir",
+      rel(path.join(profileRoot, "identity-decision-task")),
+    ]);
+    assert.equal(result.code, 0);
+    return {
+      task: result.json,
+      template: readJsonLines(path.join(repoRoot, result.json.files.template))[0],
+    };
+  }
+
+  try {
+    const generic = buildForProfile("generic");
+    assert.equal(
+      generic.task.identity_policy.account_local_create_new_allowed_for_elementary_flow,
+      false,
+    );
+    assert.equal(
+      generic.template.identity_decision,
+      "__AI_SELECT_REUSE_EXISTING_REFERENCE_OR_BLOCK_UNRESOLVED__",
+    );
+    assert.match(generic.task.instructions.join("\n"), /do not choose create_new/u);
+
+    const enterprise = buildForProfile("enterprise-process-from-files");
+    assert.equal(
+      enterprise.task.identity_policy.account_local_create_new_allowed_for_elementary_flow,
+      true,
+    );
+    assert.equal(
+      enterprise.template.identity_decision,
+      "__AI_SELECT_REUSE_EXISTING_REFERENCE_CREATE_NEW_OR_BLOCK_UNRESOLVED__",
+    );
+    assert.match(enterprise.task.instructions.join("\n"), /same-owner state_code=0/u);
+    assert.match(
+      enterprise.task.commands.apply_decisions,
+      /--profile enterprise-process-from-files/u,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("curation gate turns flow identity manual review into an AI action item", () => {
   const root = testTmpRoot("flow-identity-manual-review-gate-test");
   fs.rmSync(root, { recursive: true, force: true });

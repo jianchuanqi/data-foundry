@@ -158,6 +158,8 @@ For process rows whose source exchange list is truly output-only, pass the origi
 
 `.agents/skills` is the single project-visible skill root. Foundry-local skills are tracked there by git; shared/runtime skills are also installed there when needed, but their names are managed by `.agents/shared-skills.json` and their installed directories remain ignored unless a task explicitly chooses pinned reproducibility.
 
+For files-only enterprise BOM, bill, and production-record authoring, use the tracked `$foundry-enterprise-process-from-files` specialization and its dedicated `enterprise-process-from-files` profile. It persists interruptible human clarification as hashed documents, treats material-balance deviation as a retained profile warning, uses public-first identity resolution with guarded account-local draft dependencies for defensible gaps, and may continue through policy-gated CLI commit and readback when every remaining gate passes.
+
 Use the npm `skills` package before a task needs shared skills:
 
 ```bash
@@ -187,11 +189,13 @@ Persistent local installs are optional operator state:
 ```bash
 npx --yes skills@latest add https://github.com/tiangong-ai/skills \
   --skill tiangong-kb-sci-search document-granular-decompose \
-  --agent '*' \
+  --agent codex \
   --yes \
   --full-depth
 npm run skills:update
 ```
+
+Foundry targets Codex explicitly so runtime skills stay under `.agents/skills`. Do not use `--agent '*'` here: agent-specific compatibility paths such as `data/skills`, `.claude/skills`, or `agent/skills` can pollute source-data directories or create untracked runtime copies.
 
 Installed shared runtime skills such as `.agents/skills/tiangong-kb-sci-search/`, `.agents/skills/document-granular-decompose/`, `.agents/skills/external-dataset-curated-import/`, and `skills-lock.json` remain ignored by default. Source-evidence tasks should record the resolved upstream ref, `npx skills` command, and evidence artifacts under `.foundry/workspaces/<task-id>/runtime-skills/`.
 

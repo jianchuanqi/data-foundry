@@ -406,7 +406,7 @@ export const commandMetadata = {
     category: "workflow-internal",
     ownerModule: "scripts/commands/identity-decision-task.mjs",
     ownerExport: "createIdentityDecisionTaskCommands().runDatasetIdentityDecisionTaskBuild",
-    inputs: ["curation gate report", "identity-preflight context"],
+    inputs: ["curation gate report", "identity-preflight context", "import profile registry"],
     outputs: [
       "identity-decision-task.json",
       "identity-decision-task.md",
@@ -416,6 +416,10 @@ export const commandMetadata = {
       nodeTest(
         "test/scenarios/identity-curation-context.test.mjs",
         "identity decision task deduplicates repeated targets and keeps source evidence",
+      ),
+      nodeTest(
+        "test/scenarios/identity-curation-context.test.mjs",
+        "identity decision task makes elementary create-new guidance profile-aware",
       ),
     ],
   }),

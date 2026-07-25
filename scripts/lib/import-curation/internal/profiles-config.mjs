@@ -80,7 +80,9 @@ export function listImportProfiles({ repoRoot, options = {} } = {}) {
           description: normalized.description,
           docs: normalized.docs,
           waived_qa_codes_by_type: normalized.waivedQaCodesByType,
+          waiver_reasons: normalized.waiverReasons,
           full_context_ai_completion: normalized.fullContextAiCompletion,
+          allow_account_local_support_and_elementary: normalized.accountLocalSupportOverride,
         },
       ];
     }),

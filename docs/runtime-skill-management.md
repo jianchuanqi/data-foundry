@@ -103,10 +103,12 @@ Install only Tiangong AI runtime skills into the local checkout:
 ```bash
 npx --yes skills@latest add https://github.com/tiangong-ai/skills \
   --skill tiangong-kb-sci-search document-granular-decompose \
-  --agent '*' \
+  --agent codex \
   --yes \
   --full-depth
 ```
+
+Foundry installs project runtime skills for Codex only. Do not use `--agent '*'` in this repository: the generic installer may create agent-specific compatibility entries under `.claude/skills`, `agent/skills`, or AstrBot's `data/skills`, while `data/` is reserved for source data. Other agent integrations must be added deliberately without changing the single `.agents/skills` project root.
 
 Confirm the latest upstream ref when a task needs an audit trail:
 
@@ -124,7 +126,7 @@ Runtime skills use the same `.env` file as Foundry. Keep `.env.example` as the p
 | --- | --- | --- | --- |
 | `$dataset-rls-maintenance` | `TIANGONG_LCA_API_BASE_URL`, `TIANGONG_LCA_API_KEY`, `TIANGONG_LCA_SUPABASE_PUBLISHABLE_KEY` when remote snapshot/apply/verify is needed | `TIANGONG_LCA_SESSION_FILE`, `TIANGONG_LCA_DISABLE_SESSION_CACHE`, `TIANGONG_LCA_FORCE_REAUTH`, `FOUNDRY_ACCOUNT_LABEL`, `FOUNDRY_ENABLE_REMOTE_COMMIT`, `FOUNDRY_SINGLE_RECORD_COMMIT`, `FOUNDRY_REMOTE_COMMIT_LIMIT` | No skill-private Supabase env. The skill must use CLI-owned current-user RLS paths and Foundry commit gates. |
 | `$external-dataset-curated-import`, `$foundry-tidas-import`, `$foundry-tidas-authoring` | Rust `tidas` 0.1.x on `PATH` or selected by `TIDAS_BIN`; a working CLI for context/QA/curation/handoff | `TIDAS_CONFIG`, `TIDAS_MEMORY_BUDGET_MIB`, `TIDAS_QUEUE_CAPACITY`, `TIANGONG_LCA_CLI_BIN`, `TIANGONG_LCA_CLI_DIR`, `TIANGONG_LCA_SKILLS_ROOT`, `FOUNDRY_AGENT_SKILLS_ROOT`, current-user LCA account env for remote readback/write handoff | Rust tidas owns deterministic conversion and schema validation. CLI owns context, QA/curation, and remote stages; remote stages require the LCA account block above. |
-| `$source-evidence-dataset-development` | source-dependent | `TIANGONG_AI_APIKEY`, `TIANGONG_AI_API_BASE_URL`, `TIANGONG_AI_CLI`, `TIANGONG_AI_CLI_BIN`, `TIANGONG_LCA_KB_SEARCH_API_BASE_URL`, `TIANGONG_LCA_KB_SEARCH_API_KEY`, `TIANGONG_LCA_KB_SEARCH_REGION` | Source documents use `$document-granular-decompose`; SCI literature uses `$tiangong-kb-sci-search`; LCA CLI evidence-search helpers use the `TIANGONG_LCA_KB_SEARCH_*` family. |
+| `$source-evidence-dataset-development`, `$foundry-enterprise-process-from-files` | source-dependent | `TIANGONG_AI_APIKEY`, `TIANGONG_AI_API_BASE_URL`, `TIANGONG_AI_CLI`, `TIANGONG_AI_CLI_BIN`, `TIANGONG_LCA_KB_SEARCH_API_BASE_URL`, `TIANGONG_LCA_KB_SEARCH_API_KEY`, `TIANGONG_LCA_KB_SEARCH_REGION`, current-user LCA account env for write-enabled tasks | Enterprise files use the Foundry-local specialization to coordinate HITL, public-first/account-local dependency authoring, policy-gated CLI commit, and readback while delegating source-document extraction to `$document-granular-decompose`; SCI literature uses `$tiangong-kb-sci-search`; LCA CLI evidence-search helpers use the `TIANGONG_LCA_KB_SEARCH_*` family. |
 | `$tiangong-kb-sci-search` | `TIANGONG_AI_APIKEY` unless `api_key` or `sci_api_key` is passed in the wrapper JSON | `TIANGONG_AI_API_BASE_URL`, `TIANGONG_AI_CLI`, `TIANGONG_AI_CLI_BIN` | Searches only the `sci` source through `@tiangong-ai/cli`; record the upstream skill ref in task artifacts. |
 | `$document-granular-decompose` | `UNSTRUCTURED_API_BASE_URL`, `UNSTRUCTURED_AUTH_TOKEN` | `UNSTRUCTURED_PROVIDER`, `UNSTRUCTURED_MODEL` | Runtime-installed from `https://github.com/tiangong-ai/skills`. The CLI document-authoring path uses `TIANGONG_LCA_UNSTRUCTURED_*`; local `.env` should keep the `UNSTRUCTURED_*` aliases in sync for this skill. |
 | CLI QA with LLM review | none unless `--enable-llm` is used | `TIANGONG_LCA_REVIEW_LLM_BASE_URL`, `TIANGONG_LCA_REVIEW_LLM_API_KEY`, `TIANGONG_LCA_REVIEW_LLM_MODEL` | Deterministic QA does not need these keys. |
@@ -149,7 +151,7 @@ Minimum fields:
   "source_ref": "refs/heads/main",
   "resolved_commit": "<git-ls-remote-sha>",
   "skill_name": "document-granular-decompose",
-  "install_command": "npx --yes skills@latest add https://github.com/tiangong-ai/skills --skill document-granular-decompose --agent '*' --yes --full-depth",
+  "install_command": "npx --yes skills@latest add https://github.com/tiangong-ai/skills --skill document-granular-decompose --agent codex --yes --full-depth",
   "use_command": "npx --yes skills@latest use https://github.com/tiangong-ai/skills --skill document-granular-decompose --full-depth",
   "evidence_channel": "document-fulltext",
   "local_install_path": ".agents/skills/document-granular-decompose",

@@ -80,13 +80,32 @@
       "referenced_by": [
         "README.md",
         "scripts/lib/import-curation.mjs",
+        "docs/import-profiles/enterprise-process-from-files/profile.md",
+        "docs/import-profiles/enterprise-process-from-files/constraints.md",
         "docs/import-profiles/bafu/profile.md",
         "docs/import-profiles/bafu/constraints.md",
         "docs/import-profiles/bafu/leaf-process-classification-authoring.md"
       ],
       "sensitivity": "non-sensitive profile routing and waiver metadata",
       "tracked": true,
-      "notes": "Keeps dataset-specific profile docs and QA waivers out of Foundry code."
+      "notes": "Keeps dataset-specific profile docs, governed QA waivers, and account-local dependency authorizations out of Foundry code."
+    },
+    {
+      "id": "enterprise-process-from-files-contract",
+      "status": "active",
+      "classification": "machine-readable-use-case-contract",
+      "current_path": "specs/use-cases/enterprise-process-from-files.json",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": [
+        "README.md",
+        "tasks/README.md",
+        "tasks/templates/enterprise-process-from-files.md",
+        ".agents/skills/foundry-enterprise-process-from-files/SKILL.md"
+      ],
+      "sensitivity": "non-sensitive task, HITL, provenance, profile-relaxation, write-policy, and closeout contract; no enterprise payloads",
+      "tracked": true,
+      "notes": "Defines the files-only enterprise process authoring and policy-gated write use case through the dedicated enterprise-process-from-files profile and existing CLI/finalize/commit/readback paths; it adds no direct writer."
     },
     {
       "id": "dataset-authoring-skill-architecture",

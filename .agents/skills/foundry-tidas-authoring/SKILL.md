@@ -17,7 +17,7 @@ Use this skill for Foundry external dataset curation after `dataset-curation-gat
 - Do not hand-edit row JSONL files.
 - Do not call Supabase directly and do not write the database from this skill.
 - Do not copy schema/YAML into the skill. Use the context files referenced by the authoring package/task.
-- Keep import rows source-language only. Bilingual completion is a separate post-import task.
+- Raw converted or initially authored rows may remain source-language only. Before final write planning, preserve every available source-language variant and add evidence-backed `en` values for all TIDAS-required multilingual fields.
 - Do not leave `template_status=requires_ai_completion`, `__AI_FILL_*`, `__AI_SELECT_*`, local file-path placeholders, trace-only text, or invented values in a final patch or decision file.
 - Every AI patch file must declare `patch_status=completed`; draft, missing, or non-completed patch status is not collectable.
 - Every identity decision row must declare `decision_status=completed`; draft, missing, or non-completed identity decisions are not deterministically applicable.
@@ -25,7 +25,7 @@ Use this skill for Foundry external dataset curation after `dataset-curation-gat
 - Every non-test operation needs `basis` or `evidence`.
 - For full-context tasks, every non-test operation needs both `basis` and structured `evidence` with a source/context identifier plus `quote_or_trace`, source path, field path, citation, or equivalent pointer.
 - Every non-test operation needs `resolution.mode` and `resolution.used_context_kinds`; for full-context profiles this must include `schema`, `methodology_yaml`, `ruleset`, `classification_schema`, and `location_schema` when those context kinds are present in the authoring task.
-- Identity manual-review action items from curation packages should be authored as `identity-decisions.jsonl` entries with `dataset_type`, `dataset_id`, `dataset_version`, `decision_status=completed`, `identity_decision`, `basis`, `used_context_kinds`, structured `evidence`, `closes_action_items`, `authoring_package`, and `authoring_package_sha256`, then applied through `node scripts/foundry.mjs dataset-identity-decisions-apply`. `reuse_existing_reference` decisions must include canonical id/version; elementary flow decisions must never choose `create_new`.
+- Identity manual-review action items from curation packages should be authored as `identity-decisions.jsonl` entries with `dataset_type`, `dataset_id`, `dataset_version`, `decision_status=completed`, `identity_decision`, `basis`, `used_context_kinds`, structured `evidence`, `closes_action_items`, `authoring_package`, and `authoring_package_sha256`, then applied through `node scripts/foundry.mjs dataset-identity-decisions-apply`. `reuse_existing_reference` decisions must include canonical id/version. Elementary flow decisions default to reuse or block; they may choose `create_new` only when the identity task's frozen profile policy explicitly sets `account_local_create_new_allowed_for_elementary_flow=true`, completed search proves no defensible public or visible equivalent, and the decision retains the same-owner `state_code=0` account-local evidence required by that profile.
 - Classification action items from `classification-authoring-queue.jsonl` should be authored as `classification-decisions.jsonl` entries with `dataset_id`, `dataset_version`, `category_type`, `decision_status=completed`, `code`, `basis`, template `authoring_context.context_bundle_sha256`, and structured `evidence`, then applied through `node scripts/foundry.mjs dataset-classification-decisions-apply` with the matching `--decision-task`. Location action items from `location-authoring-queue.jsonl` should be authored as `location-decisions.jsonl` entries with `dataset_id`, `dataset_version`, `category_type=location`, `decision_status=completed`, `code`, `target_path`, `basis`, template `authoring_context.context_bundle_sha256`, and structured `evidence`, then applied through `node scripts/foundry.mjs dataset-location-decisions-apply` with the matching `--decision-task`. Only non-identity/non-classification/non-location field gaps should use JSON patch operations.
 - For large queues, build per-bundle or per-type decision tasks with `--dataset-type`, `--bundle-id`/`--process-id`, `--limit`, `--offset`, and `--chunk-label`, and pass the same `--shared-context-cache-dir` to every chunk so repeated schema/YAML/category/location text is cached under one stable bundle path. When applying decisions back to the source queue, pass every chunk task with repeated `--decision-task`; the apply report and mutation manifest must preserve all context-bundle proofs.
 - Treat source rows as source evidence objects, not format/compliance records. `ILCD format`, `Not specified`, `Data set formats`, and `Compliance systems` may appear in rewrite/provenance traces but must not be authored as BAFU-owned source identity. True source rows must also have evidence-bearing descriptions; empty or type-only values such as `Report` should be repaired from `sourceCitation` / `common:shortName`.
@@ -47,15 +47,16 @@ Read `identity-decision-task.json` as the primary package. It includes every sel
 Decision rules:
 
 - `reuse_existing_reference`: use only when the candidate is identity-equivalent after checking name, type, unit/property, geography, source classification, exchange context, and package evidence. Include `canonical.table`, `canonical.ref_object_id`, and `canonical.version`.
-- `create_new`: allowed only for non-elementary product/process identities when the evidence shows no database candidate is identity-equivalent.
+- `create_new`: allowed for product/process identities when the evidence shows no database candidate is identity-equivalent. For an elementary flow, it is allowed only when `identity-decision-task.json` explicitly authorizes the profile-scoped account-local path and the decision records completed public-first search plus same-owner `state_code=0` evidence.
 - `block_unresolved`: use when candidates are insufficient or conflicting; include searched query/candidate evidence and the reason the row cannot proceed.
-- Elementary flow identity decisions must be `reuse_existing_reference` or `block_unresolved`; never create a BAFU-owned elementary flow.
+- Elementary flow identity decisions must be `reuse_existing_reference` or `block_unresolved` unless the task's frozen profile explicitly authorizes account-local creation. A profile-authorized `create_new` decision creates only a same-owner `state_code=0` draft; it does not create public canonical data or permit shadowing an existing identity.
 
 Then apply through:
 
 ```bash
 node scripts/foundry.mjs dataset-identity-decisions-apply \
   --type <flow|process> \
+  --profile <frozen-profile-id> \
   --rows-file .foundry/workspaces/<task-id>/rows/<type>.jsonl \
   --decisions .foundry/workspaces/<task-id>/identity-decision-task/identity-decisions.jsonl \
   --out-dir .foundry/workspaces/<task-id>/identity-decision-apply/<type> \

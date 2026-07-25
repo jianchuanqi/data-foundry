@@ -177,7 +177,7 @@ Use `--source-rows-file` for process scopes when the import source row may itsel
 21. A task with committed scopes is done only after `dataset-import-completion-report` aggregates every required closeout, rechecks profile-required full-context proof for every scope, and reports `completed`. For resumable batch work, also run `dataset-import-ledger-report --ledger-dir <task-import-ledger-dir>` so `resume.skipped-verified.jsonl` and `resume.plan.jsonl` separate already imported rows from human-review blockers before the next rerun.
 22. Move `tasks/active/<task>.md` to `tasks/done/` only through `task-complete --completion-report <dataset-import-completion-report.json>`, so the task id, closeout scope, and profile-required full schema/YAML/context AI completion proof are checked before the file state changes.
 
-Rows remain source-language before import. Bilingual completion is a separate post-import task only when requested.
+Raw converted rows may remain source-language only. Before final import/write planning, preserve the original language and add evidence-backed `en` values for every TIDAS-required multilingual field.
 
 ## Incremental Release Lane
 

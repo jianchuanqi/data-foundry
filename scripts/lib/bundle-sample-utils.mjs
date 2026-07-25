@@ -20,6 +20,7 @@ export function createBundleSampleUtils({
   jsonSha256,
   languageForText,
   multiLang,
+  multilingualTextValue,
   normalizedList,
   nowIso,
   pathExpression,
@@ -102,16 +103,10 @@ export function createBundleSampleUtils({
   function flowNameParts(payload) {
     const name = payload?.flowDataSet?.flowInformation?.dataSetInformation?.name ?? {};
     return {
-      base_name: asText(name.baseName?.["#text"] ?? name.baseName),
-      treatment_standards_routes: asText(
-        name.treatmentStandardsRoutes?.["#text"] ?? name.treatmentStandardsRoutes,
-      ),
-      mix_and_location_types: asText(
-        name.mixAndLocationTypes?.["#text"] ?? name.mixAndLocationTypes,
-      ),
-      functional_unit_flow_properties: asText(
-        name.functionalUnitFlowProperties?.["#text"] ?? name.functionalUnitFlowProperties,
-      ),
+      base_name: multilingualTextValue(name.baseName),
+      treatment_standards_routes: multilingualTextValue(name.treatmentStandardsRoutes),
+      mix_and_location_types: multilingualTextValue(name.mixAndLocationTypes),
+      functional_unit_flow_properties: multilingualTextValue(name.functionalUnitFlowProperties),
     };
   }
 

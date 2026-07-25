@@ -16,9 +16,9 @@ Use this skill as the Foundry-local entrypoint for end-to-end external data impo
 - Use SDK/CLI artifacts for schema, YAML, rulesets, conversion, validation, deterministic QA, dry-run, commit, and remote verification.
 - Use `$foundry-tidas-authoring` only for AI semantic repair from Foundry authoring tasks. For identity, classification, and location blockers, AI writes structured decision files; for other field gaps, AI writes structured patch files. AI never writes database rows.
 - AI-authored rows can enter the remote-write chain only after AI semantic evidence proves the AI used the full SDK schema, methodology YAML, runtime ruleset, source row, entity payload, profile context, and queue/dependency context. Identity fixes prove this with `identity-decisions-apply`; classification fixes prove this with `classification-decisions-apply`; location fixes prove this with `location-decisions-apply`; other field fixes prove this with authoring patch evidence.
-- For process/flow full-context imports, run every generated identity-preflight request through `dataset-identity-preflight-run` before AI authoring, then pass the same index to curation/finalize with `--identity-preflight-index`. Full-context process/flow profiles require this evidence automatically; `--require-identity-preflight` may be used as an explicit hard-gate flag when a profile wants fail-fast behavior. Foundry-generated requests should carry a compact fielded `query` for Edge hybrid search plus local-only `remote_candidate_search.profile_hints` for source-derived target profile facts. The AI package must include completed current/dependency identity-preflight evidence from `process_hybrid_search` / `flow_hybrid_search`, especially for elementary flows that must reuse existing database rows instead of being newly authored.
+- For process/flow full-context imports, run every generated identity-preflight request through `dataset-identity-preflight-run` before AI authoring, then pass the same index to curation/finalize with `--identity-preflight-index`. Full-context process/flow profiles require this evidence automatically; `--require-identity-preflight` may be used as an explicit hard-gate flag when a profile wants fail-fast behavior. Foundry-generated requests should carry a compact fielded `query` for Edge hybrid search plus local-only `remote_candidate_search.profile_hints` for source-derived target profile facts. The AI package must include completed current/dependency identity-preflight evidence from `process_hybrid_search` / `flow_hybrid_search`. Elementary flows are public-first: reuse an equivalent visible row; only a frozen profile that explicitly authorizes the account-local override may create an evidence-backed same-owner `state_code=0` candidate when no defensible equivalent exists.
 - After `dataset-curation-gate`, run `dataset-authoring-plan` before hand-authoring decisions or patches. Treat the plan as the current worklist for missing task builds, AI decisions/patches, deterministic apply, and post-authoring finalize readiness.
-- Import-ready rows are source-language rows. Bilingual completion is a separate post-import task.
+- Raw converted rows may be source-language only. Final import/write-ready rows must preserve the source language and include evidence-backed `en` values for every TIDAS-required multilingual field.
 - Never continue to commit from stale historical `.foundry` artifacts. Every gate must point to the exact current final rows file.
 - Runtime `.env` values are credentials/defaults only. A task that may write remotely still needs durable source manifest, profile lock, account/write guard evidence, execution policy, checkpoints, and artifact ledger under the task workspace.
 - For packaged imports, process bundle execution is queue-driven and may be parallel only across independent locks up to the task `max_parallelism`. Blocked entities write blocker artifacts and are excluded from commit scopes; unrelated ready entities continue through finalize, commit, readback, and closeout when the write policy allows it.
@@ -174,7 +174,7 @@ node scripts/foundry.mjs dataset-curation-gate \
   --schema-file .foundry/workspaces/<task-id>/context/<type>/outputs/schema.json \
   --yaml-file .foundry/workspaces/<task-id>/context/<type>/outputs/methodology.yaml \
   --ruleset-file .foundry/workspaces/<task-id>/context/<type>/outputs/runtime-ruleset.json \
-  --profile bafu \
+  --profile <frozen-profile-id> \
   --out-dir .foundry/workspaces/<task-id>/curation-gate
 ```
 
@@ -187,13 +187,14 @@ node scripts/foundry.mjs dataset-identity-decision-task-build \
 
 node scripts/foundry.mjs dataset-identity-decisions-apply \
   --type <flow|process> \
+  --profile <frozen-profile-id> \
   --rows-file .foundry/workspaces/<task-id>/rows/<type>.jsonl \
   --decisions .foundry/workspaces/<task-id>/identity-decision-task/identity-decisions.jsonl \
   --out-dir .foundry/workspaces/<task-id>/identity-decision-apply/<type> \
   --authoring-package-dir .foundry/workspaces/<task-id>/curation-gate/ai-authoring-packages
 ```
 
-Use the generated `files.output_rows` as the next rows file before rerunning schema validation, QA, and curation. `reuse_existing_reference` decisions must carry canonical id/version and produce reference-reuse rows; elementary flows can only reuse existing TianGong flows or remain blocked. Identity choices must be based on the full authoring package, identity-preflight remote candidates, source classification, unit/property, geography, process exchange context, SDK schema/YAML/ruleset, and profile constraints. Do not patch flow/process JSON directly for identity resolution.
+Use the generated `files.output_rows` as the next rows file before rerunning schema validation, QA, and curation. `reuse_existing_reference` decisions must carry canonical id/version and produce reference-reuse rows. Elementary flows default to reuse or blocked; a profile-authorized identity task may instead select `create_new` only for an evidence-backed same-owner `state_code=0` candidate after completed public-first search. Identity choices must be based on the full authoring package, identity-preflight remote candidates, source classification, unit/property, geography, process exchange context, SDK schema/YAML/ruleset, and frozen profile constraints. Do not patch flow/process JSON directly for identity resolution.
 
 10. If curation blocks on classification queue rows, build AI classification decision tasks and apply completed decisions through the CLI wrapper:
 
@@ -280,7 +281,7 @@ node scripts/foundry.mjs dataset-patch-apply \
   --require-action-item-closure
 ```
 
-14. For support rows that mutually reference each other, first build one mixed support rows file containing only writable contact/source rows, then run `dataset-post-authoring-finalize --type support`. Flow Properties and Unit Groups are reference-only: refresh `specs/canonical-support/flow-properties-unit-groups.json` and rewrite converted references to existing canonical database rows before flow/process curation. The finalizer reruns cleanup, Rust tidas batch validation through `dataset-tidas-validate`, location audit, generic `tiangong-lca dataset save-draft --type auto --dry-run`, mutation manifest, and commit handoff on one exact writable support scope. The mutation manifest must show no source identity blockers and no account-local unitgroup/flowproperty rows before commit. When task write policy allows automated commit, a batch runner may commit it through the generated `dataset save-draft --type auto --commit` handoff, then must run post-write verify and closeout before dependent flow/process scopes.
+14. For support rows that mutually reference each other, first build one mixed support rows file containing only writable contact/source rows, then run `dataset-post-authoring-finalize --type support`. Flow Properties and Unit Groups are public-first and reference-only by default: refresh `specs/canonical-support/flow-properties-unit-groups.json` and rewrite converted references to equivalent canonical rows. When the frozen profile explicitly authorizes account-local support and completed search proves no defensible equivalent, use the existing `--mint-unmatched-fp-ug-support` owner-draft path to create same-owner `state_code=0` candidates outside the public cache. The finalizer reruns cleanup, Rust tidas batch validation through `dataset-tidas-validate`, location audit, generic `tiangong-lca dataset save-draft --type auto --dry-run`, mutation manifest, and commit handoff on one exact writable support scope. The mutation manifest must show no source identity blocker and must prove identity, unit scale, owner/state, dependency order, audit, and readback for every authorized account-local flow property or unit group. When task write policy allows automated commit, a batch runner may commit it through the generated `dataset save-draft --type auto --commit` handoff, then must run post-write verify and closeout before dependent flow/process scopes.
 
 15. For process, flow, and lifecyclemodel rows, run the post-AI prewrite finalize command. It reruns cleanup, Rust tidas validation, deterministic CLI QA, `tiangong-lca dataset classification audit --type location` for schema-derived location-code fields against `tidas_locations_category.json`, post-authoring curation gate, type-specific dry-run (`process save-draft --dry-run`, `flow publish-version --dry-run`, or `lifecyclemodel save-draft --dry-run`), optional remote reference verification, and mutation manifest generation on one exact rows-file scope:
 
@@ -289,7 +290,7 @@ node scripts/foundry.mjs dataset-post-authoring-finalize \
   --type <process|flow|lifecyclemodel> \
   --rows-file .foundry/workspaces/<task-id>/rows/<type>.patched.jsonl \
   --out-dir .foundry/workspaces/<task-id>/post-authoring-finalize \
-  --profile bafu \
+  --profile <frozen-profile-id> \
   --queue-dir .foundry/workspaces/<task-id>/curation-queue \
   --classification-queue .foundry/workspaces/<task-id>/classification-authoring-queue.jsonl \
   --location-queue .foundry/workspaces/<task-id>/location-authoring-queue.jsonl \

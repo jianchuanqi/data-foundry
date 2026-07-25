@@ -32,6 +32,10 @@ function ml(text) {
   return { "@xml:lang": "en", "#text": text };
 }
 
+function mlLang(text, language) {
+  return { "@xml:lang": language, "#text": text };
+}
+
 function contactRef(id, text) {
   return {
     "@type": "contact data set",
@@ -812,7 +816,10 @@ test("dataset-identity-preflight-requests-build creates a fresh exact-row reques
         dataSetInformation: {
           "common:UUID": flowId,
           name: {
-            baseName: ml("Mercury"),
+            baseName: [mlLang("汞", "zh"), ml("Mercury")],
+            treatmentStandardsRoutes: [mlLang("排放", "zh"), ml("emitted")],
+            mixAndLocationTypes: [mlLang("全球", "zh"), ml("global")],
+            functionalUnitFlowProperties: [mlLang("质量", "zh"), ml("mass")],
           },
           classificationInformation: {
             "common:elementaryFlowCategorization": {
@@ -867,12 +874,93 @@ test("dataset-identity-preflight-requests-build creates a fresh exact-row reques
   assert.deepEqual(indexRows[0].remote_search.edge_request.body.filter, {
     flowType: "Elementary flow",
   });
-  assert.match(indexRows[0].remote_search.query, /flow name: Mercury/u);
+  assert.match(indexRows[0].remote_search.query, /flow name: 汞; Mercury/u);
+  assert.match(indexRows[0].remote_search.query, /排放; emitted/u);
+  assert.match(indexRows[0].remote_search.query, /全球; global/u);
+  assert.match(indexRows[0].remote_search.query, /质量; mass/u);
+  assert.doesNotMatch(indexRows[0].remote_search.query, /\[object Object\]/u);
   const request = JSON.parse(
     fs.readFileSync(path.join(repoRoot, indexRows[0].request_file), "utf8"),
   );
   assert.deepEqual(request.target, row);
   assert.equal(request.remote_candidate_search.limit, 80);
+});
+
+test("dataset-identity-preflight-requests-build extracts multilingual process name arrays", () => {
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  const outDir = path.join(fixtureRoot, "identity-preflight-process-name-arrays");
+  const rowsFile = path.join(fixtureRoot, "rows", "processes.jsonl");
+  const row = {
+    processDataSet: {
+      processInformation: {
+        dataSetInformation: {
+          "common:UUID": processId,
+          name: {
+            baseName: [
+              mlLang("海上风力发电机制造", "zh"),
+              ml("offshore wind turbine manufacturing"),
+            ],
+            treatmentStandardsRoutes: [mlLang("装配", "zh"), ml("assembly")],
+            mixAndLocationTypes: [mlLang("重庆工厂", "zh"), ml("Chongqing factory")],
+            functionalUnitFlowProperties: [mlLang("单台风力发电机", "zh"), ml("one wind turbine")],
+          },
+          classificationInformation: {
+            "common:classification": {
+              "common:class": [
+                { "@level": "0", "@classId": "C", "#text": "Manufacturing" },
+                { "@level": "1", "@classId": "28", "#text": "Machinery manufacturing" },
+              ],
+            },
+          },
+        },
+        geography: {
+          locationOfOperationSupplyOrProduction: {
+            "@location": "CN-CQ",
+          },
+        },
+      },
+      exchanges: {
+        exchange: {
+          exchangeDirection: "Output",
+          referenceToFlowDataSet: {
+            "@refObjectId": flowId,
+            "@version": "00.00.001",
+            "common:shortDescription": [
+              mlLang("海上风力发电机", "zh"),
+              ml("offshore wind turbine"),
+            ],
+          },
+        },
+      },
+      administrativeInformation: {
+        publicationAndOwnership: {
+          "common:dataSetVersion": "00.00.001",
+        },
+      },
+    },
+  };
+  writeJsonLines(rowsFile, [row]);
+
+  const report = runFoundry([
+    "dataset-identity-preflight-requests-build",
+    "--type",
+    "process",
+    "--rows-file",
+    rowsFile,
+    "--out-dir",
+    outDir,
+  ]);
+
+  assert.equal(report.status, "ready");
+  const [indexRow] = readJsonLines(path.join(repoRoot, report.files.identity_preflight_requests));
+  assert.match(
+    indexRow.remote_search.query,
+    /process name: 海上风力发电机制造; offshore wind turbine manufacturing/u,
+  );
+  assert.match(indexRow.remote_search.query, /装配; assembly/u);
+  assert.match(indexRow.remote_search.query, /重庆工厂; Chongqing factory/u);
+  assert.match(indexRow.remote_search.query, /单台风力发电机; one wind turbine/u);
+  assert.doesNotMatch(indexRow.remote_search.query, /\[object Object\]/u);
 });
 
 test("dataset-identity-preflight-query-audit passes complete fielded edge queries", () => {

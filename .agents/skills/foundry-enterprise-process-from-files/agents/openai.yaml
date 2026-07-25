@@ -1,0 +1,4 @@
+interface:
+  display_name: "Foundry Enterprise Process from Files"
+  short_description: "Build and safely write TIDAS processes from enterprise files"
+  default_prompt: "Use $foundry-enterprise-process-from-files to turn supplied enterprise files into evidence-backed TIDAS process datasets and required dependencies, pausing for material clarification, resolving identities public-first with governed account-local fallback, and performing only task-policy-authorized writes with readback."

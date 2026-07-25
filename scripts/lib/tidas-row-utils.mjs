@@ -212,6 +212,37 @@ export function createTidasRowUtils({ asText, bundleRowTypes, cloneJson, ensureA
     return "";
   }
 
+  function multilingualTextValue(value) {
+    const texts = [];
+    const seen = new Set();
+
+    function collect(item) {
+      if (Array.isArray(item)) {
+        for (const entry of item) collect(entry);
+        return;
+      }
+
+      const direct = asText(item);
+      if (direct) {
+        const key = direct.normalize("NFKC");
+        if (!seen.has(key)) {
+          seen.add(key);
+          texts.push(direct);
+        }
+        return;
+      }
+
+      if (item && typeof item === "object") {
+        const primary = item["#text"];
+        if (textValue(primary)) collect(primary);
+        else collect(item.value);
+      }
+    }
+
+    collect(value);
+    return texts.join("; ");
+  }
+
   function writeJsonLines(filePath, rows) {
     writeText(
       filePath,
@@ -235,6 +266,7 @@ export function createTidasRowUtils({ asText, bundleRowTypes, cloneJson, ensureA
     isObjectEmpty,
     languageForText,
     multiLang,
+    multilingualTextValue,
     normalizeTidasLanguageCode,
     pathExpression,
     preferredSourceLanguageText,

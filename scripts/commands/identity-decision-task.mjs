@@ -14,6 +14,7 @@ export function createIdentityDecisionTaskCommands({
   hasQueueSelectionOptions,
   normalizedList,
   nowIso,
+  profileFor,
   readJson,
   readText,
   repoRelativePath,
@@ -306,7 +307,11 @@ export function createIdentityDecisionTaskCommands({
     return [...byKey.values()];
   }
 
-  function buildIdentityDecisionTemplateRows(taskRows, contextBundle = null) {
+  function buildIdentityDecisionTemplateRows(
+    taskRows,
+    contextBundle = null,
+    { allowElementaryCreateNew = false } = {},
+  ) {
     const authoringContext = contextBundle ? decisionAuthoringContext(contextBundle) : null;
     return taskRows.map((row, index) => {
       const actionCodes = identityDecisionTaskActionCodes(row);
@@ -317,7 +322,9 @@ export function createIdentityDecisionTaskCommands({
         dataset_version: row.dataset_version || "00.00.001",
         decision_status: "completed",
         identity_decision: isElementaryDecision
-          ? "__AI_SELECT_REUSE_EXISTING_REFERENCE_OR_BLOCK_UNRESOLVED__"
+          ? allowElementaryCreateNew
+            ? "__AI_SELECT_REUSE_EXISTING_REFERENCE_CREATE_NEW_OR_BLOCK_UNRESOLVED__"
+            : "__AI_SELECT_REUSE_EXISTING_REFERENCE_OR_BLOCK_UNRESOLVED__"
           : "__AI_SELECT_REUSE_EXISTING_REFERENCE_CREATE_NEW_OR_BLOCK_UNRESOLVED__",
         canonical: {
           table: datasetRowsFileStem(row.dataset_type),
@@ -379,6 +386,17 @@ export function createIdentityDecisionTaskCommands({
     fs.mkdirSync(outDir, { recursive: true });
     const snapshotDir = path.join(outDir, "authoring-package-snapshots");
     const curationGateReport = readJson(curationGateReportPath);
+    const taskProfile =
+      typeof profileFor === "function"
+        ? profileFor(
+            repoRoot,
+            asText(curationGateReport?.profile || "generic")
+              .trim()
+              .toLowerCase(),
+            options,
+          )
+        : { id: "generic", allowAccountLocalSupportAndElementary: false };
+    const allowElementaryCreateNew = Boolean(taskProfile.allowAccountLocalSupportAndElementary);
     const entities = curationGateEntities(curationGateReport);
     const packageProofs = entities
       .map(readAuthoringPackageForIdentityTask)
@@ -441,6 +459,8 @@ export function createIdentityDecisionTaskCommands({
     });
     const contextBundleStablePayload = {
       task_kind: "identity_decision_authoring",
+      profile: taskProfile.id,
+      allow_account_local_support_and_elementary: allowElementaryCreateNew,
       source_curation_gate_report: repoRelativePath(curationGateReportPath),
       task_rows: selectedRows.length,
       source_identity_action_items: selectedSourceRows.length,
@@ -461,10 +481,12 @@ export function createIdentityDecisionTaskCommands({
       task: repoRelativePath(taskPath),
       shared_context_bundle: sharedContextBundle,
       hash_scope:
-        "task_kind, source_curation_gate_report, task_rows, source_identity_action_items, contract_context_files, missing_context_files, authoring_packages, and shared_context_bundle_sha256; task path and generated_at_utc are excluded.",
+        "task_kind, profile, allow_account_local_support_and_elementary, source_curation_gate_report, task_rows, source_identity_action_items, contract_context_files, missing_context_files, authoring_packages, and shared_context_bundle_sha256; task path and generated_at_utc are excluded.",
       sha256: sha256Text(JSON.stringify(contextBundleStablePayload)),
     };
-    const templateRows = buildIdentityDecisionTemplateRows(selectedRows, contextBundle);
+    const templateRows = buildIdentityDecisionTemplateRows(selectedRows, contextBundle, {
+      allowElementaryCreateNew,
+    });
     const blockers = [
       ...packageProofs.flatMap(identityTaskPackageContextBlockers),
       ...selectedRows
@@ -487,6 +509,12 @@ export function createIdentityDecisionTaskCommands({
         emptyStatus: "ready_no_identity_actions",
       }),
       task_kind: "identity_decision_authoring",
+      profile: taskProfile.id,
+      identity_policy: {
+        public_or_visible_existing_search_first: true,
+        account_local_create_new_allowed_for_elementary_flow: allowElementaryCreateNew,
+        account_local_override: taskProfile.accountLocalSupportOverride ?? null,
+      },
       source_curation_gate_report: repoRelativePath(curationGateReportPath),
       counts: {
         curation_entities: entities.length,
@@ -524,7 +552,9 @@ export function createIdentityDecisionTaskCommands({
         "Read shared_context_bundle once for full schema/YAML/ruleset/category/location text, then read each snapshotted full authoring package for source row, identity-preflight candidates, action items, and package-specific evidence.",
         "Use the task-local authoring-package snapshot paths in decisions. Do not replace them with live curation-gate package paths, because finalize can regenerate live packages after decisions are applied.",
         "For product/process identity_preflight_manual_review, choose reuse_existing_reference, create_new, or block_unresolved with evidence.",
-        "For elementary_flow_identity_manual_review, do not choose create_new. Choose reuse_existing_reference with canonical id/version, or block_unresolved with searched candidate evidence.",
+        allowElementaryCreateNew
+          ? "For elementary_flow_identity_manual_review, search public and already-visible candidates first. When no defensible equivalent exists, create_new is allowed only as an evidence-backed same-owner state_code=0 account-local candidate under the frozen profile; otherwise choose reuse_existing_reference or block_unresolved."
+          : "For elementary_flow_identity_manual_review, do not choose create_new. Choose reuse_existing_reference with canonical id/version, or block_unresolved with searched candidate evidence.",
         "Every decision must include dataset_type, dataset_id, dataset_version, decision_status=completed, identity_decision, basis, used_context_kinds, structured evidence, closes_action_items, authoring_package, and authoring_package_sha256.",
         "Do not write row JSON directly; run dataset-identity-decisions-apply after decisions are complete, then rerun validate/QA/curation/finalize on the applied rows.",
       ],
@@ -543,6 +573,8 @@ export function createIdentityDecisionTaskCommands({
           "dataset-identity-decisions-apply",
           "--type",
           datasetTypes.length === 1 ? datasetTypes[0] : "<flow-or-process>",
+          "--profile",
+          taskProfile.id,
           "--rows-file",
           options.rowsFile || "<rows-file-containing-identity-targets>",
           "--decisions",

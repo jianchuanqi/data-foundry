@@ -43,3 +43,19 @@ test("document-granular-decompose is a runtime Tiangong AI skill, not a tracked 
   );
   assert.match(gitignore, /\.agents\/skills\/document-granular-decompose\//);
 });
+
+test("shared runtime skills target Codex without agent-specific compatibility paths", () => {
+  const sharedSkills = readJson(".agents/shared-skills.json");
+  const packageJson = readJson("package.json");
+  const installScript = packageJson.scripts["skills:install:shared"];
+
+  assert.equal(sharedSkills.default_agent, "codex");
+  for (const skill of sharedSkills.shared_runtime_skills) {
+    assert.equal(skill.agent, "codex", `${skill.name} should target Codex`);
+    assert.match(skill.install_command, /--agent codex(?:\s|$)/);
+    assert.doesNotMatch(skill.install_command, /--agent\s+['"]?\*/);
+  }
+
+  assert.match(installScript, /--agent codex(?:\s|$)/);
+  assert.doesNotMatch(installScript, /--agent\s+['"]?\*/);
+});

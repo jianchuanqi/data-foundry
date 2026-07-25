@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at_utc": "2026-07-12T00:00:00Z",
+  "updated_at_utc": "2026-07-18T00:00:00Z",
   "default_profile": "generic",
   "profiles": {
     "generic": {
@@ -9,6 +9,33 @@
       "docs": [],
       "waived_qa_codes_by_type": {},
       "waiver_reasons": {}
+    },
+    "enterprise-process-from-files": {
+      "id": "enterprise-process-from-files",
+      "description": "Enterprise operational-file authoring profile with governed material-balance tolerance, public-first identity reuse, account-local dependency authoring for defensible gaps, and task-policy-gated write/readback completion.",
+      "docs": [
+        "docs/import-profiles/enterprise-process-from-files/profile.md",
+        "docs/import-profiles/enterprise-process-from-files/constraints.md"
+      ],
+      "waived_qa_codes_by_type": {
+        "process": ["process_material_balance_deviation"]
+      },
+      "waiver_reasons": {
+        "process_material_balance_deviation": "User governance decision 2026-07-18: Enterprise Process from Files retains the measured material-balance deviation and diagnostic as a QA warning, but it is not a write blocker when source boundary, units, directions, allocation, omitted rows, reference product, and residual interpretation are documented. Schema, unit, direction, allocation, reference-closure, classification/location, provenance, account/write-guard, dry-run, and readback failures remain blocking."
+      },
+      "allow_account_local_support_and_elementary": {
+        "enabled": true,
+        "authorized_by": "User governance decision 2026-07-18: globally relax Enterprise Process from Files from public-only dependency reuse to public-first reuse with evidence-bound account-local state_code=0 candidates for defensible gaps.",
+        "scope": [
+          "elementary_flow_write",
+          "elementary_flow_create_new",
+          "flowproperty_write",
+          "unitgroup_write",
+          "canonical_support_local_mint"
+        ],
+        "note": "Identity-equivalent public rows are reused first. Product and waste flows, true sources, and contacts may be authored through their normal writable TIDAS paths. When no defensible public elementary flow, flow property, or unit group exists, an evidence-bound candidate may be written only as current-owner state_code=0 through the guarded account-local path. Account-local rows remain outside the public canonical cache and require exact unit-scale, classification, reference-closure, audit, and readback proof.",
+        "report_policy": "Reports must state public-first reuse, the rejected public candidates, the evidence for each account-local identity, owner/state_code=0 scope, unit-scale treatment, dependency order, and post-write readback. They must not describe this profile as public-only or dry-run-only."
+      }
     },
     "bafu": {
       "id": "bafu",

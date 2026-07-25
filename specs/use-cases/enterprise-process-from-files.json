@@ -1,0 +1,707 @@
+{
+  "schema_version": 1,
+  "use_case_id": "enterprise-process-from-files",
+  "description": "Build one or more TIDAS process datasets from enterprise source files, with interruptible human clarification, governed account-local dependency authoring, and task-policy-gated remote commit through full readback closeout.",
+  "routing": {
+    "lane": "source-evidence-dataset-development",
+    "profile": "enterprise-process-from-files",
+    "task_kind": "source-evidence-dataset-development",
+    "input_mode": "files_only",
+    "interaction_policy": "interrupt_on_material_decision",
+    "completion_contract": "tidas_process_import_completed_v1",
+    "allow_remote_commit": true,
+    "allow_remote_commit_semantics": "Default true for this use case under the 2026-07-18 global authorization; an individual task may explicitly set allow_remote_commit=false to stop at the dry-run-backed handoff."
+  },
+  "execution": {
+    "current_agent_surface": "codex",
+    "agent_neutral_file_contract": true,
+    "openclaw_integration_in_scope": false,
+    "scope_isolation": "ready_only",
+    "scope_isolation_description": "Pause only affected process scopes; independent scopes may continue through validation, finalize, ordered dependency commit, readback, and closeout when the task write policy permits."
+  },
+  "statuses": {
+    "scope": [
+      "running",
+      "awaiting_human_input",
+      "verified_import_compatible",
+      "ready_for_commit",
+      "committed_and_verified",
+      "blocked_hard_gate",
+      "failed"
+    ],
+    "job": [
+      "verified_import_compatible",
+      "partially_verified_import_compatible",
+      "completed",
+      "partially_completed",
+      "awaiting_human_input",
+      "blocked",
+      "failed"
+    ]
+  },
+  "artifacts": {
+    "base_foundry_contract": {
+      "required": true,
+      "authoritative_contract": "docs/foundry-task-contracts.md",
+      "artifacts": [
+        {
+          "path": "foundry-job.json",
+          "purpose": "Lane-owned task execution contract.",
+          "required_fields": [
+            "schema_version",
+            "task_id",
+            "lane",
+            "target_profile",
+            "target_entities",
+            "workspace_dir",
+            "write_policy",
+            "execution_policy",
+            "owner_routes"
+          ],
+          "use_case_constants": {
+            "lane": "source-evidence-dataset-development",
+            "target_profile": "enterprise-process-from-files",
+            "target_entities": ["support", "flow", "process"],
+            "write_policy.mode": "commit",
+            "write_policy.remote_commit": "profile_gated_batch",
+            "write_policy.requires_human_approval": false,
+            "write_policy.human_approval_required_for": [
+              "policy_change",
+              "exceptional_waiver",
+              "delete_action"
+            ],
+            "write_policy.explicit_task_disable": {
+              "when": "allow_remote_commit=false",
+              "write_policy.mode": "dry-run",
+              "write_policy.remote_commit": "disabled"
+            },
+            "execution_policy.blocked_item_policy": "record_and_continue_independent_scopes"
+          }
+        },
+        {
+          "path": "seed-manifest.json",
+          "purpose": "Required source-evidence lane seed and source-discovery record."
+        },
+        {
+          "path": "profile-lock.json",
+          "purpose": "Frozen enterprise-process-from-files profile, use-case policy authorization, and contract inputs."
+        },
+        {
+          "path": "artifact-index.jsonl",
+          "purpose": "Append-only task artifact ledger."
+        }
+      ]
+    },
+    "job": {
+      "path": "enterprise-process-job.json",
+      "required": true,
+      "initial_user_required_fields": ["source_files"],
+      "orchestrator_generated_fields": [
+        "schema_version",
+        "task_id",
+        "use_case_id",
+        "workspace",
+        "profile"
+      ],
+      "required_fields": [
+        "schema_version",
+        "task_id",
+        "use_case_id",
+        "source_files",
+        "workspace",
+        "profile"
+      ],
+      "source_file_user_required_fields": ["path"],
+      "source_file_orchestrator_generated_fields": ["sha256", "media_type"]
+    },
+    "source_manifest": {
+      "path": "source-manifest.json",
+      "required": true,
+      "conforms_to": "docs/foundry-task-contracts.md#source-manifestjson",
+      "required_fields": [
+        "schema_version",
+        "source_kind",
+        "source_paths",
+        "source_citation",
+        "captured_at_utc"
+      ],
+      "required_file_fields": ["path", "sha256", "access", "media_type"],
+      "use_case_constants": {
+        "source_kind": "enterprise_files"
+      }
+    },
+    "parsed_documents": {
+      "path": "evidence/parsed-documents/",
+      "required": true,
+      "description": "Complete retained document and table extraction outputs."
+    },
+    "calculation_documents": {
+      "path": "evidence/calculations/",
+      "required_when": "a process value is derived rather than copied from a source or clarification document"
+    },
+    "human_interactions": {
+      "index_path": "human-interactions/index.jsonl",
+      "interaction_directory_pattern": "human-interactions/<interaction-id>/",
+      "files": ["request.md", "clarification.md", "decision.json"],
+      "index_row_required_fields": [
+        "schema_version",
+        "interaction_id",
+        "task_id",
+        "scope_ids",
+        "input_types",
+        "review_timing",
+        "status",
+        "request_path",
+        "clarification_path",
+        "clarification_sha256",
+        "decision_path",
+        "checkpoint_path",
+        "created_at",
+        "updated_at"
+      ],
+      "decision_required_fields": [
+        "schema_version",
+        "interaction_id",
+        "task_id",
+        "scope_ids",
+        "input_types",
+        "decision_status",
+        "source_type",
+        "clarification_document_path",
+        "clarification_document_sha256",
+        "basis_documents",
+        "checkpoint_path",
+        "selected_candidate_id",
+        "normalized_decision",
+        "reviewer",
+        "decided_at"
+      ],
+      "decision_constant_fields": {
+        "source_type": "human_clarification"
+      },
+      "decision_nullable_when_not_applicable": ["selected_candidate_id"],
+      "nullable_until_human_response": [
+        "clarification_path",
+        "clarification_sha256",
+        "decision_path"
+      ],
+      "decision_statuses": ["completed", "remain_blocked"]
+    },
+    "checkpoints": {
+      "path": "checkpoints/",
+      "required_before_interruption": true,
+      "status_vocabulary": ["pending", "running", "passed", "failed", "waived"],
+      "pause_representation": {
+        "checkpoint_status": "pending",
+        "scope_status": "awaiting_human_input",
+        "interaction_status": "awaiting_human_input"
+      },
+      "required_content": [
+        "current_rows",
+        "source_manifest",
+        "affected_scopes",
+        "pending_questions",
+        "earliest_affected_stage"
+      ]
+    },
+    "result": {
+      "path": "enterprise-process-result.json",
+      "required": true,
+      "required_fields": [
+        "schema_version",
+        "task_id",
+        "use_case_id",
+        "status",
+        "completed_processes",
+        "pending_interactions",
+        "clarification_documents",
+        "blocked_scopes",
+        "warnings",
+        "reports",
+        "commit_performed",
+        "committed_scopes",
+        "write_scope_closeouts",
+        "completion_report"
+      ],
+      "dynamic_write_fields": {
+        "commit_performed": "Boolean. False before any successful remote commit and true only when at least one exact write scope has a completed commit report and post-write closeout.",
+        "committed_scopes": "Exact write scopes with completed commit, readback, and closeout evidence.",
+        "completion_report": "Null until dataset-import-completion-report reports completed for every required committed scope."
+      },
+      "report_entry_required_fields": [
+        "scope_id",
+        "kind",
+        "status",
+        "report_path",
+        "report_sha256",
+        "input_rows_path",
+        "input_rows_sha256"
+      ],
+      "exact_payload_binding": {
+        "required": true,
+        "rule": "Every gate report listed for a completed scope must bind to the SHA-256 of that scope's exact final deliverable rows; a report for any earlier payload is stale."
+      }
+    },
+    "deliverables": {
+      "process_file_pattern": "deliverables/processes/*.json",
+      "aggregate_path": "deliverables/processes.jsonl",
+      "eligible_scope_status": "verified_import_compatible",
+      "commit_eligible_scope_status": "ready_for_commit",
+      "completed_scope_status": "committed_and_verified"
+    },
+    "account_local_support": {
+      "required_when": "the frozen profile authorizes account-local flow properties or unit groups and completed public-first search proves no defensible reusable identity",
+      "row_paths": {
+        "flowproperty": "rows/flowproperties.jsonl",
+        "unitgroup": "rows/unitgroups.jsonl"
+      },
+      "candidate_registry_path": "account-local-support/candidate-registry.jsonl",
+      "scope_policy": "Finalize, commit, read back, and close each exact same-owner state_code=0 support candidate scope before any dependent flow or process scope.",
+      "required_evidence": [
+        "identity_candidate_search",
+        "unit_scale_and_conversion_factors",
+        "target_owner_and_state_code_0",
+        "dependency_order",
+        "mutation_manifest",
+        "commit_handoff",
+        "post_write_verification",
+        "post_write_closeout"
+      ]
+    },
+    "required_reports": [
+      "schema_validation",
+      "deterministic_qa",
+      "material_balance",
+      "canonical_reference_closure",
+      "classification_audit",
+      "location_audit",
+      "process_save_draft_dry_run"
+    ],
+    "required_commit_reports": [
+      "post_authoring_finalize",
+      "mutation_manifest",
+      "commit_handoff_plan",
+      "commit_report",
+      "post_write_verification",
+      "post_write_closeout"
+    ],
+    "write_lifecycle": {
+      "required_when": "the task write policy permits remote commit for at least one ready exact scope",
+      "per_scope_artifact_kinds": [
+        "post_authoring_finalize_report",
+        "mutation_manifest",
+        "commit_handoff_plan",
+        "commit_report",
+        "post_write_verification_report",
+        "post_write_closeout_report"
+      ],
+      "job_completion_artifact_kind": "dataset_import_completion_report",
+      "exact_payload_binding_required": true,
+      "ordered_stages": [
+        "post_authoring_finalize",
+        "mutation_manifest",
+        "commit_handoff_plan",
+        "published_cli_commit",
+        "post_write_verification",
+        "post_write_closeout",
+        "dataset_import_completion_report",
+        "task_complete"
+      ]
+    }
+  },
+  "document_level_provenance": {
+    "minimum_granularity": "document",
+    "source_file_sha256_required": true,
+    "complete_source_documents_retained": true,
+    "complete_parsed_documents_retained": true,
+    "clarification_documents_are_valid_sources": true,
+    "one_document_may_support_multiple_fields_and_decisions": true,
+    "field_level_locator_policy": "best_effort",
+    "missing_field_level_locator_is_blocking": false,
+    "acceptable_document_types": [
+      "original_source_document",
+      "parsed_document",
+      "calculation_document",
+      "human_clarification"
+    ],
+    "decision_evidence_may_reference": [
+      "complete_source_document",
+      "complete_parsed_document",
+      "calculation_document",
+      "clarification_document",
+      "context_bundle"
+    ]
+  },
+  "human_in_the_loop": {
+    "scope_construction_precedence": "When enterprise-total evidence could support either a factory-level multi-output process or multiple product processes, the immediate process-count/boundary interruption takes precedence over any preference for a single observed enterprise-boundary candidate.",
+    "interruption_behavior": {
+      "checkpoint_before_pause": true,
+      "affected_scope_status": "awaiting_human_input",
+      "continue_independent_scopes": true,
+      "question_contract": [
+        "relevant_documents",
+        "current_system_interpretation",
+        "reason_for_uncertainty",
+        "supported_candidates",
+        "recommended_candidate_and_basis",
+        "downstream_impact_by_candidate",
+        "minimum_information_needed_to_continue",
+        "natural_lca_professional_language",
+        "no_internal_codes_unless_user_requests_them",
+        "free_text_response_allowed"
+      ]
+    },
+    "user_facing_clarification_language_policy": {
+      "style": "concise_natural_lca_professional_language",
+      "ask_only_for_information_needed_to_resolve_the_current_modeling_decision": true,
+      "internal_blocker_status_and_command_codes_shown_by_default": false,
+      "internal_codes_may_be_shown_when_user_requests_technical_detail": true,
+      "machine_artifacts_retain_stable_codes": true
+    },
+    "state_transitions": [
+      {
+        "event": "material_model_unambiguous",
+        "affected_scope_status": "running",
+        "interrupt_now": false,
+        "downstream_process_rows_allowed": true
+      },
+      {
+        "event": "material_ambiguity_detected",
+        "checkpoint_status": "pending",
+        "affected_scope_status": "awaiting_human_input",
+        "downstream_process_rows_allowed": false
+      },
+      {
+        "event": "material_question_answered",
+        "precondition": "clarification_document_persisted_and_hashed",
+        "affected_scope_status": "running",
+        "resume_from": "earliest_affected_stage"
+      },
+      {
+        "event": "material_balance_deviation_profile_waived",
+        "precondition": "enterprise_process_profile_lock_contains_authorized_material_balance_waiver",
+        "affected_scope_status": "running",
+        "material_balance_report_status": "waived",
+        "qa_finding_outcome": "warning",
+        "per_scope_human_approval_required": false
+      },
+      {
+        "event": "human_requests_scope_remain_blocked",
+        "decision_status": "remain_blocked",
+        "affected_scope_status": "blocked_hard_gate"
+      },
+      {
+        "event": "batch_review_issue_detected",
+        "affected_scope_status": "running",
+        "interrupt_now": false
+      }
+    ],
+    "downstream_artifacts_blocked_until_material_resolution": [
+      "allocation_calculations",
+      "boundary_dependent_process_rows",
+      "canonical_identity_apply_for_dependent_exchanges",
+      "classification_or_location_apply_for_dependent_rows",
+      "schema_validation_for_dependent_rows",
+      "deterministic_qa_for_dependent_rows",
+      "process_save_draft_dry_run"
+    ],
+    "immediate_triggers": [
+      "process_count_or_boundary_ambiguity",
+      "reference_product_or_functional_unit_ambiguity",
+      "bom_energy_bill_site_product_line_or_period_alignment_ambiguity",
+      "shared_input_output_allocation_ambiguity",
+      "column_unit_sign_or_exchange_direction_ambiguity",
+      "conflicting_values_across_documents",
+      "unresolved_internal_abbreviation_or_business_definition",
+      "multiple_canonical_flow_candidates_with_different_physical_meaning_or_units",
+      "process_material_balance_deviation_requiring_source_boundary_unit_or_omission_clarification"
+    ],
+    "batch_review_triggers": [
+      "description_or_technology_wording",
+      "synonyms",
+      "uncertainty_or_representativeness",
+      "non_critical_classification",
+      "publication_grade_content_richness",
+      "naming_that_does_not_affect_references_or_material_balance"
+    ],
+    "human_input_types": [
+      "source_clarification",
+      "boundary_decision",
+      "allocation_decision",
+      "conflict_resolution",
+      "canonical_identity_decision",
+      "classification_or_location_decision",
+      "data_correction",
+      "approval"
+    ],
+    "allowed_responses": [
+      "select_supported_candidate",
+      "provide_free_text_explanation",
+      "add_source_files",
+      "keep_scope_blocked"
+    ],
+    "clarification_document": {
+      "source_type": "human_clarification",
+      "required_before_use_in_authoring": true,
+      "chat_history_alone_is_sufficient": false,
+      "required_content": [
+        "question_and_current_system_understanding",
+        "human_response_verbatim",
+        "normalized_interpretation",
+        "applicable_enterprise_site_product_period_and_process_scopes",
+        "impact_on_boundary_units_allocation_or_exchanges",
+        "unresolved_limits",
+        "timestamp",
+        "reviewer"
+      ],
+      "integrity": {
+        "algorithm": "sha256",
+        "hash_target": "completed clarification.md bytes",
+        "compute_after_document_is_complete": true,
+        "embedded_in_clarification_document": false,
+        "stored_in": ["human-interactions/index.jsonl", "decision.json"],
+        "fields_by_artifact": {
+          "human-interactions/index.jsonl": "clarification_sha256",
+          "decision.json": "clarification_document_sha256"
+        }
+      }
+    }
+  },
+  "resume_and_invalidation": {
+    "checkpoint_content": [
+      "current_rows",
+      "source_manifest",
+      "affected_scopes",
+      "pending_questions"
+    ],
+    "resume_precondition": "persist_clarification_document",
+    "explanation_only_resume_from": "earliest_affected_boundary_mapping_or_row_stage",
+    "new_or_changed_source_files": {
+      "update_source_manifest": true,
+      "invalidate_affected_checkpoints": true,
+      "invalidate_affected_decisions": true,
+      "invalidate_affected_rows": true,
+      "invalidate_affected_finalize_and_write_evidence": true,
+      "resume_from": "earliest_affected_stage"
+    },
+    "clarification_document_changed": {
+      "detect_by": "clarification_document_sha256",
+      "invalidate_affected_checkpoints": true,
+      "invalidate_affected_decisions": true,
+      "invalidate_affected_calculations": true,
+      "invalidate_affected_rows": true,
+      "invalidate_affected_finalize_and_write_evidence": true,
+      "old_decision_reuse_allowed": false,
+      "resume_from": "earliest_affected_stage"
+    },
+    "deterministic_decision_apply_types": [
+      "canonical_identity_decision",
+      "classification_or_location_decision"
+    ],
+    "required_rerun_gates": [
+      "schema_validation",
+      "deterministic_qa",
+      "canonical_reference_closure",
+      "process_material_balance",
+      "classification_audit",
+      "location_audit",
+      "process_save_draft_dry_run",
+      "post_authoring_finalize",
+      "mutation_manifest",
+      "commit_handoff_plan"
+    ]
+  },
+  "gates": {
+    "profile_waivers_allowed": true,
+    "profile_waiver_policy": {
+      "profile": "enterprise-process-from-files",
+      "authorized_qa_codes_by_type": {
+        "process": ["process_material_balance_deviation"]
+      },
+      "authorization": {
+        "source": "user_policy_decision",
+        "decision_date": "2026-07-18",
+        "scope": "all tasks using the enterprise-process-from-files use-case and frozen profile",
+        "decision": "Retain process material-balance diagnostics but allow the dedicated profile to treat process_material_balance_deviation as a warning rather than a write blocker."
+      },
+      "authorization_must_be_persisted_in_profile_and_profile_lock": true,
+      "per_scope_human_approval_required": false,
+      "waived_finding_must_remain_in_qa_and_material_balance_reports": true,
+      "waived_finding_outcome": "warning",
+      "does_not_waive": [
+        "tidas_schema_or_required_field_error",
+        "deterministic_validation_or_unwaived_qa_error",
+        "required_multilingual_en_missing",
+        "invalid_classification_or_location",
+        "exact_reference_closure_missing",
+        "unit_direction_or_allocation_unresolved",
+        "canonical_support_amount_scaling_required",
+        "document_level_provenance_missing",
+        "exact_payload_evidence_stale_or_mismatched",
+        "target_owner_or_account_write_guard_missing",
+        "write_scope_dry_run_failed_or_missing",
+        "post_write_readback_failed_or_missing",
+        "post_write_closeout_failed_or_missing"
+      ]
+    },
+    "non_waivable": [
+      {
+        "code": "tidas_schema_or_required_field_error",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "deterministic_validation_or_unwaived_qa_error",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "required_multilingual_en_missing",
+        "outcome": "blocked_hard_gate",
+        "preserve_source_language_variants": true
+      },
+      {
+        "code": "invalid_classification_or_location",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "exact_reference_closure_missing",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "unit_direction_or_allocation_unresolved",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "document_level_provenance_missing",
+        "outcome": "blocked_hard_gate",
+        "field_level_locator_required": false
+      },
+      {
+        "code": "canonical_support_amount_scaling_required",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "exact_payload_evidence_stale_or_mismatched",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "target_owner_or_account_write_guard_missing",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "write_scope_dry_run_failed_or_missing",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "post_write_readback_failed_or_missing",
+        "outcome": "blocked_hard_gate"
+      },
+      {
+        "code": "post_write_closeout_failed_or_missing",
+        "outcome": "blocked_hard_gate"
+      }
+    ],
+    "canonical_flow_policy": {
+      "public_canonical_search_first": true,
+      "public_canonical_reuse_required_when_equivalent_exists": true,
+      "reuse_existing_uuid_and_version": true,
+      "account_local_creation_allowed_when_no_equivalent_exists": true,
+      "local_flow_minting_allowed": true,
+      "account_local_state_code": 0,
+      "account_local_candidate_types": [
+        "product_flow",
+        "waste_flow",
+        "elementary_flow",
+        "flowproperty",
+        "unitgroup"
+      ],
+      "creation_requirements": [
+        "completed_identity_candidate_search_with_no_equivalent_public_or_same_owner_row",
+        "evidence_backed_create_new_identity_decision",
+        "valid_tidas_schema_and_required_multilingual_fields",
+        "valid_classification_and_location_codes",
+        "same_owner_state_code_0_reference_closure",
+        "unit_scale_and_reference_flow_property_proof",
+        "account_local_candidate_registry_excluded_from_public_canonical_cache",
+        "dry_run_finalize_commit_handoff_and_readback_evidence"
+      ],
+      "unresolved_after_authoring_or_reference_verification": "blocked_hard_gate"
+    },
+    "source_contact_policy": {
+      "public_or_same_owner_reuse_first": true,
+      "account_local_authoring_allowed_when_no_equivalent_exists": true,
+      "account_local_state_code": 0,
+      "authorable_types": ["source", "contact"],
+      "source_quality_required": "true_report_publication_or_traceable_enterprise_source",
+      "invented_contact_fields_forbidden": true,
+      "ordered_support_commit_required": true,
+      "support_scope_type": "support",
+      "support_scope_dataset_types": ["contact", "source"],
+      "dependent_scope_order": [
+        "author_and_validate_contact_source_rows",
+        "finalize_and_dry_run_exact_support_scope",
+        "commit_support_scope_with_target_owner_guard",
+        "verify_and_closeout_support_scope",
+        "rerun_exact_reference_closure_for_dependent_flows_and_processes",
+        "finalize_commit_verify_and_closeout_dependent_scopes"
+      ],
+      "dependent_scope_may_commit_before_support_readback": false
+    },
+    "missing_data_policy": {
+      "annualSupplyOrProductionVolume": {
+        "when": "source_value_missing",
+        "value": 9999,
+        "unit": "missing-data-sentinel/year",
+        "outcome": "warning",
+        "warning_code": "annual_volume_missing_data_sentinel_used",
+        "forbidden_fallbacks": ["invented_annual_volume", "common:other"]
+      }
+    },
+    "warnings": [
+      "uncertainty_completeness",
+      "representativeness",
+      "synonyms",
+      "publication_grade_content_richness",
+      "annual_volume_missing_data_sentinel_used"
+    ]
+  },
+  "completion": {
+    "required_prewrite_command_evidence": "process save-draft --dry-run",
+    "dry_run_success_required": true,
+    "remote_write_allowed": true,
+    "remote_write_policy": {
+      "task_write_policy_required": true,
+      "required_remote_commit_mode": "profile_gated_batch",
+      "ready_only": true,
+      "foundry_direct_database_write_allowed": false,
+      "commit_executor": "published_cli_command_from_ready_commit_handoff",
+      "target_owner_and_account_guard_required": true,
+      "state_code_after_save_draft": 0,
+      "post_write_verification_required": true,
+      "post_write_closeout_required": true
+    },
+    "publication_required": false,
+    "forbidden_stages": ["openclaw_integration", "publication"],
+    "required_stages_for_committed_scope": [
+      "schema_validation",
+      "deterministic_qa_with_authorized_profile_waivers_retained_as_warnings",
+      "classification_and_location_audit",
+      "exact_reference_closure",
+      "write_scope_dry_run",
+      "post_authoring_finalize",
+      "mutation_manifest",
+      "commit_handoff",
+      "published_cli_commit",
+      "post_write_readback",
+      "post_write_closeout"
+    ],
+    "forbidden_artifact_kinds": ["openclaw_configuration", "publication_report"],
+    "scope_prewrite_status": "verified_import_compatible",
+    "scope_completion_status": "committed_and_verified",
+    "task_complete_command_allowed": true,
+    "task_queue_terminal_transition_performed": true,
+    "terminal_artifact": "dataset-import-completion-report.json",
+    "result_artifact": "enterprise-process-result.json",
+    "task_completion_compatibility_note": "The use case uses the existing import completion and task-complete contracts; enterprise-process-result.json remains the use-case summary, while dataset-import-completion-report.json is the terminal proof.",
+    "completion_description": "A committed process scope is complete only after exact-payload validation, authorized profile-waiver reporting, classification and location audit, exact reference closure, dry-run, finalize, mutation manifest, guarded CLI commit, readback verification, and post-write closeout all pass. The task is complete only after dataset-import-completion-report aggregates every required closeout."
+  }
+}

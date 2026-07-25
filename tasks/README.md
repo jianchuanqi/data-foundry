@@ -25,7 +25,9 @@ Use `external-dataset-curated-import` for zipped or directory-based LCA packages
 
 Use `source-evidence-dataset-development` for PDF, Excel, web exports, screenshots, or free text that must be authored into TIDAS candidate rows.
 
-Set `profile` explicitly in task frontmatter. `bafu` requires full-context AI semantic completion for flow, process, and lifecyclemodel data; generic tasks do not get that waiver unless their closeout profile requires it.
+For an initial files-only submission of enterprise BOMs, energy bills, production records, or similar operational evidence, start from `templates/enterprise-process-from-files.md` and use `$foundry-enterprise-process-from-files`. This remains a `source-evidence-dataset-development` task but uses the dedicated `enterprise-process-from-files` profile. Its write-enabled path keeps public-first identity resolution, may author guarded account-local draft dependencies, and closes only after finalize, commit handoff, remote write, readback, closeout, and the import completion report pass for every ready scope.
+
+Set `profile` explicitly in task frontmatter. `bafu` requires full-context AI semantic completion for flow, process, and lifecyclemodel data. The `enterprise-process-from-files` profile carries its own governed material-balance and account-local dependency policy; generic tasks do not inherit those relaxations.
 
 ## Routing
 
