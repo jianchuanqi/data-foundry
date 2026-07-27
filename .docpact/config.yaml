@@ -3,8 +3,9 @@ layout: repo
 # Review note, 2026-06-04: first-pass docpact onboarding for Foundry thin-control-plane refactor.
 # Review note, 2026-07-23: Issue #42 adds the generic offline incremental change-set composer, exact per-conversion event ledger, and CLI candidate contract. Strict Draft 2020-12 validation uses the exact Ajv 8.20.0 runtime dependency; evidence-bound entity/path/value rules, stable-identity array handling, snapshot receipts, terminal pairs, and non-root field allowlists add no remote access or mutation authority.
 # Review note, 2026-07-24: Issue #47 adds the offline topology-convergence F/P/D composer. Candidate topology, fresh owner/public/foreign census, audited classifications, occurrence-keyed multilingual preservation, fixed CLI fingerprint, zero-inbound delete candidates, and hash-chained logs remain local planning evidence with no DML authority.
-lastReviewedAt: "2026-07-24"
-lastReviewedCommit: "669ca59a21b0c637c7cb36530643945e255b137a"
+# Review note, 2026-07-27: Issue #50's Rust tidas cutover adds an explicit self-governance rule for retained Python-era import plans so they cannot silently regain executable authority.
+lastReviewedAt: "2026-07-27"
+lastReviewedCommit: "d29e522562245956d5a146e582a26ddf2a68613e"
 
 catalog:
   repos:
@@ -406,6 +407,24 @@ rules:
       - path: docs/symphony-adaptation.md
         mode: review_or_update
     reason: Historical orchestration-pattern notes are retained reference material and should remain explicitly self-governed when edited.
+  - id: foundry-historical-import-plan-reference
+    scope: repo
+    repo: data-foundry
+    triggers:
+      - path: docs/runner-improvements-from-bafu-cleanup.md
+        kind: historical-import-reference
+      - path: docs/uslci-import-plan.md
+        kind: historical-import-plan
+      - path: docs/uslci-import-runbook.md
+        kind: historical-import-runbook
+    requiredDocs:
+      - path: docs/runner-improvements-from-bafu-cleanup.md
+        mode: review_or_update
+      - path: docs/uslci-import-plan.md
+        mode: review_or_update
+      - path: docs/uslci-import-runbook.md
+        mode: review_or_update
+    reason: Retained Python-era import plans must stay explicitly historical and must not silently regain executable authority after the Rust tidas cutover.
   - id: foundry-workspace-ledger-contract
     scope: repo
     repo: data-foundry

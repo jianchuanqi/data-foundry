@@ -1,7 +1,7 @@
 {
   "$schema": "../specs/schemas/file-location-registry.schema.json",
   "schema_version": 1,
-  "updated_at_utc": "2026-07-23T00:00:00Z",
+  "updated_at_utc": "2026-07-27T00:00:00Z",
   "policy_doc": "docs/file-organization.md",
   "entries": [
     {
@@ -68,7 +68,7 @@
       "referenced_by": ["specs/workspace-capability-adapters.md", "scripts/foundry.mjs"],
       "sensitivity": "non-sensitive command and artifact contracts; no credentials or private payloads",
       "tracked": true,
-      "notes": "Routes data import and source-document authoring work to SDK-backed CLI contracts and shared gates."
+      "notes": "Routes deterministic import/conversion/schema validation to unified Rust tidas and keeps CLI context, QA/curation, remote operations, and Foundry-owned gates explicit."
     },
     {
       "id": "import-profiles",

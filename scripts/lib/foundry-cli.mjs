@@ -44,6 +44,7 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
     runDatasetMutationManifest,
     supportCacheCommands,
     taskCommands,
+    tidasWorkflowCommands,
   } = commandDeps;
   const locationDecisionCommands = createLocationDecisionCommands(decisionDeps);
   const classificationDecisionCommands = createClassificationDecisionCommands(decisionDeps);
@@ -66,6 +67,9 @@ async function runFoundryCliMain({ argv, commandDeps, decisionDeps, runtime }) {
     "tasks-list": () => taskCommands.tasksList(),
     "tasks-check": () => taskCommands.tasksCheck(),
     "task-complete": (options) => taskCommands.runTaskComplete(options),
+    "tidas-handshake": (options) => tidasWorkflowCommands.runTidasHandshake(options),
+    "dataset-tidas-import": (options) => tidasWorkflowCommands.runTidasImport(options),
+    "dataset-tidas-validate": (options) => tidasWorkflowCommands.runTidasPackageValidation(options),
     "execution-capsule-admit": (options) =>
       executionCapsuleCommands.runExecutionCapsuleAdmit(options),
     "dataset-curation-queue-build": (options) =>

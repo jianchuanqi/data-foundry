@@ -43,14 +43,14 @@ const envExampleAllowedKeys = new Set([
   "TIANGONG_LCA_REVIEW_LLM_MODEL",
   "TIANGONG_LCA_CLI_BIN",
   "TIANGONG_LCA_SKILLS_ROOT",
+  "TIDAS_BIN",
+  "TIDAS_CONFIG",
+  "TIDAS_MEMORY_BUDGET_MIB",
+  "TIDAS_QUEUE_CAPACITY",
 ]);
 const envExampleAllowedPrefixes = ["FOUNDRY_"];
 const envExampleForbiddenKeys = new Map([
   ["TIANGONG_LCA_COVERAGE", "CLI test-only toggle; keep it in tiangong-lca-cli."],
-  [
-    "TIANGONG_LCA_TIDAS_SDK_DIR",
-    "CLI development override; Foundry should use CLI contract-pack outputs.",
-  ],
   ["SUPABASE_URL", "Legacy generic Supabase env; use TIANGONG_LCA_API_* instead."],
   ["SUPABASE_KEY", "Legacy generic Supabase env; use TIANGONG_LCA_API_* instead."],
   ["GITHUB_TOKEN", "Tracker or GitHub credentials do not belong in the public env example."],
@@ -343,8 +343,6 @@ export function createCoreCommands({
     const candidates = {
       cli: path.join(root, "tiangong-lca-cli"),
       skills: path.join(root, "tiangong-lca-skills"),
-      "tidas-sdk": path.join(root, "tidas-sdk"),
-      "tidas-tools": path.join(root, "tidas-tools"),
       foundry: repoRoot,
     };
     return {
@@ -360,6 +358,14 @@ export function createCoreCommands({
           },
         ]),
       ),
+      native_tools: {
+        tidas: {
+          executable: process.env.TIDAS_BIN || "tidas",
+          source: process.env.TIDAS_BIN ? "TIDAS_BIN" : "PATH",
+          compatible_version: "0.1.x",
+          config_source: process.env.TIDAS_CONFIG ? "TIDAS_CONFIG" : "none",
+        },
+      },
       import_lanes: ["external-dataset-curated-import", "source-evidence-dataset-development"],
     };
   }

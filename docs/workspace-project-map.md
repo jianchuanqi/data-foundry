@@ -31,13 +31,14 @@ Foundry should route reusable work to the owning repository instead of copying i
 
 | Need | Owning project | Normal surface |
 | --- | --- | --- |
-| TIDAS schema, methodology YAML, runtime rulesets | `tidas-sdk` | SDK contract API, `npx --yes @tiangong-lca/cli@latest dataset context-pack` |
-| Source package conversion | `tidas-tools` and `tiangong-lca-cli` | `npx --yes @tiangong-lca/cli@latest dataset import-lca convert` |
+| TIDAS schema/methodology runtime contract | Rust `tidas` for deterministic validation; `tidas-sdk`/`tiangong-lca-cli` for AI context | `tidas validate --describe`; `npx --yes @tiangong-lca/cli@latest dataset context-pack` |
+| Source package detection/import/conversion | Rust `tidas` (`tidas-tools`) | `node scripts/foundry.mjs dataset-tidas-import` → `tidas import` |
 | Entity curation queue state | `tiangong-lca-cli` | `npx --yes @tiangong-lca/cli@latest dataset curation-queue build/next/verify` |
 | PDF/Excel/source extraction and authoring setup | `tiangong-lca-cli`, `tiangong-lca-skills`, and `tiangong-ai/skills` | `npx --yes @tiangong-lca/cli@latest dataset author`, `$tidas-data-import`, `npx --yes skills@latest use https://github.com/tiangong-ai/skills --skill document-granular-decompose --full-depth` |
 | SCI literature evidence retrieval for source-evidence tasks | `tiangong-ai/skills` | `npx --yes skills@latest use https://github.com/tiangong-ai/skills --skill tiangong-kb-sci-search --full-depth`; install/update with the npm `skills` package |
 | Agent workflow instructions | `tiangong-lca-skills` | `$tidas-contract-context`, `$tidas-data-import` |
-| Schema validation and QA gates | `tiangong-lca-cli` | `npx --yes @tiangong-lca/cli@latest dataset validate`, `npx --yes @tiangong-lca/cli@latest qa` |
+| Schema validation | Rust `tidas` (`tidas-tools`) | `node scripts/foundry.mjs dataset-tidas-validate` → `tidas validate` |
+| Deterministic QA and curation gates | `tiangong-lca-cli` | `npx --yes @tiangong-lca/cli@latest qa`, `dataset curation-queue build/next/verify` |
 | Remote commit, readback, and publish prep | `tiangong-lca-cli`, Edge Functions, database | `dataset-post-authoring-finalize` and source/contact support handoff artifacts, published CLI commit commands, `npx --yes @tiangong-lca/cli@latest dataset verify-remote`, `publish run`, Edge verification |
 | Foundry task routing and manifests | `tiangong-lca-data-foundry` | `scripts/foundry.mjs route-task` |
 | Write/execution policy and blocked-scope ledgers/reports | `tiangong-lca-data-foundry` | `foundry-job.json`, library entity indexes, index-relative process-scope projections, deterministic transform evidence reconciliation, source-only-output exchange proof reconciliation, checkpoints, `blocked-scope-ledger.jsonl`, `blocked-scope-report.json`, mutation manifest aggregation, closeout reports |

@@ -1491,7 +1491,7 @@ export function createAuthoringPlanCommands({
         "AI/Codex/skills must read the task JSON and referenced authoring packages before writing decisions or patches.",
         "When multiple authoring phases touch the same rows, follow rows_chain order and use the chained apply commands so classification/location/patch/identity evidence references one current rows lineage.",
         "Run deterministic apply commands after decisions/patches are completed; do not edit row JSON directly.",
-        "After all required phases are completed, rerun SDK validation, deterministic QA, curation gate, post-authoring finalize, mutation manifest, and only then remote write planning.",
+        "After all required phases are completed, rerun Rust tidas validation, deterministic CLI QA, curation gate, post-authoring finalize, mutation manifest, and only then remote write planning.",
       ],
       files: {
         report: repoRelativePath(reportPath),

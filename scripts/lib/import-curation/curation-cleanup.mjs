@@ -126,7 +126,7 @@ export function runDatasetCurationCleanup({ repoRoot, options = {} } = {}) {
       source_trace_policy:
         "Original trace remains in the AI authoring package; write payload keeps only a safe hash summary in common:other.",
       foundry_trace_namespace_policy:
-        "Any common:other tiangongfoundry:* trace kept in write payload gets @xmlns:tiangongfoundry before SDK validation.",
+        "Any common:other tiangongfoundry:* trace kept in write payload gets @xmlns:tiangongfoundry before Rust tidas validation.",
       foundry_trace_locator_policy:
         "Local machine paths from tiangongfoundry:* trace evidence are redacted from write payloads; authoring packages and patch evidence retain the full local context.",
       datetime_policy:

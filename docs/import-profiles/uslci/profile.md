@@ -30,7 +30,7 @@ Use `external-dataset-curated-import` for structured USLCI source packages. Sour
 
 ## Resolved Decisions
 
-- Source package format detection and converter owner (2026-06-12): the package is openLCA JSON-LD (auto-detected `openlca-jsonld`, high confidence); the converter owner is tidas-tools' `openlca-jsonld` adapter fronted by `tiangong-lca dataset import-lca convert`. The external U.S. electricity baseline library is frozen inside the package's `libraries/` directory so converting the package root yields a reference-closed conversion. Evidence and exact invocation (including the current CLI-wrapper flag workaround): `docs/uslci-import-runbook.md` Phase 0/1 and `inputs/source-packages/uslci-database-public.md`.
+- Source package format detection and converter owner: the package is openLCA JSON-LD (auto-detected `openlca-jsonld`, high confidence); the active converter is unified Rust `tidas import`, invoked through `node scripts/foundry.mjs dataset-tidas-import`. The external U.S. electricity baseline library is frozen inside the package's `libraries/` directory so converting the package root yields a reference-closed conversion. The dated Python/CLI-wrapper evidence in `docs/uslci-import-runbook.md` and `inputs/source-packages/uslci-database-public.md` is retained only as historical provenance and is not an active invocation contract.
 
 ## Open Decisions
 

@@ -287,7 +287,7 @@ The patch must:
 ${task.commands.apply_patch}
 \`\`\`
 
-After apply, rerun SDK validation, deterministic QA where relevant, Foundry cleanup, dry-run publish/save, mutation manifest, explicit commit, and post-commit \`dataset verify-remote --compare-root-payload\`.
+After apply, rerun Rust tidas validation, deterministic CLI QA where relevant, Foundry cleanup, dry-run publish/save, mutation manifest, explicit commit, and post-commit \`dataset verify-remote --compare-root-payload\`.
 `;
 }
 
@@ -416,7 +416,7 @@ export function buildDatasetAuthoringTaskFromPackage({
     },
     commands: {
       apply_patch: applyArgs.map(shellQuote).join(" "),
-      validate_after_apply: `tiangong-lca dataset validate --type ${datasetType} --input ${shellQuote(repoRelativePath(repoRoot, patchedRowsFile))} --out-dir ${shellQuote(path.join(repoRelativePath(repoRoot, outDir), "dataset-validate"))}`,
+      validate_after_apply: `node scripts/foundry.mjs dataset-tidas-validate --type ${datasetType} --rows-file ${shellQuote(repoRelativePath(repoRoot, patchedRowsFile))} --out-dir ${shellQuote(path.join(repoRelativePath(repoRoot, outDir), "dataset-validate"))}`,
     },
   };
 

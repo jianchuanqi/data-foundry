@@ -710,7 +710,7 @@ export function collectClassificationSemanticActions(
       semanticActionItem({
         code: "semantic_classification_converted_default",
         path: classificationActionPathForPayload(payload, datasetType),
-        message: `BAFU ${datasetType} classification still has the tidas-tools converted default service path and must be replaced with a target TIDAS classification.`,
+        message: `BAFU ${datasetType} classification still has the converter default service path and must be replaced with a target TIDAS classification.`,
         evidence: {
           name_text: nameText,
           classification_path: classificationPath,

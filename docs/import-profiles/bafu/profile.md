@@ -21,10 +21,10 @@ Foundry task / user entry
   -> Foundry task router and workspace state machine
     -> top-level external dataset curated import skill
       -> specialized skills for conversion, flow governance, process governance, publish, and verification
-        -> tiangong-lca-cli, tidas-tools, search, validation, and publish commands
+        -> Rust tidas, tiangong-lca-cli, search, QA, and publish commands
 ```
 
-Foundry owns task state, workspace isolation, source manifests, checkpoints, evidence, and gate reconciliation. The top-level skill owns the agent-facing workflow order and dispatches to the correct specialized skills. Shared execution primitives belong in `tiangong-lca-cli`, `tidas-tools`, and the relevant TianGong skill wrappers, not in task-specific Foundry scripts.
+Foundry owns task state, workspace isolation, source manifests, checkpoints, evidence, and gate reconciliation. The top-level skill owns the agent-facing workflow order and dispatches to the correct specialized skills. Deterministic conversion and schema validation belong in unified Rust `tidas`; contract context, QA/curation, and remote operations belong in `tiangong-lca-cli` and the relevant TianGong skill wrappers, not in task-specific Foundry scripts.
 
 Historical BAFU runtime scripts under `.foundry/workspaces/` may be used as implementation evidence, but reusable execution logic must be promoted into the owning CLI or skill repository before it becomes part of a durable import workflow. The current ownership plan is recorded in `docs/skill-orchestration/dataset-authoring-skill-architecture.md`.
 
@@ -74,7 +74,7 @@ If the source manifest or account context cannot be resolved, stop and ask only 
 
 ## Closed-Loop Regression Contract
 
-When a BAFU import attempt exposes a reusable defect in the CLI, SDK, tidas-tools, shared skills, or this profile, the next run must be treated as a regression cycle rather than an isolated manual retry:
+When a BAFU import attempt exposes a reusable defect in Rust tidas, the CLI/SDK context surface, shared skills, or this profile, the next run must be treated as a regression cycle rather than an isolated manual retry:
 
 1. Fix the defect in the owning repository and rebuild the affected local tool before invoking it from Foundry.
 2. Start a fresh downstream workspace from this BAFU profile, the current source manifest, and the selected converted `process-bundles/index.json`.
@@ -125,7 +125,7 @@ If the gate is blocked, do not publish. Resume the missing support/flow/process 
 | No. | Stage | Purpose | Required output | Gate before next stage |
 | --- | --- | --- | --- | --- |
 | 1 | Source intake | Freeze source package identity. | source manifest with zip path, checksum, source URL/evidence, package version, extraction directory, and license/source notes. | checksum and extraction manifest present; source identity is unambiguous. |
-| 2 | Normalize | Convert source formats into working ILCD/TIDAS artifacts. | TIDAS JSON, ILCD output, mapping CSV, conversion report, command manifest, and `process-bundles/index.json` with one dependency bundle per converted process. | `tidas-tools import-lca` completed; outputs exist; conversion report has no blocking failure; BAFU execution source manifest points to the converted bundle index for process-level curation. |
+| 2 | Normalize | Convert source formats into working ILCD/TIDAS artifacts. | TIDAS JSON, ILCD output, mapping CSV, Rust operation/import reports, command manifest, and `process-bundles/index.json` with one dependency bundle per converted process. | `dataset-tidas-import` completed with a compatible Rust 0.1.x handshake and complete operation report; outputs exist; the BAFU execution source manifest points to the converted bundle index for process-level curation. |
 | 3 | Conversion QA | Check conversion quality before curation. | QA report for exchange direction, EcoSpold trace, schema validation, and mapping completeness. | exchange direction and trace are usable; schema/mapping blockers are zero or explicitly recorded for repair. |
 | 4 | Support curation | Curate writable contact/source records and select compliance, unit group, and flow property references first. | source-language contact/source rows, public canonical mapping, account-local support candidate registry, validation report, and reuse decisions. | all required support refs resolve; public FP/UG are reused where possible; profile-authorized account-local FP/UG are same-owner `state_code=0`, carry scale/closure evidence, and remain outside the public cache. |
 | 5 | Flow curation | Curate all referenced flows before process curation. | source-language flow rows with public-flow matching, account-local candidate evidence, classification, name split, property/unit refs, provenance, and validation reports. | every process-referenced flow has `curated_pass`; elementary flows reuse public canonical where proven, while profile-authorized unmatched candidates remain same-owner `state_code=0` and outside the global LCIA cache; unresolved identity decisions block dependent writes. |
@@ -142,7 +142,7 @@ Record the exact source zip, checksum, source location, package title/version, a
 
 ### 2. Normalize
 
-Use `npx --yes @tiangong-lca/cli@latest dataset import-lca convert` as the conversion entrypoint so the CLI owns the stable conversion contract. Produce ILCD output, TIDAS JSON, mapping CSV, a conversion report, and default per-process dependency bundles under `process-bundles/` in the task workspace. The normalized output is not yet TianGong-ready data. For BAFU whole-package imports, downstream process curation starts from the bundle index and per-process bundle directories so each process closure can be claimed, blocked, retried, or committed independently; direct traversal of the root `tidas/` tree is only a fallback for conversion audit or rebuilding bundle-derived row files.
+Use `node scripts/foundry.mjs dataset-tidas-import` as the conversion entrypoint so unified Rust `tidas` owns the stable conversion contract. Produce ILCD output when requested, TIDAS JSON, mapping CSV, `import-report.json`, `issues.jsonl`, and default per-process dependency bundles under `process-bundles/` in the task workspace. The normalized output is not yet TianGong-ready data. For BAFU whole-package imports, downstream process curation starts from the bundle index and per-process bundle directories so each process closure can be claimed, blocked, retried, or committed independently; direct traversal of the root `tidas/` tree is only a fallback for conversion audit or rebuilding bundle-derived row files.
 
 ### 3. Conversion QA
 

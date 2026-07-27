@@ -27,7 +27,7 @@ The ~1,315 EF3.1 reference elementary flows + canonical flowproperties/unitgroup
 ## Gates that REMAIN blocking (NOT relaxed)
 
 - the unit-scale safety blocker `canonical_support_amount_scaling_required`;
-- schema validation against tidas-tools' **corrected eILCD schemas** (not raw EF3.1), deterministic QA (except the waived `process_material_balance_deviation`), curation, and full-context AI proof for `flow`/`process`/`lifecyclemodel`;
+- schema validation through Rust tidas against its locked corrected eILCD schemas (not raw EF3.1), deterministic QA (except the waived `process_material_balance_deviation`), curation, and full-context AI proof for `flow`/`process`/`lifecyclemodel`;
 - remote write requires dry-run, queue verify, commit handoff, closeout, and readback verification, **and account/write-policy approval before any remote commit** — `allow_remote_commit` stays false until then.
 
 ## worldsteel-specific identity & attribution

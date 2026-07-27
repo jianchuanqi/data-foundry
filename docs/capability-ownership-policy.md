@@ -48,7 +48,7 @@ Foundry owns:
 - offline candidate-topology convergence composition, including fresh-census binding, owner/public/foreign target classification, process-local occurrence mapping, approved multilingual preservation, phased F/P/D artifacts, and zero-inbound delete candidates, without remote dispatch or delete authority;
 - acceptance checks and Stop-hook feedback loops;
 - local test structure for Foundry-owned metadata, command contracts, scenario orchestration, and shared fixtures;
-- thin adapters that call existing CLI or skill entrypoints.
+- thin adapters that select and call stable owner entrypoints, verify their machine contracts, and map reports into Foundry gates without reimplementing domain logic.
 
 Foundry does not own:
 
@@ -57,10 +57,13 @@ Foundry does not own:
 - database RPC/schema/index behavior;
 - Edge Function API behavior;
 - TIDAS schema semantics;
+- Rust tidas format detection, import/conversion, schema-validation, exit classification, cancellation, or atomic-publication semantics;
 - CLI, SDK, database, converter, or Edge behavior reimplemented as local test fixtures;
 - user RLS-scoped dataset delete, retirement, redo, repair execution, or database mutation semantics.
 
-Profile-gated batch commit does not change ownership: Foundry may decide that an exact scope has passed policy and handoff gates, but the actual mutation command remains an official CLI/platform command executed under an account guard. Foundry's default platform invocation is the published CLI package, `npx --yes @tiangong-lca/cli@latest ...`; local binary overrides are only explicit operator/test state, not the workflow contract.
+Profile-gated batch commit does not change ownership: Foundry may decide that an exact scope has passed policy and handoff gates, but the actual mutation command remains an official CLI/platform command executed under an account guard. Foundry's default platform invocation is the published CLI package, `npx --yes @tiangong-lca/cli@latest ...`; local CLI binary overrides are only explicit operator/test state, not the workflow contract.
+
+Deterministic import/conversion/schema validation follows a separate native-tool boundary. Foundry selects the Rust `tidas` executable with `--tidas-bin`, `TIDAS_BIN`, then `PATH`, and optional config with `--tidas-config` then `TIDAS_CONFIG`. It accepts compatible 0.1.x releases only after a `tidas version` handshake proves `tidas.operation-report.v1`; it does not install a Python package, inspect a Python checkout, or pin one patch release. Foundry may materialize the official validation-batch manifest and map the stable Rust report/exit result into its existing validation report, but must not reproduce schema or converter rules.
 
 Incremental composition follows the same boundary. Foundry may minimize the write set and emit a syntactically compatible CLI execution contract, but current-state reconciliation, authenticated dispatch, transaction semantics, attempt/no-replay state, and readback remain CLI/database responsibilities.
 
@@ -71,10 +74,10 @@ Topology convergence follows that boundary as well. Foundry may compose the exac
 Use this order before adding code:
 
 1. If the change only coordinates existing commands or checks foundry task artifacts, implement it in foundry.
-2. If the change is a reusable primitive command with stable input/output and remote access, create a development request for `tiangong-lca-cli`.
+2. If the change is deterministic import, conversion, or schema validation, create a development request for Rust `tidas`; if it is a reusable primitive command with remote access, AI context/curation, or handoff behavior, create a development request for `tiangong-lca-cli`.
 3. If the change is a reusable agent workflow that composes CLI commands, create a development request for `tiangong-lca-skills`.
 4. If the change is a fast-moving external source-evidence extraction or retrieval workflow, consume it as a runtime `npx skills` dependency and record the resolved ref instead of copying it into Foundry.
-5. If the change depends on database, Edge Function, converter, SDK, or schema internals, route it to that owning repo.
+5. If the change depends on database, Edge Function, Rust tidas, SDK, or schema internals, route it to that owning repo.
 
 Bad-import cleanup and redo must be routed to `tiangong-lca dataset maintenance plan/apply/verify` plus the `$dataset-rls-maintenance` skill. Foundry may store the maintenance scope, plan, and verification reports in the task workspace, but must not own direct delete logic, service-role access, or broad current-account cleanup filters.
 

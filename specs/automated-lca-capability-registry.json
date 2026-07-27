@@ -1,8 +1,8 @@
 {
   "$schema": "schemas/capability-registry.schema.json",
   "schema_version": 2,
-  "updated_at_utc": "2026-06-05T00:00:00Z",
-  "purpose": "Machine-readable registry for generic external dataset import capabilities that Foundry may route without owning shared CLI, SDK, converter, or database business logic.",
+  "updated_at_utc": "2026-07-27T00:00:00Z",
+  "purpose": "Machine-readable registry for generic external dataset import capabilities that Foundry may route without owning shared CLI, Rust tidas, SDK, converter, or database business logic.",
   "capabilities": [
     {
       "id": "foundry.task.route",
@@ -21,7 +21,7 @@
       "owner_project": "tiangong-lca-data-foundry",
       "entrypoint": "$foundry-tidas-import",
       "input_contract": "External LCA package, converted TIDAS rows, or source-document authoring task plus one Foundry workspace task directory.",
-      "output_contract": "Ordered Foundry/CLI artifact chain from context, conversion or authoring, schema, QA, curation, AI semantic evidence (classification/location decision apply or patch collect/apply), post-authoring finalize report, mutation manifest, commit handoff, post-write remote verification, post-write closeout, task-level import completion report, and gated task completion.",
+      "output_contract": "Ordered Foundry/Rust-tidas/CLI artifact chain from context, conversion or authoring, schema, QA, curation, AI semantic evidence (classification/location decision apply or patch collect/apply), post-authoring finalize report, mutation manifest, commit handoff, post-write remote verification, post-write closeout, task-level import completion report, and gated task completion.",
       "remote_write_mode": "orchestrates CLI-only task-policy-gated batch writes; no direct database access",
       "verification_gate": "The skill must not write database rows directly; commit remains blocked until the post-authoring finalize report and mutation manifest are ready_for_remote_write, the handoff plan is ready_for_explicit_commit, AI semantic evidence proves full schema/YAML/ruleset/context use, and task write policy permits the exact scope. A committed write scope is not closed until post-write verification and dataset-post-write-closeout pass for the exact final rows. A task is not complete until dataset-import-completion-report aggregates all required closeouts and task-complete moves the matching active task to done. Blocked scopes remain in the blocker ledger while independent ready scopes may continue.",
       "source_manifest_requirements": [
@@ -53,7 +53,7 @@
       "input_contract": "Target TIDAS dataset type plus requested schema, methodology YAML, ruleset, and AI context artifacts.",
       "output_contract": "contract-report.json, contract-manifest.json, schema.json, methodology.yaml, runtime-ruleset.json, ai-context.json, and ai-context.md when available.",
       "remote_write_mode": "read-only",
-      "verification_gate": "contract manifest must include artifact hashes before AI authoring or conversion repair consumes the context.",
+      "verification_gate": "contract manifest must include artifact hashes before AI authoring consumes the context. For schema validation, the context assets must describe the same stable tidas contract advertised by `tidas validate --describe`; the executable handshake accepts compatible 0.1.x releases rather than one patch.",
       "source_manifest_requirements": [
         "target TIDAS type",
         "CLI command record",
@@ -63,18 +63,19 @@
       ]
     },
     {
-      "id": "cli.dataset.import-lca.convert",
+      "id": "tidas.dataset.import",
       "class": "external-lca-package-conversion",
-      "owner_project": "tiangong-lca-cli",
-      "entrypoint": "tiangong-lca dataset import-lca convert",
-      "input_contract": "Supported external LCA source package, explicit output directory, source format detection mode, and target format.",
-      "output_contract": "import-lca-report.json, conversion-report.json, process-bundles/index.json with one dependency subdirectory per converted process by default, mapping.csv when generated, and converted TIDAS/ILCD package outputs.",
+      "owner_project": "tidas-tools",
+      "entrypoint": "node scripts/foundry.mjs dataset-tidas-import (thin adapter over `tidas import`)",
+      "input_contract": "Supported external LCA source package, explicit output directory, optional source format, and optional native tidas config.",
+      "output_contract": "Stable `tidas.operation-report.v1` import-report.json, issues.jsonl, process-bundles/index.json with one dependency subdirectory per converted process, mapping.csv when generated, and converted TIDAS/ILCD package outputs.",
       "remote_write_mode": "read-only",
-      "verification_gate": "converter exit code must be zero and generated TIDAS rows must pass downstream schema/QA/curation gates.",
+      "verification_gate": "Foundry must complete the native 0.1.x handshake, preserve the Rust exit classification, require a complete operation report, and pass generated TIDAS rows through downstream schema/QA/curation gates.",
       "source_manifest_requirements": [
         "source package path",
-        "converter command record",
-        "conversion report",
+        "native tidas version/contract handshake",
+        "Rust command record",
+        "operation report",
         "process-bundles/index.json",
         "mapping file when generated"
       ]
@@ -164,37 +165,55 @@
       ]
     },
     {
-      "id": "cli.process.dataset-validate",
+      "id": "tidas.process.dataset-validate",
       "class": "schema-gate",
-      "owner_project": "tiangong-lca-cli",
-      "entrypoint": "tiangong-lca dataset validate --type process",
+      "owner_project": "tidas-tools",
+      "entrypoint": "node scripts/foundry.mjs dataset-tidas-validate --type process",
       "input_contract": "Process rows as JSON or JSONL.",
-      "output_contract": "DatasetValidateReport plus split valid/invalid rows under outputs/.",
+      "output_contract": "Official `document-validation-batch.v1` evidence plus a Foundry compatibility validation report and split valid/invalid rows under outputs/.",
       "remote_write_mode": "read-only",
-      "verification_gate": "counts.invalid must be zero before remote write.",
-      "source_manifest_requirements": ["rows file path", "CLI command record", "validation report"]
+      "verification_gate": "Native tidas operation status must be complete and counts.invalid must be zero before remote write.",
+      "source_manifest_requirements": [
+        "rows file path",
+        "native tidas handshake",
+        "Rust command record",
+        "batch validation evidence",
+        "validation report"
+      ]
     },
     {
-      "id": "cli.flow.dataset-validate",
+      "id": "tidas.flow.dataset-validate",
       "class": "schema-gate",
-      "owner_project": "tiangong-lca-cli",
-      "entrypoint": "tiangong-lca dataset validate --type flow",
+      "owner_project": "tidas-tools",
+      "entrypoint": "node scripts/foundry.mjs dataset-tidas-validate --type flow",
       "input_contract": "Flow rows as JSON or JSONL.",
-      "output_contract": "DatasetValidateReport plus split valid/invalid rows under outputs/.",
+      "output_contract": "Official `document-validation-batch.v1` evidence plus a Foundry compatibility validation report and split valid/invalid rows under outputs/.",
       "remote_write_mode": "read-only",
-      "verification_gate": "counts.invalid must be zero before remote write.",
-      "source_manifest_requirements": ["rows file path", "CLI command record", "validation report"]
+      "verification_gate": "Native tidas operation status must be complete and counts.invalid must be zero before remote write.",
+      "source_manifest_requirements": [
+        "rows file path",
+        "native tidas handshake",
+        "Rust command record",
+        "batch validation evidence",
+        "validation report"
+      ]
     },
     {
-      "id": "cli.lifecyclemodel.dataset-validate",
+      "id": "tidas.lifecyclemodel.dataset-validate",
       "class": "schema-gate",
-      "owner_project": "tiangong-lca-cli",
-      "entrypoint": "tiangong-lca dataset validate --type lifecyclemodel",
+      "owner_project": "tidas-tools",
+      "entrypoint": "node scripts/foundry.mjs dataset-tidas-validate --type lifecyclemodel",
       "input_contract": "Lifecyclemodel rows as JSON or JSONL.",
-      "output_contract": "DatasetValidateReport plus split valid/invalid rows under outputs/.",
+      "output_contract": "Official `document-validation-batch.v1` evidence plus a Foundry compatibility validation report and split valid/invalid rows under outputs/.",
       "remote_write_mode": "read-only",
-      "verification_gate": "counts.invalid must be zero before remote write.",
-      "source_manifest_requirements": ["rows file path", "CLI command record", "validation report"]
+      "verification_gate": "Native tidas operation status must be complete and counts.invalid must be zero before remote write.",
+      "source_manifest_requirements": [
+        "rows file path",
+        "native tidas handshake",
+        "Rust command record",
+        "batch validation evidence",
+        "validation report"
+      ]
     },
     {
       "id": "cli.process.qa",
@@ -284,7 +303,7 @@
       "class": "dataset-curation",
       "owner_project": "tiangong-lca-data-foundry",
       "entrypoint": "node scripts/foundry.mjs dataset-curation-gate --type <process|flow|lifecyclemodel>",
-      "input_contract": "Dataset rows, dataset validate report, deterministic QA report, import profile id, optional SDK contract context files, and optional classification/location authoring queues from bundle sampling or equivalent schema audits.",
+      "input_contract": "Dataset rows, Rust tidas compatibility validation report, deterministic CLI QA report, import profile id, optional CLI contract-context files, and optional classification/location authoring queues from bundle sampling or equivalent schema audits.",
       "output_contract": "dataset-curation-gate-report.json plus per-entity AI authoring packages carrying row payload, schema issues, QA findings, profile context, optional full schema/YAML/ruleset context, classification action items, and tidas_locations_category.json location-code action items.",
       "remote_write_mode": "read-only",
       "verification_gate": "status must be ready or ready_with_profile_waivers before remote write; blocked statuses require skill/Codex patch output, deterministic cleanup, and deterministic revalidation.",
@@ -367,8 +386,8 @@
       "class": "publish-prep",
       "owner_project": "tiangong-lca-data-foundry",
       "entrypoint": "node scripts/foundry.mjs dataset-post-authoring-finalize --type <support|process|flow|lifecyclemodel>",
-      "input_contract": "Mixed writable support rows (contact/source only unless a profile explicitly allows another public-canonical write path) or post-AI authored/patched process/flow/lifecyclemodel rows plus optional classification/location decision apply or patch collect/apply reports, target user id, profile id, queue directory, and SDK contract context files. Unitgroup/flowproperty rows are normally reference-only canonical reuse.",
-      "output_contract": "dataset-post-authoring-finalize-report.json, cleaned support/process/flow/lifecyclemodel rows, SDK validation report, location audit report, optional deterministic QA and post-authoring curation gate reports for AI-authored dataset types, type-specific dry-run report, optional remote verification report, dataset-mutation-manifest.json, and embedded dataset-commit-handoff-plan.json path/status.",
+      "input_contract": "Mixed writable support rows (contact/source only unless a profile explicitly allows another public-canonical write path) or post-AI authored/patched process/flow/lifecyclemodel rows plus optional classification/location decision apply or patch collect/apply reports, target user id, profile id, queue directory, CLI AI-context files, and a compatible Rust tidas executable. Unitgroup/flowproperty rows are normally reference-only canonical reuse.",
+      "output_contract": "dataset-post-authoring-finalize-report.json, cleaned support/process/flow/lifecyclemodel rows, Rust tidas batch-validation evidence and Foundry compatibility report, location audit report, optional deterministic QA and post-authoring curation gate reports for AI-authored dataset types, type-specific dry-run report, optional remote verification report, dataset-mutation-manifest.json, and embedded dataset-commit-handoff-plan.json path/status.",
       "remote_write_mode": "read-only",
       "verification_gate": "status must be ready_for_remote_write before a task-policy-gated CLI commit; the mutation manifest must prove reference closure for the exact write scope, and references outside that scope require passed remote verification after support rows exist remotely. Blocked status carries exact-stage artifact paths for AI repair, cleanup, validation, QA, dry-run, remote verification, reference closure, missing canonical support, or mutation manifest scope fixes.",
       "source_manifest_requirements": [

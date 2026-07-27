@@ -13,9 +13,12 @@ export const publicCommands = [
   "tasks-list",
   "tasks-check",
   "task-complete",
+  "tidas-handshake",
 ];
 
 export const datasetPolicyCommands = [
+  "dataset-tidas-import",
+  "dataset-tidas-validate",
   "execution-capsule-admit",
   "dataset-incremental-change-set-compose",
   "dataset-topology-convergence-compose",
@@ -72,7 +75,7 @@ export function usage() {
     dataset_policy_commands: datasetPolicyCommands,
     commands: knownCommands,
     ownership_note:
-      "Foundry public surface is task/profile/workspace/gate control. Foundry dataset commands are policy and artifact helpers only; durable conversion, queue state, validation, QA, database write/delete/redo, and readback behavior belongs in tiangong-lca CLI or checked-in skills.",
+      "Foundry public surface is task/profile/workspace/gate control. Foundry dataset commands are policy, artifact, and owner-command adapters only; deterministic import/conversion/schema validation belongs in Rust tidas, while context, queue state, QA/curation, database write/delete/redo, and readback behavior belongs in tiangong-lca CLI or checked-in skills.",
   };
 }
 
@@ -82,6 +85,11 @@ function statusIs(result, allowed) {
 
 export function exitCodeForCommand(command, result) {
   switch (command) {
+    case "tidas-handshake":
+      return result?.foundry_adapter?.exit_code ?? (result?.status === "help" ? 0 : 1);
+    case "dataset-tidas-import":
+    case "dataset-tidas-validate":
+      return result?.foundry_adapter?.exit_code ?? (result?.status === "help" ? 0 : 1);
     case "doctor":
       return result?.workflow_check?.ok &&
         result?.storage_check?.ok &&

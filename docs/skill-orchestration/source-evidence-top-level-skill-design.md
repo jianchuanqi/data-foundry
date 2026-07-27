@@ -27,7 +27,7 @@ Foundry task / user entry
   -> Foundry router, workspace, profile, account context, checkpoint ledger
     -> source-evidence-dataset-development top-level skill
       -> reusable child skills
-        -> public tiangong-lca-cli, tidas-tools, search, validation, publish commands
+        -> Rust tidas plus public tiangong-lca-cli search, QA, curation, and publish commands
 ```
 
 Foundry 负责工作区、任务状态、账号/profile、source/evidence 冻结、checkpoint 恢复和缺口登记。Top-level skill 负责阶段顺序、输入是否足够、调用哪些子 skill、何时停止。子 skill 负责 flow/process/support 等可复用实体工作流。CLI 负责确定性执行、schema/QA、引用刷新、远端写入和回读验证。

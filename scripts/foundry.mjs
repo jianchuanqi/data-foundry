@@ -23,6 +23,7 @@ import { createPostAuthoringFinalizeCommands } from "./commands/post-authoring-f
 import { createPostWriteCloseoutCommands } from "./commands/post-write-closeout.mjs";
 import { createSupportCacheCommands } from "./commands/support-cache.mjs";
 import { createTaskCommands } from "./commands/tasks.mjs";
+import { createTidasWorkflowCommands } from "./commands/tidas-workflow.mjs";
 import { createTopologyConvergenceCommands } from "./commands/topology-convergence.mjs";
 import { createUslciBatchImportRunCommands } from "./commands/uslci-batch-import-run.mjs";
 import { createWorldsteelBatchImportRunCommands } from "./commands/worldsteel-batch-import-run.mjs";
@@ -51,6 +52,12 @@ import { createImportLedgerUtils } from "./lib/import-ledger.mjs";
 import { createLocationQualityUtils } from "./lib/location-quality-utils.mjs";
 import { createPostAuthoringFinalizeUtils } from "./lib/post-authoring-finalize-utils.mjs";
 import { createSourceSemanticUtils } from "./lib/source-semantics.mjs";
+import {
+  runTidasHandshake,
+  runTidasImport,
+  runTidasPackageValidation,
+  runTidasRowsValidation,
+} from "./lib/tidas-adapter.mjs";
 import { createTidasRowUtils } from "./lib/tidas-row-utils.mjs";
 import { createTraceCoverageUtils } from "./lib/trace-coverage.mjs";
 
@@ -299,6 +306,13 @@ const taskCommands = createTaskCommands({
 const executionCapsuleCommands = createExecutionCapsuleCommands({ repoRoot });
 const incrementalChangeSetCommands = createIncrementalChangeSetCommands({ repoRoot });
 const topologyConvergenceCommands = createTopologyConvergenceCommands({ repoRoot });
+const tidasWorkflowCommands = createTidasWorkflowCommands({
+  repoRoot,
+  runTidasHandshake,
+  runTidasImport,
+  runTidasPackageValidation,
+  runTidasRowsValidation,
+});
 
 const cliWrapperCommands = createCliWrapperCommands({
   appendOption,
@@ -818,6 +832,7 @@ const postAuthoringFinalizeCommands = createPostAuthoringFinalizeCommands({
   runDatasetMutationManifest,
   runFinalizeAutoCurationQueue,
   runFinalizeIdentityPreflightStage,
+  runTidasRowsValidation: (options) => runTidasRowsValidation({ repoRoot, options }),
   runTiangongJsonStage,
   skippedPrewriteStage,
   sourceReferenceSemanticBlockers,
@@ -916,6 +931,7 @@ runFoundryCli({
     runDatasetMutationManifest,
     supportCacheCommands,
     taskCommands,
+    tidasWorkflowCommands,
     topologyConvergenceCommands,
   },
   decisionDeps: {

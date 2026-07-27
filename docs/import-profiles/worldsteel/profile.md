@@ -18,7 +18,7 @@ Profile for the worldsteel EF3.1 native ILCD 1.1 package (`inputs/CUP2025-2_2022
 
 ## Lane
 
-`external-dataset-curated-import` for a native ILCD package. Conversion (ILCD→TIDAS), validation, and QA stay in tidas-tools / the `tiangong-lca` CLI. The reference data is validated against tidas-tools' **corrected eILCD schemas**, never raw EF3.1.
+`external-dataset-curated-import` for a native ILCD package. Unified Rust `tidas` owns ILCD→TIDAS conversion and schema validation; the `tiangong-lca` CLI retains QA/curation and remote handoff. The reference data is validated against the locked schemas shipped by Rust tidas, never raw EF3.1.
 
 ## Scope
 
