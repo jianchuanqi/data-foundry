@@ -740,7 +740,7 @@ export function createLibraryScopeWorkflowCommands({
         source_name: row.name,
         converted_classification_reference: row.classification_path,
         required_resolution:
-          "Classify from the real meaning of the process/flow. tidas-tools classification is weak reference only.",
+          "Classify from the real meaning of the process/flow. Converter classification is weak reference only.",
       }));
     const supportTemplateRows = entityRows
       .filter(

@@ -30,10 +30,13 @@ const postAuthoringFinalizeStageContract = readOnlyStageContract([
     stage: "gate_and_validate",
     phase: "gate_validate",
     purpose:
-      "Run curation queue preparation, SDK validation, deterministic QA, location audit, curation gate, dry-run write planning, and optional remote reference verification.",
+      "Run curation queue preparation, native Rust tidas validation, deterministic QA, location audit, curation gate, dry-run write planning, and optional remote reference verification.",
     inputs: ["cleaned rows", "context files", "queue artifacts"],
     outputs: ["validation/QA/gate/dry-run/remote-verify reports"],
-    side_effects: ["runs published CLI read-only checks", "writes local .foundry artifact files"],
+    side_effects: [
+      "runs native tidas and published CLI read-only checks",
+      "writes local .foundry artifact files",
+    ],
   },
   {
     stage: "mutation_manifest",
@@ -110,6 +113,7 @@ export function createPostAuthoringFinalizeCommands({
   runDatasetMutationManifest,
   runFinalizeAutoCurationQueue,
   runFinalizeIdentityPreflightStage,
+  runTidasRowsValidation,
   runTiangongJsonStage,
   skippedPrewriteStage,
   sourceReferenceSemanticBlockers,
@@ -718,7 +722,7 @@ export function createPostAuthoringFinalizeCommands({
           "node scripts/foundry.mjs dataset-post-authoring-finalize --type <support|contact|source|process|flow|lifecyclemodel> --rows-file <patched-or-classified-rows.jsonl> --out-dir <finalize-dir> --profile <profile> --queue-dir <queue-dir> --classification-queue <classification-authoring-queue.jsonl> --location-queue <location-authoring-queue.jsonl> --identity-preflight-index <identity-preflight-requests.jsonl> --run-identity-preflight --schema-file <schema.json> --yaml-file <methodology.yaml> --ruleset-file <ruleset.json> --classification-decision-apply-report <classification-decisions-apply-report.json> --location-decision-apply-report <location-decisions-apply-report.json> --patch-collect-report <authoring-patch-collect-report.json> --patch-apply-report <dataset-patch-apply-report.json> --require-patch-collect-report --target-user-id <uuid> --verify-remote --finalize-source-contact-support --ledger-dir <task-import-ledger-dir>",
         ],
         purpose:
-          "Run the post-AI authoring prewrite chain for support, process, flow, or lifecyclemodel rows: cleanup, SDK validate, location audit, post-authoring curation gate, dry-run publish/save, optional remote reference verification, and mutation manifest. Process/flow/lifecyclemodel rows additionally run deterministic QA. This command never commits rows.",
+          "Run the post-AI authoring prewrite chain for support, process, flow, or lifecyclemodel rows: cleanup, native Rust tidas validation, location audit, post-authoring curation gate, dry-run publish/save, optional remote reference verification, and mutation manifest. Process/flow/lifecyclemodel rows additionally run deterministic QA. This command never commits rows.",
         ...postAuthoringFinalizeStageContract,
         supported_types: supportedTypes,
       };
@@ -935,23 +939,23 @@ export function createPostAuthoringFinalizeCommands({
 
     const schemaOutDir = path.join(outDir, "schema", datasetType);
     const schemaStage = timeStage("schema_validate", () => {
-      const stage = runTiangongJsonStage("schema_validate", [
-        "dataset",
-        "validate",
-        "--type",
-        datasetType === "support" ? "auto" : datasetType,
-        "--input",
-        cleanedRowsFile,
-        "--out-dir",
-        schemaOutDir,
-        "--json",
-      ]);
-      stage.report_file = reportFileFromCliStage(
-        stage,
-        ["files.report"],
-        path.join(schemaOutDir, "outputs", "validation-report.json"),
-      );
-      return stage;
+      const stage = runTidasRowsValidation({
+        rowsFile: cleanedRowsFile,
+        type: datasetType === "support" ? "auto" : datasetType,
+        outDir: schemaOutDir,
+      });
+      return {
+        stage: "schema_validate",
+        command: stage.executable,
+        executable: stage.executable,
+        args: stage.args,
+        exit_code: stage.exit_code,
+        stderr: stage.stderr,
+        report: stage.report,
+        report_file: stage.report_file,
+        rust_report: stage.rust_report,
+        binary_version: stage.binary_version,
+      };
     });
 
     const qaOutDir = path.join(outDir, "qa", datasetType);

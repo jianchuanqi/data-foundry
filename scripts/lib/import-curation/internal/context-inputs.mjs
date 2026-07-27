@@ -12,10 +12,7 @@ import {
   resolveRepoPath,
 } from "./runtime-io.mjs";
 
-export const tidasSchemaSearchRoots = [
-  ["tiangong-lca-cli", "assets", "tidas-schemas"],
-  ["tidas-tools", "src", "tidas_tools", "tidas", "schemas"],
-];
+export const tidasSchemaSearchRoots = [["tiangong-lca-cli", "assets", "tidas-schemas"]];
 
 export function tidasSchemaPath(repoRoot, schemaFile) {
   for (const parts of tidasSchemaSearchRoots) {

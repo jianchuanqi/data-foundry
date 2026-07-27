@@ -30,7 +30,7 @@ Foundry tests are organized by responsibility, not by the date a regression was 
 - `unit/`: pure logic and metadata tests. These tests should avoid shelling out to Foundry commands unless the subject is command metadata or command contracts.
 - `commands/`: command-level contract tests. These may run `node scripts/foundry.mjs ...` and assert stable artifacts, reports, blockers, and exit behavior for one command family.
 - `scenarios/`: multi-command workflow tests. These cover realistic evidence chains such as full-context gates, post-authoring finalize, mutation manifests, and packaged-library process scopes.
-- `fixtures/`: shared row builders, report builders, command runners, and file helpers split by behavior surface. Keep common command/file helpers in `foundry-core.mjs`, roots in `fixture-roots.mjs`, row payload builders in `row-builders.mjs`, and workflow-specific builders in `identity-fixtures.mjs`, `finalize-fixtures.mjs`, `full-context-fixtures.mjs`, or `mutation-fixtures.mjs`. New duplicated `runFoundry`, JSONL, row, or report helpers should go into the narrow fixture module that owns the behavior instead of a catch-all harness.
+- `fixtures/`: shared row builders, report builders, command runners, file helpers, and process-boundary fakes split by behavior surface. Keep common command/file helpers in `foundry-core.mjs`, roots in `fixture-roots.mjs`, row payload builders in `row-builders.mjs`, workflow-specific builders in `identity-fixtures.mjs`, `finalize-fixtures.mjs`, `full-context-fixtures.mjs`, or `mutation-fixtures.mjs`, and the machine-contract-only Rust tidas process fake in `fake-tidas.mjs`. The fake may model published reports/exits/cancellation but must not reimplement schema or converter logic.
 
 ## Naming
 
@@ -42,3 +42,4 @@ Test files should name the behavior surface they cover, for example `post-author
 - `npm run test:unit`: run pure logic and metadata tests.
 - `npm run test:commands`: run command contract tests.
 - `npm run test:scenarios`: run workflow scenario tests.
+- `node --test test/unit/tidas-adapter.test.mjs`: verify 0.1.x handshake, invocation precedence, stable report/exit mapping, validation-batch compatibility, cancellation, cleanup, and rollback at the Foundry boundary.

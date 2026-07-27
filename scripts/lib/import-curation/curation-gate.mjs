@@ -100,7 +100,9 @@ export function runDatasetCurationGate({ repoRoot, options = {} } = {}) {
     throw new Error("--rows-file is required and must point to a JSON/JSONL dataset row file.");
   }
   if (!schemaReportPath || !fileExists(schemaReportPath)) {
-    throw new Error("--schema-report is required and must point to dataset validate report JSON.");
+    throw new Error(
+      "--schema-report is required and must point to dataset-tidas-validate compatibility report JSON.",
+    );
   }
   if (!qaReportPath || !fileExists(qaReportPath)) {
     throw new Error("--qa-report is required and must point to a QA report JSON.");

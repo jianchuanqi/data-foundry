@@ -29,11 +29,11 @@ lastReviewedCommit: a6354830ae4369ce2c959878865ebfe6791bab57
 
 Control plane for turning external source material into validated, import-ready TIDAS data.
 
-Foundry is intentionally thin. It owns task routing, local workspaces, import profiles, curation packages, cleanup reports, and policy checks. Reusable schema, conversion, validation, QA, skill, and database behavior belongs in `tidas-sdk`, `tidas-tools`, `tiangong-lca-cli`, `tiangong-lca-skills`, Edge Functions, or database projects.
+Foundry is intentionally thin. It owns task routing, local workspaces, import profiles, curation packages, cleanup reports, stable owner-command adapters, and policy checks. Deterministic package import/conversion/schema validation belongs to unified Rust `tidas`; contract context, QA, curation, skills, and database behavior belongs in `tiangong-lca-cli`, `tidas-sdk`, `tiangong-lca-skills`, Edge Functions, or database projects.
 
 ## Import Lanes
 
-- `external-dataset-curated-import`: packaged LCA datasets converted through `npx --yes @tiangong-lca/cli@latest dataset import-lca convert` / `tidas-tools`, with default per-process dependency bundles under `process-bundles/`, then validated, QA checked, curated, cleaned, dry-run, committed, and verified through queue/checkpoint-driven scopes.
+- `external-dataset-curated-import`: packaged LCA datasets converted through the Foundry adapter over Rust `tidas import`, with default per-process dependency bundles under `process-bundles/`, then validated by Rust tidas, QA checked, curated, cleaned, dry-run, committed, and verified through queue/checkpoint-driven scopes.
 - `source-evidence-dataset-development`: PDF, Excel, web exports, images, markdown, or free text extracted through CLI/skills, authored into candidate TIDAS rows with source evidence, then sent through the same validation and curation gates.
 
 Raw rows may preserve source-language text, but final import/write-ready rows must include English for TIDAS-required multilingual fields while preserving non-English source-language variants.
@@ -60,6 +60,7 @@ npm run skills:list
 npm run workspace:map
 npm run capabilities:list -- --class tidas-contract-context
 npm run profiles:list
+node scripts/foundry.mjs tidas-handshake
 npm run task:route -- --kind external-dataset-curated-import --dataset-type process --required-gates contract,schema,qa,curation
 npm run task:route -- --kind source-evidence-dataset-development --dataset-type process --required-gates context,schema,qa,curation
 npm run skills:source-evidence:use:document
@@ -73,6 +74,15 @@ Tests are organized by behavior layer in `test/README.md`. Use `npm test` for th
 Use owner-routed execution commands for dataset work:
 
 ```bash
+node scripts/foundry.mjs dataset-tidas-import \
+  --input ./source-package \
+  --output ./.foundry/workspaces/<task-id>/conversion
+
+node scripts/foundry.mjs dataset-tidas-validate \
+  --rows-file ./rows/processes.jsonl \
+  --type process \
+  --out-dir ./schema
+
 npx --yes @tiangong-lca/cli@latest dataset curation-queue build \
   --processes ./rows/processes.jsonl \
   --flows ./rows/flows.jsonl \

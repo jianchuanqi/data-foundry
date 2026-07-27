@@ -24,7 +24,7 @@ related:
 
 ## 总体导入原则
 
-- 不得把 tidas-tools 的初始转换结果原样写入。初始结果中存在 `TIDAS_IMPORT_PLACEHOLDER`、trace-only 字段、方向字段异常、单位/属性未标准化等问题。
+- 不得把任何转换器的初始转换结果原样写入。历史批次的初始结果中存在 `TIDAS_IMPORT_PLACEHOLDER`、trace-only 字段、方向字段异常、单位/属性未标准化等问题。
 - 这个原则同时适用于 TIDAS JSON 和 ILCD 文件包。ILCD 是交换/交付格式，不等于数据库写入计划；写入 TianGong 时不能因为 ILCD 包里有某个 contact、source、flow property、unit group、flow 或 process 文件，就直接新建对应数据库记录。
 - 对 ILCD 包执行数据库写入前，也必须先做 TianGong 侧实体解析：已有记录优先复用；同 UUID/version 的私有记录使用 update/upsert；只有确认没有合适既有记录且符合对应数据集规范时才允许新建。
 - 完整转入前必须完成：源数据依据整理、流匹配、单位/属性标准化、源语言名称整理、必填字段补齐、QA YAML 质量门禁、SDK/schema 验证、前端等价验证、远端回读验证。
@@ -211,7 +211,7 @@ related:
   - WWWAddress：`https://www.bafu.admin.ch/en/contact-en`
 - 上述联系人信息来源为 FOEN / BAFU 官方 contact page。后续批量导入前应再次核对官方网页；若官方联系信息变更，应更新 contact dataset 并记录来源日期。
 - BAFU 导入包里的 commissioner、ownership，以及没有更具体来源人的 BAFU source/contact 引用，应统一指向上述 canonical BAFU / FOEN contact，不得保留临时导入联系人名称。
-- 同一个 BAFU 数据库/整库导入只允许使用这一条 canonical BAFU / FOEN contact 作为归属 contact。tidas-tools 或其他转换工具生成的 `TianGong LCA import tooling`、本地脚本、临时操作者等 contact 只能作为 provenance/trace 说明，不得作为 commissioner、ownership 或 source/contact support row 写入。
+- 同一个 BAFU 数据库/整库导入只允许使用这一条 canonical BAFU / FOEN contact 作为归属 contact。转换工具生成的 `TianGong LCA import tooling`、本地脚本、临时操作者等 contact 只能作为 provenance/trace 说明，不得作为 commissioner、ownership 或 source/contact support row 写入。
 - TianGong LCA 在本批数据中承担转换、字段补齐、flow reference 修复、验证和数据库发布处理工作，但不应因此被写成 BAFU 源数据的 commissioner 或 owner。
 - TianGong 的处理角色应记录在 `administrativeInformation.dataEntryBy.common:other` 或等价 provenance 字段中，例如说明 TianGong LCA prepared the TIDAS conversion, source-language field completion, flow-reference repair, validation, and database publication under the BAFU account。若以后引入单独的 TianGong contact，可在 `dataEntryBy.referenceToPersonOrEntityEnteringTheData` 中引用 TianGong contact，但不得替代 BAFU / FOEN 的 source ownership / commissioner attribution。
 
@@ -276,7 +276,7 @@ related:
 
 - 早期完整 BAFU TIDAS JSON 曾出现 process exchange 的 `exchangeDirection` 全部为 `Output`。后续完整转入前必须重新统计 `exchangeDirection` 与 EcoSpold1 trace 中 `inputGroup` / `outputGroup` 的一致性；若 mismatch 不为 0，应阻塞写入。
 - 若源 EcoSpold1/TIDAS 文件本身只有 output exchange，也不能静默写库。优先由 Foundry deterministic cleanup 在传入 `source_rows_file` 后比较源 row 与最终 row：源 row 必须 Output-only，最终 row 也必须 Output-only，并且除允许的 `referenceToFlowDataSet` canonical rewrite 外 exchange signature 一致；通过时写入 `common:other.tiangongfoundry:sourceExchangeCompleteness` 和 cleanup proof。若无法做该确定性证明，AI 必须读取 source XML/TIDAS trace 与 process context 后记录 `status=source_only_output_exchange_verified`（或修复 exchange set），并保留结构化证据；证据必须包含 source 以及 quote / trace / path / citation 等可追踪指针。没有 deterministic proof 或 AI evidence 时 process curation gate 必须阻塞。
-- 2026-05-23 使用修复后的 `tidas-tools` 重新转换 `BAFU-2025 Version 2 - ecoSpold1 2026-03-09.zip` 后，完整 TIDAS 结果为 `Input=143105`、`Output=274604`、trace mismatch `0`，因此“全部 Output”异常在该转换结果中已不再发生。
+- 历史证据：2026-05-23 使用当时的 Python converter 重新转换 `BAFU-2025 Version 2 - ecoSpold1 2026-03-09.zip` 后，完整 TIDAS 结果为 `Input=143105`、`Output=274604`、trace mismatch `0`，因此“全部 Output”异常在该转换结果中已不再发生；该旧 converter 路径不是当前执行入口。
 - 初始转换 flow 文件夹包含未被 process 引用的 flow；后续不能因为 flow 文件存在就全部写入账号。
 - 10 条样本修复中曾发现自建 elementary flow `Heat, waste` 被 process 引用；已改为公开 `waste heat` flow。完整转换时同类问题必须按批量规则处理。
 

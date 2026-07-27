@@ -1,5 +1,32 @@
+---
+title: Historical USLCI Import Plan
+docType: reference
+scope: import-profile/uslci-history
+status: historical
+authoritative: false
+owner: tiangong-lca-data-foundry
+language: zh
+whenToUse:
+  - when reconstructing the 2026-06 USLCI import decisions and evidence
+whenToUpdate:
+  - when a current contract changes how this historical plan should be interpreted
+checkPaths:
+  - docs/uslci-import-plan.md
+  - docs/uslci-import-runbook.md
+  - docs/import-profiles/uslci/**
+  - specs/import-profiles.json
+lastReviewedAt: 2026-07-27
+lastReviewedCommit: d29e522562245956d5a146e582a26ddf2a68613e
+related:
+  - docs/uslci-import-runbook.md
+  - docs/import-profiles/uslci/profile.md
+  - inputs/source-packages/uslci-database-public.md
+---
+
 # USLCI 导入完整方案（USLCI Import Plan — complete）
 
+> **2026-07-27 Rust cutover note:** 本文中的 Python checkout、PyPI/SDK 版本、`--python`、`--tidas-tools-dir`、`import_lca` 与旧 CLI conversion/validation 命令仅是 2026-06 批次的历史重现记录，不再是 active contract。新执行必须使用 Foundry 的 `dataset-tidas-import` / `dataset-tidas-validate` 适配器调用兼容 0.1.x 的 Rust `tidas`。
+>
 > 版本：2026-06-25 · 基座：2026-06 ILCD-alignment 发布（tidas-tools 0.0.34 / tidas-sdk 0.1.45(npm)·0.2.14(PyPI) / @tiangong-lca/cli 0.0.19）+ P1b ref-unit 修复 + foundry USLCI runner。
 >
 > 本文是 **USLCI 导入的自包含完整方案**。`docs/uslci-import-runbook.md` 是逐会话演进的操作日志/快照入口；本文是端到端的权威计划，从源包事实到收尾交付一次讲清。读完应能独立执行整个导入，无需逆向工程历史。

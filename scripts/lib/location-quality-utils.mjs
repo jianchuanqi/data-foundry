@@ -157,16 +157,6 @@ export function createLocationQualityUtils({
         "tidas-schemas",
         "tidas_locations_category.json",
       ),
-      path.resolve(
-        repoRoot,
-        "..",
-        "tidas-tools",
-        "src",
-        "tidas_tools",
-        "tidas",
-        "schemas",
-        "tidas_locations_category.json",
-      ),
     ];
     const schemaPath = candidates.find(fileExists);
     if (!schemaPath) return new Map();
@@ -193,10 +183,9 @@ export function createLocationQualityUtils({
   let cachedLocationTargetKeys = null;
 
   function tidasSchemaDirs() {
-    return [
-      path.resolve(repoRoot, "..", "tiangong-lca-cli", "assets", "tidas-schemas"),
-      path.resolve(repoRoot, "..", "tidas-tools", "src", "tidas_tools", "tidas", "schemas"),
-    ].filter(directoryExists);
+    return [path.resolve(repoRoot, "..", "tiangong-lca-cli", "assets", "tidas-schemas")].filter(
+      directoryExists,
+    );
   }
 
   function lastSchemaPropertyName(schemaPathSegments) {

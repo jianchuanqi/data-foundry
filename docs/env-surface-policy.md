@@ -28,6 +28,7 @@ Allowed families:
 - public `TIANGONG_LCA_API_*`, session, QA LLM, KB search, and unstructured-document runtime keys used by CLI-backed workflows;
 - `TIANGONG_AI_*` keys used by runtime-installed Tiangong AI KB skills such as `tiangong-kb-sci-search`;
 - `UNSTRUCTURED_*` aliases used by the runtime-installed Tiangong AI `$document-granular-decompose` skill;
+- `TIDAS_BIN`, `TIDAS_CONFIG`, `TIDAS_MEMORY_BUDGET_MIB`, and `TIDAS_QUEUE_CAPACITY` for the public Rust tidas machine contract;
 - `LCA_DATA_AGENT_*`, `TIANGONG_LCA_CLI_BIN`, `TIANGONG_LCA_CLI_DIR`, `TIANGONG_LCA_SKILLS_ROOT`, and `LCA_SKILLS_ROOT` path indirection keys.
 
 ## Forbidden Variables
@@ -37,7 +38,6 @@ Do not add adjacent-repo internal test or quality toggles to foundry `.env.examp
 Examples that must stay out of foundry:
 
 - `TIANGONG_LCA_COVERAGE`
-- `TIANGONG_LCA_TIDAS_SDK_DIR`
 - generic `SUPABASE_URL` / `SUPABASE_KEY`
 - tracker secrets such as `LINEAR_API_KEY` / `GITHUB_TOKEN`
 - operator-specific source pointers such as `SOURCE_REPO_URL`

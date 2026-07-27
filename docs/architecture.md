@@ -137,11 +137,13 @@ poll tasks -> claim -> create workspace -> launch agent -> collect outputs -> up
 
 The foundry should call the owning workspace surface instead of absorbing implementation:
 
-- `tiangong-lca-cli`: default command surface for data operations
+- `tidas-tools`: unified Rust `tidas` owner for deterministic format detection, package import/conversion, schema validation, stable machine reports/exits, cancellation, and atomic publication
+- `tiangong-lca-cli`: default command surface for contract context, source authoring, QA/curation, remote data operations, and handoff
 - `tiangong-lca-skills`: agent-facing wrappers over CLI commands
 - `tiangong-ai/skills`: runtime-only source-evidence and document extraction skills such as `document-granular-decompose` and `tiangong-kb-sci-search`
 - `tiangong-lca-edge-functions`: Edge Function runtime, including hybrid search and embedding jobs
 - `database-engine`: database RPCs, triggers, vector indexes, and schema governance
-- `tidas`, `tidas-sdk`, `tidas-tools`: schema and validation contracts
+- `tidas`: TIDAS specification
+- `tidas-sdk`: compatibility SDK and context APIs
 
 See `docs/workspace-project-map.md` and `specs/workspace-capability-adapters.md` for the routing contract.

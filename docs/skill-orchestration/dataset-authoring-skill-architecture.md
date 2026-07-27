@@ -26,7 +26,7 @@ Foundry task / user entry
   -> Foundry router, workspace, profile, account context, checkpoint ledger
     -> top-level scenario skill
       -> reusable child skills
-        -> public tiangong-lca-cli, tidas-tools, search, validation, and publish commands
+        -> Rust tidas plus public tiangong-lca-cli search, QA, curation, and publish commands
 ```
 
 Foundry owns:
@@ -63,7 +63,7 @@ The latest checked-out `tiangong-lca-cli` already implements the following primi
 
 | Area | Current command surface |
 | --- | --- |
-| Local schema gates | `tiangong-lca dataset validate` |
+| Local schema gates | `node scripts/foundry.mjs dataset-tidas-validate` → Rust `tidas validate` |
 | Remote readback/reference checks | `tiangong-lca dataset verify-remote` |
 | Reference refresh | `tiangong-lca dataset references refresh-remote` |
 | Reference rewrite | `tiangong-lca dataset references rewrite` |
@@ -163,8 +163,8 @@ Default stages:
 | Stage | Owner | Current reusable surface |
 | --- | --- | --- |
 | 1. Source intake | Foundry + top-level skill | Foundry source manifest and checksum checkpoint. |
-| 2. Normalize | top-level skill -> normalization child skill | `tidas-tools import-lca` or equivalent source-format tool. |
-| 3. Conversion QA | top-level skill + CLI | `dataset validate`, conversion mapping checks, source trace checks. |
+| 2. Normalize | top-level skill -> normalization child skill | `node scripts/foundry.mjs dataset-tidas-import` → Rust `tidas import`. |
+| 3. Conversion QA | top-level skill + Rust tidas + CLI QA | `dataset-tidas-validate`, conversion mapping checks, source trace checks, then type-specific CLI QA. |
 | 4. Contact/source/unit group/flow property authoring | child skills or top-level until split | Prefer existing records; use public CLI validation and evidence artifacts. |
 | 5. Flow authoring | `flow-governance-review` now; future `flow-authoring` alias/name | `flow identity-preflight`, `flow build-plan`, flow candidate search, flow QA/repair, source-language name-plan. |
 | 6. Process authoring | `process-automated-builder` plus dataset/process commands | `process identity-preflight`, `process complete-required-fields`, `dataset references refresh-remote`, QA gates. |

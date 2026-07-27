@@ -87,7 +87,7 @@ export function createBundleSampleUtils({
     classificationQueueRows.push(queueRow);
     blockers.push({
       code,
-      message: `${type} classification is the tidas-tools converted default path and must be resolved by AI/classification authoring before commit.`,
+      message: `${type} classification is the converter default path and must be resolved by AI/classification authoring before commit.`,
       dataset_type: type,
       dataset_id: identity.id,
       dataset_version: identity.version,

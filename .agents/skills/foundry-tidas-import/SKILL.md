@@ -28,7 +28,7 @@ Use this skill as the Foundry-local entrypoint for end-to-end external data impo
 
 ### Packaged LCA Dataset
 
-Use this lane for zipped or directory datasets that `tidas-tools` or the CLI import converter supports.
+Use this lane for zipped or directory datasets supported by unified Rust `tidas import`.
 
 ```bash
 tiangong-lca dataset context-pack \
@@ -38,15 +38,18 @@ tiangong-lca dataset context-pack \
   --out-dir .foundry/workspaces/<task-id>/context/process \
   --json
 
-tiangong-lca dataset import-lca convert \
+node scripts/foundry.mjs tidas-handshake
+
+node scripts/foundry.mjs dataset-tidas-import \
   --input /abs/path/source-package \
-  --output-dir .foundry/workspaces/<task-id>/conversion \
+  --output .foundry/workspaces/<task-id>/conversion \
   --from-format auto \
-  --target tidas \
-  --json
+  --target tidas
 ```
 
-For packaged imports, keep the CLI default process bundle generation enabled. The stable conversion contract includes `.foundry/workspaces/<task-id>/conversion/process-bundles/index.json` and one subdirectory per converted process so downstream curation can isolate evidence, dependencies, and blockers. The bundle index is a generic packaged-import contract; profile locks such as BAFU may require a specific converted bundle index, but the skill must not hard-code a dataset name or absolute path.
+The Foundry adapter resolves the executable from `--tidas-bin`, `TIDAS_BIN`, then `PATH`; optional config resolves from `--tidas-config` then `TIDAS_CONFIG`. It accepts compatible 0.1.x releases only after the binary reports `tidas.operation-report.v1`. v0.1.0 is the current test baseline, not a patch pin. Keep deterministic memory/queue budgets in the public Rust config or `TIDAS_MEMORY_BUDGET_MIB` / `TIDAS_QUEUE_CAPACITY`; do not install a Python/PyPI package or inspect a local Python source checkout.
+
+For packaged imports, keep the Rust default process bundle generation enabled. The stable conversion contract includes `.foundry/workspaces/<task-id>/conversion/import-report.json`, `issues.jsonl`, `process-bundles/index.json`, and one subdirectory per converted process so downstream curation can isolate evidence, dependencies, and blockers. The bundle index is a generic packaged-import contract; profile locks such as BAFU may require a specific converted bundle index, but the skill must not hard-code a dataset name or absolute path.
 
 ### Source Document Authoring
 
@@ -78,18 +81,19 @@ The record must include the `npx skills` command, source repo `https://github.co
 ## Required Import Sequence
 
 1. Create one task directory under `.foundry/workspaces/<task-id>/`.
-2. Fetch SDK-backed context packs for every target dataset type that will be authored or repaired.
+2. Fetch CLI contract context packs for every target dataset type that will be authored or repaired, and require their stable contract identity to match the Rust `tidas validate --describe` handshake used for deterministic validation.
 3. Convert packaged data, or author candidate rows from source documents.
 4. Normalize candidate rows into explicit row files such as `rows/processes.jsonl`, `rows/flows.jsonl`, and support rows.
-5. Run SDK-backed schema validation on each row file:
+5. Run Rust tidas schema validation on each row file:
 
 ```bash
-tiangong-lca dataset validate \
+node scripts/foundry.mjs dataset-tidas-validate \
   --type <process|flow|source|contact|lifecyclemodel|auto> \
-  --input .foundry/workspaces/<task-id>/rows/<type>.jsonl \
-  --out-dir .foundry/workspaces/<task-id>/schema/<type> \
-  --json
+  --rows-file .foundry/workspaces/<task-id>/rows/<type>.jsonl \
+  --out-dir .foundry/workspaces/<task-id>/schema/<type>
 ```
+
+Retain the official `document-validation-batch.v1` evidence and the Foundry compatibility `outputs/validation-report.json`. The adapter must preserve Rust status/completeness/exit class and exact exit code; Foundry exit 2 for invalid rows is a compatibility gate, not a replacement validation engine.
 
 6. Run deterministic QA for target rows where available:
 
@@ -276,9 +280,9 @@ node scripts/foundry.mjs dataset-patch-apply \
   --require-action-item-closure
 ```
 
-14. For support rows that mutually reference each other, first build one mixed support rows file containing only writable contact/source rows, then run `dataset-post-authoring-finalize --type support`. Flow Properties and Unit Groups are reference-only: refresh `specs/canonical-support/flow-properties-unit-groups.json` and rewrite converted references to existing canonical database rows before flow/process curation. The finalizer reruns cleanup, SDK validation with `tiangong-lca dataset validate --type auto`, location audit, generic `tiangong-lca dataset save-draft --type auto --dry-run`, mutation manifest, and commit handoff on one exact writable support scope. The mutation manifest must show no source identity blockers and no account-local unitgroup/flowproperty rows before commit. When task write policy allows automated commit, a batch runner may commit it through the generated `dataset save-draft --type auto --commit` handoff, then must run post-write verify and closeout before dependent flow/process scopes.
+14. For support rows that mutually reference each other, first build one mixed support rows file containing only writable contact/source rows, then run `dataset-post-authoring-finalize --type support`. Flow Properties and Unit Groups are reference-only: refresh `specs/canonical-support/flow-properties-unit-groups.json` and rewrite converted references to existing canonical database rows before flow/process curation. The finalizer reruns cleanup, Rust tidas batch validation through `dataset-tidas-validate`, location audit, generic `tiangong-lca dataset save-draft --type auto --dry-run`, mutation manifest, and commit handoff on one exact writable support scope. The mutation manifest must show no source identity blockers and no account-local unitgroup/flowproperty rows before commit. When task write policy allows automated commit, a batch runner may commit it through the generated `dataset save-draft --type auto --commit` handoff, then must run post-write verify and closeout before dependent flow/process scopes.
 
-15. For process, flow, and lifecyclemodel rows, run the post-AI prewrite finalize command. It reruns cleanup, SDK validation, deterministic QA, `tiangong-lca dataset classification audit --type location` for schema-derived location-code fields against `tidas_locations_category.json`, post-authoring curation gate, type-specific dry-run (`process save-draft --dry-run`, `flow publish-version --dry-run`, or `lifecyclemodel save-draft --dry-run`), optional remote reference verification, and mutation manifest generation on one exact rows-file scope:
+15. For process, flow, and lifecyclemodel rows, run the post-AI prewrite finalize command. It reruns cleanup, Rust tidas validation, deterministic CLI QA, `tiangong-lca dataset classification audit --type location` for schema-derived location-code fields against `tidas_locations_category.json`, post-authoring curation gate, type-specific dry-run (`process save-draft --dry-run`, `flow publish-version --dry-run`, or `lifecyclemodel save-draft --dry-run`), optional remote reference verification, and mutation manifest generation on one exact rows-file scope:
 
 ```bash
 node scripts/foundry.mjs dataset-post-authoring-finalize \

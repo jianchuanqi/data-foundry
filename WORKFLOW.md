@@ -59,7 +59,7 @@ Body: {{ issue.description }}
 
 Choose one lane:
 
-- `external-dataset-curated-import`: packaged LCA data that can be converted through `tidas-tools` or the CLI.
+- `external-dataset-curated-import`: packaged LCA data supported by unified Rust `tidas import`.
 - `source-evidence-dataset-development`: PDF, Excel, screenshot, web page, markdown, image, or free text that must be authored into TIDAS candidate rows.
 
 ## Required Order
@@ -76,9 +76,9 @@ npx --yes @tiangong-lca/cli@latest dataset context-pack \
   --json
 ```
 
-4. For packaged imports, convert with `npx --yes @tiangong-lca/cli@latest dataset import-lca convert` or `tidas-tools`. Keep the generated `process-bundles/index.json`; this is the generic package-level process-closure manifest used to build or shard downstream entity queues. Bundle `manifest` and `tidas_dir` entries may be relative to the bundle index directory and must be resolved before scope execution.
+4. For packaged imports, convert with `node scripts/foundry.mjs dataset-tidas-import --input <source> --output <conversion-dir>`. The adapter delegates format detection/import/conversion to Rust `tidas`, accepts compatible 0.1.x binaries, and enforces the stable operation report and exit contract. Keep the generated `process-bundles/index.json`; this is the generic package-level process-closure manifest used to build or shard downstream entity queues. Bundle `manifest` and `tidas_dir` entries may be relative to the bundle index directory and must be resolved before scope execution.
 5. For source-document authoring, extract source evidence first and keep unresolved assumptions explicit. For document fulltext extraction, resolve the latest `document-granular-decompose` skill from `https://github.com/tiangong-ai/skills` with `npx --yes skills@latest use https://github.com/tiangong-ai/skills --skill document-granular-decompose --full-depth` before parsing the source file. For SCI paper or scientific journal evidence, resolve the latest `tiangong-kb-sci-search` skill from the same repository before retrieval. Then write `.foundry/workspaces/<task-id>/runtime-skills/runtime-skill-resolution.json` with the `npx skills` command, the `git ls-remote https://github.com/tiangong-ai/skills.git refs/heads/main` commit, skill name, timestamp, and evidence channel. Runtime-installed shared skills may live under `.agents/skills`, but their directories and `skills-lock.json` stay untracked unless the task explicitly chooses pinned reproducibility.
-6. Validate generated rows with `npx --yes @tiangong-lca/cli@latest dataset validate --type <type>`.
+6. Validate generated rows with `node scripts/foundry.mjs dataset-tidas-validate --rows-file <rows> --type <type> --out-dir <schema-dir>`.
 7. Run deterministic QA with `npx --yes @tiangong-lca/cli@latest qa <type>`.
 8. Build the entity-level import curation queue:
 

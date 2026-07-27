@@ -18,6 +18,7 @@ const nodeTest = (path, assertion) => ({
 
 const coreOwner = "scripts/commands/core.mjs";
 const taskOwner = "scripts/commands/tasks.mjs";
+const tidasOwner = "scripts/commands/tidas-workflow.mjs";
 const importOwner = (moduleName) => `scripts/lib/import-curation/${moduleName}.mjs`;
 
 function workflowEntryForCategory(category) {
@@ -161,6 +162,49 @@ export const commandMetadata = {
     inputs: ["task metadata options", "capability registry"],
     outputs: ["route plan JSON artifact"],
     keyTests: [goldenDiff, commandSmoke("route-task")],
+  }),
+  "tidas-handshake": metadata({
+    category: "public",
+    ownerModule: tidasOwner,
+    ownerExport: "createTidasWorkflowCommands().runTidasHandshake",
+    inputs: ["Rust tidas executable", "optional TIDAS_CONFIG"],
+    outputs: ["compatible 0.1.x binary and tidas.operation-report.v1 handshake"],
+    keyTests: [
+      nodeTest("test/unit/tidas-adapter.test.mjs", "0.1.x version and operation-report handshake"),
+    ],
+  }),
+  "dataset-tidas-import": metadata({
+    category: "cli-wrapper",
+    ownerModule: tidasOwner,
+    ownerExport: "createTidasWorkflowCommands().runTidasImport",
+    inputs: ["supported external LCA package", "Rust tidas executable"],
+    outputs: [
+      "tidas.operation-report.v1",
+      "tidas.import-execution-report.v1",
+      "validated TIDAS package and process-bundles",
+    ],
+    keyTests: [
+      nodeTest(
+        "test/unit/tidas-adapter.test.mjs",
+        "native import, stable exit mapping, cancellation, and cleanup",
+      ),
+    ],
+  }),
+  "dataset-tidas-validate": metadata({
+    category: "cli-wrapper",
+    ownerModule: tidasOwner,
+    ownerExport: "createTidasWorkflowCommands().runTidasPackageValidation",
+    inputs: ["TIDAS package or JSON/JSONL rows", "Rust tidas executable"],
+    outputs: [
+      "tidas validation report/events",
+      "Foundry validation compatibility report and valid/invalid rows",
+    ],
+    keyTests: [
+      nodeTest(
+        "test/unit/tidas-adapter.test.mjs",
+        "official batch validation report mapping and rollback cleanup",
+      ),
+    ],
   }),
   "tasks-list": metadata({
     category: "public",

@@ -1141,16 +1141,15 @@ export function createBundleSampleRowsCommands({
         .join(" ");
     const schemaValidateCommand = (type, inputFile = resolveRepoPath(rowFiles[type])) =>
       [
-        cliBin,
-        "dataset",
-        "validate",
-        "--input",
+        "node",
+        "scripts/foundry.mjs",
+        "dataset-tidas-validate",
+        "--rows-file",
         inputFile,
         "--type",
         type,
         "--out-dir",
         path.join(outDir, "validate", type),
-        "--json",
       ]
         .map(shellQuote)
         .join(" ");
@@ -1366,7 +1365,7 @@ export function createBundleSampleRowsCommands({
         required_multilang_english_before_write: true,
         preserve_source_language_variants: true,
         tidas_tools_conversion_boundary:
-          "tidas-tools may emit a generic conversion contact; Foundry replaces it during library import materialization.",
+          "The converter may emit a generic conversion contact; Foundry replaces it during library import materialization.",
         support_rows_before_process_rows: true,
         source_rows_only_true_sources: true,
         unitgroup_rows_reference_only: true,
@@ -1394,8 +1393,8 @@ export function createBundleSampleRowsCommands({
           "When process context contains a clear Original source with DOI that is more specific than the converted source reference, Foundry creates a process-context source row, rewrites referenceToDataSource to it, and omits unreferenced converted source rows from support writes.",
         canonical_source_reference_rewrite:
           "referenceToDataSetFormat and referenceToComplianceSystem are rewritten to public canonical source references before dry-run/write planning.",
-        sdk_validation_before_remote_write:
-          "Raw materialized rows are authoring inputs. Capture curation context first, close AI/deterministic gates, run dataset-curation-cleanup, then use save-draft dry-run/commit on cleanup output rows; each save-draft command validates with @tiangong-lca/tidas-sdk before writing.",
+        rust_tidas_validation_before_remote_write:
+          "Raw materialized rows are authoring inputs. Capture curation context first, close AI/deterministic gates, run dataset-curation-cleanup, then validate the cleanup output through dataset-tidas-validate before save-draft dry-run/commit. Remote CLI commands keep their own defensive validation.",
       },
       counts: {
         blockers: blockers.length,

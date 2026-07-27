@@ -12,6 +12,7 @@ export function testTmpRoot(name) {
   return path.join(repoRoot, "tmp", `${name}-${testRunId}`);
 }
 export const siblingCliRoot = path.resolve(repoRoot, "..", "tiangong-lca-cli");
+export const fakeTidasBin = path.join(repoRoot, "test", "fixtures", "fake-tidas.mjs");
 export const targetUserId = "00000000-0000-4000-8000-000000000001";
 export const fullContextKinds = [
   "schema",
@@ -78,6 +79,7 @@ export function runFoundry(args, options = {}) {
     encoding: "utf8",
     env: {
       ...process.env,
+      TIDAS_BIN: fakeTidasBin,
       ...(options.env ?? {}),
     },
     timeout: options.timeout,
