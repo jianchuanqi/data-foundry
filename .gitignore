@@ -1,6 +1,10 @@
 .env
 .env.*
 !.env.example
+# Local source evidence and workstation-generated metadata stay off Git.
+/data/
+.DS_Store
+~$*
 node_modules/
 dist/
 coverage/
@@ -36,3 +40,6 @@ inputs/source-packages/*
 *.local
 tasks/*
 !tasks/README.md
+!tasks/templates/
+tasks/templates/*
+!tasks/templates/*.md

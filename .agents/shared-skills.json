@@ -3,7 +3,7 @@
   "managed_with": "skills",
   "skill_root": ".agents/skills",
   "skills_cli_package": "skills@latest",
-  "default_agent": "*",
+  "default_agent": "universal",
   "local_project_skills": [
     {
       "name": "foundry-tidas-authoring",
@@ -25,16 +25,16 @@
     "update_project": "pnpm dlx skills@latest update --project --yes",
     "use_sci_runtime_skill": "pnpm dlx skills@latest use https://github.com/tiangong-ai/skills --skill tiangong-kb-sci-search --full-depth",
     "use_document_runtime_skill": "pnpm dlx skills@latest use https://github.com/tiangong-ai/skills --skill document-granular-decompose --full-depth",
-    "install_all_shared_runtime": "pnpm dlx skills@latest add ../tiangong-lca-skills --skill external-dataset-curated-import source-evidence-dataset-development dataset-rls-maintenance --agent '*' --yes --full-depth && pnpm dlx skills@latest add https://github.com/tiangong-ai/skills --skill tiangong-kb-sci-search document-granular-decompose --agent '*' --yes --full-depth"
+    "install_all_shared_runtime": "pnpm dlx skills@latest add ../tiangong-lca-skills --skill external-dataset-curated-import source-evidence-dataset-development dataset-rls-maintenance --agent universal --yes --full-depth && pnpm dlx skills@latest add https://github.com/tiangong-ai/skills --skill tiangong-kb-sci-search document-granular-decompose --agent universal --yes --full-depth"
   },
   "shared_runtime_skills": [
     {
       "name": "external-dataset-curated-import",
       "source": "../tiangong-lca-skills",
       "source_type": "local-git",
-      "agent": "*",
+      "agent": "universal",
       "full_depth": true,
-      "install_command": "pnpm dlx skills@latest add ../tiangong-lca-skills --skill external-dataset-curated-import --agent '*' --yes --full-depth",
+      "install_command": "pnpm dlx skills@latest add ../tiangong-lca-skills --skill external-dataset-curated-import --agent universal --yes --full-depth",
       "update_policy": "use current sibling checkout; update the sibling repo first when latest shared workflow instructions are needed",
       "required_for": ["external-dataset-curated-import"]
     },
@@ -42,9 +42,9 @@
       "name": "source-evidence-dataset-development",
       "source": "../tiangong-lca-skills",
       "source_type": "local-git",
-      "agent": "*",
+      "agent": "universal",
       "full_depth": true,
-      "install_command": "pnpm dlx skills@latest add ../tiangong-lca-skills --skill source-evidence-dataset-development --agent '*' --yes --full-depth",
+      "install_command": "pnpm dlx skills@latest add ../tiangong-lca-skills --skill source-evidence-dataset-development --agent universal --yes --full-depth",
       "update_policy": "use current sibling checkout; update the sibling repo first when latest shared workflow instructions are needed",
       "required_for": ["source-evidence-dataset-development"]
     },
@@ -52,9 +52,9 @@
       "name": "dataset-rls-maintenance",
       "source": "../tiangong-lca-skills",
       "source_type": "local-git",
-      "agent": "*",
+      "agent": "universal",
       "full_depth": true,
-      "install_command": "pnpm dlx skills@latest add ../tiangong-lca-skills --skill dataset-rls-maintenance --agent '*' --yes --full-depth",
+      "install_command": "pnpm dlx skills@latest add ../tiangong-lca-skills --skill dataset-rls-maintenance --agent universal --yes --full-depth",
       "update_policy": "use current sibling checkout; update the sibling repo first when latest shared workflow instructions are needed",
       "required_for": ["bad-import-cleanup", "redo-import"]
     },
@@ -63,9 +63,9 @@
       "source": "https://github.com/tiangong-ai/skills",
       "source_type": "github",
       "source_ref": "refs/heads/main",
-      "agent": "*",
+      "agent": "universal",
       "full_depth": true,
-      "install_command": "pnpm dlx skills@latest add https://github.com/tiangong-ai/skills --skill document-granular-decompose --agent '*' --yes --full-depth",
+      "install_command": "pnpm dlx skills@latest add https://github.com/tiangong-ai/skills --skill document-granular-decompose --agent universal --yes --full-depth",
       "use_command": "pnpm dlx skills@latest use https://github.com/tiangong-ai/skills --skill document-granular-decompose --full-depth",
       "update_policy": "floating latest from upstream main before source-document fulltext extraction",
       "evidence_channel": "document-fulltext",
@@ -77,9 +77,9 @@
       "source": "https://github.com/tiangong-ai/skills",
       "source_type": "github",
       "source_ref": "refs/heads/main",
-      "agent": "*",
+      "agent": "universal",
       "full_depth": true,
-      "install_command": "pnpm dlx skills@latest add https://github.com/tiangong-ai/skills --skill tiangong-kb-sci-search --agent '*' --yes --full-depth",
+      "install_command": "pnpm dlx skills@latest add https://github.com/tiangong-ai/skills --skill tiangong-kb-sci-search --agent universal --yes --full-depth",
       "use_command": "pnpm dlx skills@latest use https://github.com/tiangong-ai/skills --skill tiangong-kb-sci-search --full-depth",
       "update_policy": "floating latest from upstream main before source-evidence SCI retrieval",
       "evidence_channel": "sci",

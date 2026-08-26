@@ -104,10 +104,12 @@ Install only Tiangong AI runtime skills into the local checkout:
 ```bash
 pnpm dlx skills@latest add https://github.com/tiangong-ai/skills \
   --skill tiangong-kb-sci-search document-granular-decompose \
-  --agent '*' \
+  --agent universal \
   --yes \
   --full-depth
 ```
+
+Use the `universal` target for persistent project installs. A wildcard target installs agent-specific compatibility copies outside `.agents/skills`, which violates Foundry's single project-visible skill-root contract.
 
 Confirm the latest upstream ref when a task needs an audit trail:
 
@@ -150,7 +152,7 @@ Minimum fields:
   "source_ref": "refs/heads/main",
   "resolved_commit": "<git-ls-remote-sha>",
   "skill_name": "document-granular-decompose",
-  "install_command": "pnpm dlx skills@latest add https://github.com/tiangong-ai/skills --skill document-granular-decompose --agent '*' --yes --full-depth",
+  "install_command": "pnpm dlx skills@latest add https://github.com/tiangong-ai/skills --skill document-granular-decompose --agent universal --yes --full-depth",
   "use_command": "pnpm dlx skills@latest use https://github.com/tiangong-ai/skills --skill document-granular-decompose --full-depth",
   "evidence_channel": "document-fulltext",
   "local_install_path": ".agents/skills/document-granular-decompose",

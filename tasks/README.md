@@ -25,6 +25,8 @@ Use `external-dataset-curated-import` for zipped or directory-based LCA packages
 
 Use `source-evidence-dataset-development` for PDF, Excel, web exports, screenshots, or free text that must be authored into TIDAS candidate rows.
 
+Use `templates/data-package-to-tidas-activity-data.md` when the user uploads one enterprise `.xlsx` workbook whose BoM, energy, transport, and waste records need analysis, decomposition, eligibility triage, functional-unit scaling, evidence-backed build plans, and human-review closure. The workbook is the only user-supplied input; manifests and evidence artifacts are generated inside the ignored task workspace.
+
 Set `profile` explicitly in task frontmatter. `bafu` requires full-context AI semantic completion for flow, process, and lifecyclemodel data; generic tasks do not get that waiver unless their closeout profile requires it.
 
 ## Routing

@@ -1,7 +1,7 @@
 {
   "$schema": "../specs/schemas/file-location-registry.schema.json",
   "schema_version": 1,
-  "updated_at_utc": "2026-08-25T00:00:00Z",
+  "updated_at_utc": "2026-08-26T14:00:00Z",
   "policy_doc": "docs/file-organization.md",
   "entries": [
     {
@@ -319,6 +319,18 @@
       "sensitivity": "non-sensitive schema; no credentials or private payloads",
       "tracked": true,
       "notes": "Machine-readable request, candidate index, audited classification, conversion event, report, and manifest shapes for topology convergence."
+    },
+    {
+      "id": "data-package-to-tidas-activity-data-template",
+      "status": "active",
+      "classification": "source-evidence-task-template",
+      "current_path": "tasks/templates/data-package-to-tidas-activity-data.md",
+      "previous_paths": [],
+      "owner": "tiangong-lca-data-foundry",
+      "referenced_by": ["tasks/README.md", "test/unit/data-package-template-contract.test.mts"],
+      "sensitivity": "non-sensitive task and methodology contract; no credentials or private payloads",
+      "tracked": true,
+      "notes": "Routes one user-uploaded enterprise XLSX through workbook analysis, semantic decomposition, owner build plans, fail-closed review/allocation policy, and the current Foundry gate/handoff lifecycle."
     },
     {
       "id": "uslci-source-package",

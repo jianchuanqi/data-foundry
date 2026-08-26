@@ -9,11 +9,14 @@ interface SkillEntry {
   name: string;
   source: string;
   source_type: string;
+  agent?: string;
   install_command: string;
   use_command: string;
 }
 
 interface SharedSkillsConfig {
+  default_agent: string;
+  package_commands: Record<string, string>;
   local_project_skills: SkillEntry[];
   shared_runtime_skills: SkillEntry[];
 }
@@ -59,4 +62,22 @@ test("document-granular-decompose is a runtime Tiangong AI skill, not a tracked 
     /document-granular-decompose/,
   );
   assert.match(gitignore, /\.agents\/skills\/document-granular-decompose\//);
+});
+
+test("persistent runtime skills install only into the universal project skill root", () => {
+  const sharedSkills = readJson<SharedSkillsConfig>(".agents/shared-skills.json");
+  const packageJson = readJson<PackageConfig>("package.json");
+  const installScript = packageJson.scripts["skills:install:shared"];
+
+  assert.equal(sharedSkills.default_agent, "universal");
+  assert.match(sharedSkills.package_commands.install_all_shared_runtime, /--agent universal/u);
+  assert.doesNotMatch(sharedSkills.package_commands.install_all_shared_runtime, /--agent '\*'/u);
+  assert.match(installScript, /--agent universal/u);
+  assert.doesNotMatch(installScript, /--agent '\*'/u);
+
+  for (const skill of sharedSkills.shared_runtime_skills) {
+    assert.equal(skill.agent, "universal", skill.name);
+    assert.match(skill.install_command, /--agent universal/u, skill.name);
+    assert.doesNotMatch(skill.install_command, /--agent '\*'/u, skill.name);
+  }
 });

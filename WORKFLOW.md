@@ -525,7 +525,7 @@ Cleanup validates every targeted `common:timeStamp` / `common:dateOfLastRevision
 
 Production case TDD is deliberately separate from the numbered import lane and ordinary `pnpm test`. `pnpm case:production:contact-draft` may use every capability granted to the designated test account only within that account's isolated, unreviewed, unpublished data. It may read public production data for search/readback quality, but it must not mutate public, foreign, or shared rows and must not invoke review or publish transitions. The case requires POSIX private storage, an owner-private env file, a repository-local git-ignored per-run output with no symlink parent, a fresh intent-bound identity receipt before production reads, and another before its single new contact owner-draft mutation. Windows fails closed until user-exclusive ACL verification exists. A missing/malformed/stale receipt, nonzero child exit, secret-bearing artifact, runtime/artifact hash drift, foreign accepted difference, ambiguous mutation, or non-unique readback stops the case without an automatic write retry.
 
-Rows remain source-language before import. Bilingual completion is a separate post-import task only when requested.
+Write-ready rows preserve every source-language variant and include evidence-backed `en` values for every TIDAS-required multilingual field. A later bilingual-completion task may add optional languages, but it never substitutes for the required English write gate.
 
 ## Incremental Release Lane
 

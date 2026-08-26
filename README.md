@@ -459,7 +459,7 @@ Persistent local installs are optional operator state:
 ```bash
 pnpm dlx skills@latest add https://github.com/tiangong-ai/skills \
   --skill tiangong-kb-sci-search document-granular-decompose \
-  --agent '*' \
+  --agent universal \
   --yes \
   --full-depth
 pnpm skills:update
